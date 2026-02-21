@@ -69,14 +69,16 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/users/ban',     [\App\Http\Controllers\AdminController::class, 'banUser']);
     Route::get('/stats',          [\App\Http\Controllers\AdminController::class, 'stats']);
     Route::get('/logs',           [\App\Http\Controllers\AdminController::class, 'logs']);
+});
 
-    // Temporary Manual Test Route for Phase 2
+// Temporary Manual Test Route for Phase 2 (Moved outside admin for easier access)
+Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::get('/test-evomi', function() {
-        $evomi = app(\App\Services\EvomiService::class);
         return [
-            'step_1_create' => 'Call setup endpoint to test',
-            'step_2_usage' => 'Call status endpoint to test',
-            'api_key_configured' => config('services.evomi.key') !== 'your_reseller_api_key_here'
+            'step_1_setup' => 'Visit devwithguru.site/api/subusers/setup (POST) to link account',
+            'step_2_status' => 'Visit devwithguru.site/api/subusers/status (GET) to see usage',
+            'api_key_configured' => config('services.evomi.key') !== 'your_reseller_api_key_here',
+            'user' => auth()->user()->only(['id', 'email', 'evomi_username'])
         ];
     });
 });
