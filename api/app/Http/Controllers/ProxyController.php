@@ -44,9 +44,15 @@ class ProxyController extends Controller
                 throw new \Exception('Insufficient balance detected during transaction.');
             }
 
-            // Call Evomi API
-            // Note: For MVP, we use the user's email as unique subuser identifier
-            $evomiResult = $this->evomi->allocateBalance($user->email, $request->quantity * 1024, $product->type);
+            // Ensure user has an Evomi subuser setup
+            if (!$user->evomi_username) {
+                throw new \Exception('Proxy account not initialized. Please go to settings/profile to link your account.');
+            }
+
+            // Call Evomi API using standardized bandwidth allocation
+            // Note: $request->quantity is bandwidth in GB or count? 
+            // The product usually defines this. Assuming 1 unit = 1 GB (1024 MB)
+            $evomiResult = $this->evomi->allocateBandwidth($user->evomi_username, $request->quantity * 1024, $product->type);
 
             if (!$evomiResult) {
                 throw new \Exception('Failed to communicate with proxy provider.');
@@ -79,8 +85,8 @@ class ProxyController extends Controller
                     'order_id' => $order->id,
                     'host' => 'gate.evomi.com',
                     'port' => '1000',
-                    'username' => $user->email,
-                    'password' => 'secret_pass_' . str_random(6),
+                    'username' => $user->evomi_username,
+                    'password' => 'secret_pass_' . Str::random(6),
                 ]);
                 $proxies[] = $proxy;
             }

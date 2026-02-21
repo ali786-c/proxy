@@ -25,6 +25,8 @@ class User extends Authenticatable
         'balance',
         'role',
         'referral_code',
+        'evomi_username',
+        'evomi_subuser_id',
     ];
 
     /**

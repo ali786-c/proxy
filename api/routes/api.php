@@ -30,6 +30,10 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::post('/proxies/generate', [\App\Http\Controllers\ProxyController::class, 'generate']);
     Route::get('/proxies',           [\App\Http\Controllers\ProxyController::class, 'list']);
 
+    // Subuser Routes
+    Route::post('/subusers/setup',  [\App\Http\Controllers\SubuserController::class, 'setup']);
+    Route::get('/subusers/status', [\App\Http\Controllers\SubuserController::class, 'status']);
+
     // Billing Routes
     Route::post('/billing/checkout', [\App\Http\Controllers\BillingController::class, 'createCheckout']);
     Route::get('/invoices',          [\App\Http\Controllers\BillingController::class, 'invoices']);
@@ -65,4 +69,14 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/users/ban',     [\App\Http\Controllers\AdminController::class, 'banUser']);
     Route::get('/stats',          [\App\Http\Controllers\AdminController::class, 'stats']);
     Route::get('/logs',           [\App\Http\Controllers\AdminController::class, 'logs']);
+
+    // Temporary Manual Test Route for Phase 2
+    Route::get('/test-evomi', function() {
+        $evomi = app(\App\Services\EvomiService::class);
+        return [
+            'step_1_create' => 'Call setup endpoint to test',
+            'step_2_usage' => 'Call status endpoint to test',
+            'api_key_configured' => config('services.evomi.key') !== 'your_reseller_api_key_here'
+        ];
+    });
 });

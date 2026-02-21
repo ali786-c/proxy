@@ -107,6 +107,34 @@ export function useGenerateProxy() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["subuser-status"] });
+    },
+  });
+}
+
+// ── Subuser Hooks ─────────────────────────────
+
+export function useSubuserStatus() {
+  return useQuery({
+    queryKey: ["subuser-status"],
+    queryFn: async () => {
+      const { data } = await api.get("/subusers/status");
+      return data;
+    },
+    staleTime: 1000 * 60 * 5, // 5 min cache on frontend
+  });
+}
+
+export function useSetupSubuser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post("/subusers/setup");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["subuser-status"] });
     },
   });
 }

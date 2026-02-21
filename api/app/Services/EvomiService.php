@@ -13,10 +13,13 @@ class EvomiService
     public function __construct()
     {
         $this->apiKey = config('services.evomi.key');
+        // Standardize Base URL
+        $this->baseUrl = 'https://reseller.evomi.com/v2';
     }
 
     /**
      * Create a subuser in Evomi.
+     * Returns the API response or false on failure.
      */
     public function createSubUser($username, $email)
     {
@@ -33,32 +36,72 @@ class EvomiService
                 return $response->json();
             }
 
-            Log::error('Evomi API Fail: Create Subuser', ['response' => $response->body()]);
+            Log::error('Evomi API Fail: Create Subuser', ['status' => $response->status(), 'response' => $response->body()]);
             return false;
         } catch (\Exception $e) {
-            Log::error('Evomi API Exception: ' . $e->getMessage());
+            Log::error('Evomi API Exception (CreateSubuser): ' . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * Allocate Residential Proxy balance to a subuser.
+     * Allocate Bandwidth to a subuser.
+     * $type: 'rp' (Residential), 'mp' (Mobile), 'isp' (ISP), 'dc' (Datacenter)
      */
-    public function allocateBalance($username, $balanceMb, $type = 'rp')
+    public function allocateBandwidth($username, $balanceMb, $type = 'rp')
     {
-        $endpoint = ($type === 'rp') ? 'give_rp_balance' : 'give_mp_balance';
+        // Map types to endpoints
+        $map = [
+            'rp'  => 'give_rp_balance',
+            'mp'  => 'give_mp_balance',
+            'isp' => 'give_isp_balance',
+            'dc'  => 'give_dc_balance',
+        ];
+
+        $endpoint = $map[$type] ?? 'give_rp_balance';
 
         try {
             $response = Http::withHeaders([
                 'X-API-KEY' => $this->apiKey,
+                'Accept' => 'application/json',
             ])->post("{$this->baseUrl}/reseller/sub_users/{$endpoint}", [
                 'username' => $username,
                 'balance' => $balanceMb,
             ]);
 
-            return $response->successful();
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::error("Evomi API Fail: Allocate {$type} Balance", ['status' => $response->status(), 'response' => $response->body()]);
+            return false;
         } catch (\Exception $e) {
-            Log::error('Evomi Balance Allocation Exception: ' . $e->getMessage());
+            Log::error("Evomi API Exception (Allocate {$type}): " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Fetch subuser usage and balance data.
+     */
+    public function getSubuserData($username)
+    {
+        try {
+            $response = Http::withHeaders([
+                'X-API-KEY' => $this->apiKey,
+                'Accept' => 'application/json',
+            ])->get("{$this->baseUrl}/reseller/sub_users/sub_user_data", [
+                'username' => $username,
+            ]);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::error('Evomi API Fail: Fetch Subuser Data', ['status' => $response->status(), 'response' => $response->body()]);
+            return false;
+        } catch (\Exception $e) {
+            Log::error('Evomi API Exception (GetSubuserData): ' . $e->getMessage());
             return false;
         }
     }
