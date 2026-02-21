@@ -6,18 +6,10 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import api from "@/lib/api";
+import { authApi, type User, type LoginInput, type SignupInput } from "@/lib/api/auth";
+import { tokenStorage } from "@/lib/api/client";
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: "client" | "admin";
-  balance: number;
-  referral_code: string;
-}
-
-export type UserRole = User["role"];
+export type { User, UserRole } from "@/lib/api/auth";
 
 interface AuthState {
   user: User | null;
@@ -26,8 +18,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (data: { email: string; password: string }) => Promise<void>;
-  signup: (data: { name: string; email: string; password: string }) => Promise<void>;
+  login: (data: LoginInput) => Promise<void>;
+  signup: (data: SignupInput) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   isAuthenticated: boolean;
@@ -38,61 +30,62 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
-    isLoading: true,
+    isLoading: true,   // start true — we check localStorage on mount
     error: null,
   });
 
+  // ── On mount: restore session from localStorage token ──
   const loadUser = useCallback(async () => {
-    const token = localStorage.getItem("auth_token");
+    const token = tokenStorage.get();
     if (!token) {
       setState({ user: null, isLoading: false, error: null });
       return;
     }
-
     try {
-      const { data } = await api.get("/me");
-      setState({ user: data, isLoading: false, error: null });
-    } catch (err) {
-      localStorage.removeItem("auth_token");
+      const user = await authApi.me();
+      setState({ user, isLoading: false, error: null });
+    } catch {
+      tokenStorage.clear();
       setState({ user: null, isLoading: false, error: null });
     }
   }, []);
 
-  useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+  useEffect(() => { loadUser(); }, [loadUser]);
 
-  const login = useCallback(async (data: { email: string; password: string }) => {
+  // ── Login ─────────────────────────────────────────────
+  const login = useCallback(async (data: LoginInput) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
-      const response = await api.post("/login", data);
-      localStorage.setItem("auth_token", response.data.access_token);
-      setState({ user: response.data.user, isLoading: false, error: null });
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Login failed";
+      const { user, token } = await authApi.login(data);
+      tokenStorage.set(token);
+      setState({ user, isLoading: false, error: null });
+    } catch (err: any) {
+      const message = err?.message ?? "Login failed. Check your credentials.";
       setState((s) => ({ ...s, isLoading: false, error: message }));
-      throw error;
+      throw err;
     }
   }, []);
 
-  const signup = useCallback(async (data: { name: string; email: string; password: string }) => {
+  // ── Signup ────────────────────────────────────────────
+  const signup = useCallback(async (data: SignupInput) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
-      const response = await api.post("/register", data);
-      localStorage.setItem("auth_token", response.data.access_token);
-      setState({ user: response.data.user, isLoading: false, error: null });
-    } catch (error: any) {
-      const message = error.response?.data?.message || "Registration failed";
+      const { user, token } = await authApi.signup(data);
+      tokenStorage.set(token);
+      setState({ user, isLoading: false, error: null });
+    } catch (err: any) {
+      const message = err?.message ?? "Registration failed.";
       setState((s) => ({ ...s, isLoading: false, error: message }));
-      throw error;
+      throw err;
     }
   }, []);
 
+  // ── Logout ────────────────────────────────────────────
   const logout = useCallback(async () => {
     try {
-      await api.post("/logout");
+      await authApi.logout();
     } finally {
-      localStorage.removeItem("auth_token");
+      tokenStorage.clear();
       setState({ user: null, isLoading: false, error: null });
     }
   }, []);
