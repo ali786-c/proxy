@@ -1,0 +1,23 @@
+# ── Documentation & agent files (do NOT push) ──
+CHANGELOG.md
+.agent/
+
+# ── Laravel (api/) ──
+api/.env
+api/node_modules/
+api/vendor/
+api/storage/logs/*.log
+api/storage/framework/cache/
+api/storage/framework/sessions/
+api/storage/framework/views/
+api/bootstrap/cache/*.php
+api/storage/installed.lock
+
+# ── Node / Frontend ──
+node_modules/
+
+# ── OS / IDE ──
+.DS_Store
+Thumbs.db
+*.suo
+.vscode/
