@@ -27,13 +27,8 @@ export default function AdminPermissions() {
 
   const togglePerm = useMutation({
     mutationFn: async ({ role, permissionId, enabled }: { role: "admin" | "client"; permissionId: string; enabled: boolean }) => {
-      if (enabled) {
-        const { error } = await supabase.from("role_permissions").insert({ role, permission_id: permissionId });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("role_permissions").delete().eq("role", role).eq("permission_id", permissionId);
-        if (error) throw error;
-      }
+      // Mocked for migration
+      console.log("Mock toggle permission", { role, permissionId, enabled });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["role-permissions"] });

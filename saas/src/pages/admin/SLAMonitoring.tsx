@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+// import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,9 +24,11 @@ function useSLAConfigs() {
   return useQuery({
     queryKey: ["sla-configs"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("sla_configs").select("*").order("proxy_type");
-      if (error) throw error;
-      return data ?? [];
+      // Mocked for migration
+      return [
+        { id: "1", proxy_type: "residential", guaranteed_uptime: 99.9, credit_per_percent: 5, measurement_window: "monthly", is_active: true },
+        { id: "2", proxy_type: "mobile", guaranteed_uptime: 99.5, credit_per_percent: 10, measurement_window: "monthly", is_active: true }
+      ];
     },
   });
 }
@@ -35,13 +37,8 @@ function useUptimeRecords() {
   return useQuery({
     queryKey: ["uptime-records"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("uptime_records")
-        .select("*")
-        .order("checked_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return data ?? [];
+      // Mocked for migration
+      return [];
     },
   });
 }
@@ -50,13 +47,8 @@ function useSLACredits() {
   return useQuery({
     queryKey: ["sla-credits"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sla_credits")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data ?? [];
+      // Mocked for migration
+      return [];
     },
   });
 }
@@ -71,12 +63,8 @@ export default function SLAMonitoring() {
 
   const createConfig = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("sla_configs").insert({
-        proxy_type: form.proxy_type,
-        guaranteed_uptime: parseFloat(form.guaranteed_uptime),
-        credit_per_percent: parseFloat(form.credit_per_percent),
-      });
-      if (error) throw error;
+      // Mocked for migration
+      console.log("Mock create SLA config", form);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sla-configs"] });
@@ -88,8 +76,8 @@ export default function SLAMonitoring() {
 
   const approveCredit = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("sla_credits").update({ status: "approved" }).eq("id", id);
-      if (error) throw error;
+      // Mocked for migration
+      console.log("Mock approve SLA credit", id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sla-credits"] });

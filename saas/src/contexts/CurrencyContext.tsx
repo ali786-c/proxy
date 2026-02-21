@@ -1,6 +1,4 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Currency {
   code: string;
@@ -18,50 +16,22 @@ interface CurrencyContextValue {
 }
 
 const DEFAULT_CURRENCY: Currency = { code: "USD", name: "US Dollar", symbol: "$", exchange_rate: 1 };
+const SUPPORTED_CURRENCIES: Currency[] = [
+  DEFAULT_CURRENCY,
+  { code: "EUR", name: "Euro", symbol: "€", exchange_rate: 0.92 },
+  { code: "GBP", name: "British Pound", symbol: "£", exchange_rate: 0.79 },
+  { code: "PKR", name: "Pakistani Rupee", symbol: "Rs", exchange_rate: 280 },
+];
 
 const CurrencyContext = createContext<CurrencyContextValue | null>(null);
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [currencyCode, setCurrencyCode] = useState("USD");
-
-  const { data: currencies } = useQuery({
-    queryKey: ["supported-currencies"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("supported_currencies")
-        .select("code, name, symbol, exchange_rate")
-        .eq("is_active", true)
-        .order("code");
-      if (error) throw error;
-      return (data ?? []).map(c => ({ ...c, exchange_rate: Number(c.exchange_rate) }));
-    },
-    staleTime: 1000 * 60 * 30, // 30 min cache
+  const [currencyCode, setCurrencyCode] = useState(() => {
+    return localStorage.getItem("preferred_currency") || "USD";
   });
 
-  // Auto-detect currency by region on first load
-  useEffect(() => {
-    if (!currencies?.length) return;
-    const saved = localStorage.getItem("preferred_currency");
-    if (saved && currencies.find(c => c.code === saved)) {
-      setCurrencyCode(saved);
-      return;
-    }
-    // Try to detect from timezone / locale
-    try {
-      const locale = navigator.language;
-      const regionMatch = locale.match(/-([A-Z]{2})$/);
-      if (regionMatch) {
-        const region = regionMatch[1];
-        // Check auto_detect_regions from our list
-        const detected = currencies.find(c => c.code !== "USD") ?? currencies[0];
-        if (detected) setCurrencyCode(detected.code);
-      }
-    } catch {
-      // fallback to USD
-    }
-  }, [currencies]);
-
-  const currency = currencies?.find(c => c.code === currencyCode) ?? DEFAULT_CURRENCY;
+  const currencies = SUPPORTED_CURRENCIES;
+  const currency = currencies.find(c => c.code === currencyCode) ?? DEFAULT_CURRENCY;
 
   const handleSetCurrency = (code: string) => {
     setCurrencyCode(code);
@@ -71,11 +41,21 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   const convert = (usdAmount: number) => usdAmount * currency.exchange_rate;
   const formatPrice = (usdAmount: number) => {
     const converted = convert(usdAmount);
-    return `${currency.symbol}${converted.toFixed(2)}`;
+    // Use Intl.NumberFormat for better formatting
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.code,
+    }).format(converted);
   };
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrencyCode: handleSetCurrency, currencies: currencies ?? [DEFAULT_CURRENCY], convert, format: formatPrice }}>
+    <CurrencyContext.Provider value={{
+      currency,
+      setCurrencyCode: handleSetCurrency,
+      currencies,
+      convert,
+      format: formatPrice
+    }}>
       {children}
     </CurrencyContext.Provider>
   );
