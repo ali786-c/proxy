@@ -1,7 +1,13 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
+// Temporary Manual Test Route for Phase 2 (Publicly accessible for debugging)
+Route::get('/test-evomi', function() {
+    return [
+        'status' => 'API is reachable',
+        'api_key_configured' => config('services.evomi.key') !== 'your_reseller_api_key_here',
+        'time' => now()->toDateTimeString()
+    ];
+});
 
 // ─────────────────────────────────────────────
 // Auth Routes (prefix: /auth)
@@ -71,14 +77,5 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/logs',           [\App\Http\Controllers\AdminController::class, 'logs']);
 });
 
-// Temporary Manual Test Route for Phase 2 (Moved outside admin for easier access)
-Route::middleware(['auth:sanctum', 'banned'])->group(function () {
-    Route::get('/test-evomi', function() {
-        return [
-            'step_1_setup' => 'Visit devwithguru.site/api/subusers/setup (POST) to link account',
-            'step_2_status' => 'Visit devwithguru.site/api/subusers/status (GET) to see usage',
-            'api_key_configured' => config('services.evomi.key') !== 'your_reseller_api_key_here',
-            'user' => auth()->user()->only(['id', 'email', 'evomi_username'])
-        ];
-    });
-});
+// Public test route removed from bottom, moved to top.
+
