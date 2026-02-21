@@ -1,0 +1,17 @@
+{
+  "name": "UpgradeRPX - Premium Proxy Network",
+  "short_name": "UpgradeRPX",
+  "description": "Enterprise proxy management dashboard with residential, datacenter, and mobile proxies.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#3B82F6",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Exclude /api from React routing — let Laravel handle it
+  RewriteCond %{REQUEST_URI} ^/api [NC]
+  RewriteRule ^ - [L]
+
+  # Serve existing static files (assets/, sw.js, manifest.json, etc.) directly
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+
+  # Serve existing directories directly
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else goes through index.php
+  # (which checks installed.lock and serves React or redirects to wizard)
+  RewriteRule ^ index.php [L]
+</IfModule>
