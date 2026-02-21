@@ -4,10 +4,12 @@ import { api, MessageSchema } from "./client";
 // ── Schemas ──────────────────────────────────────────
 
 export const UserSchema = z.object({
-  id: z.string(),
+  id: z.string(),                                      // Laravel int → cast to string in AuthController
   email: z.string().email(),
   name: z.string(),
   role: z.enum(["client", "admin"]),
+  balance: z.number().default(0),
+  referral_code: z.string().nullable().optional(),
 });
 
 export type User = z.infer<typeof UserSchema>;
@@ -15,7 +17,7 @@ export type UserRole = User["role"];
 
 const AuthResponseSchema = z.object({
   user: UserSchema,
-  token: z.string().optional(), // present if not using HttpOnly cookies
+  token: z.string(),                                   // Laravel returns "token" key
 });
 
 // ── Validation schemas for forms ─────────────────────
