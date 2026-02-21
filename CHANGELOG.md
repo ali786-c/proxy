@@ -23,6 +23,17 @@ All changes are logged here in reverse chronological order (newest first).
   - Purged `supabase.from` calls from high-level contexts.
   - Migrated `CurrencyContext` to static data + `Intl.NumberFormat`.
 
+### Phase 2: Evomi API Integration (Subuser & Usage)
+- **Files:** `EvomiService.php`, `SubuserController.php`, `ProxyController.php`, `users` table migration.
+- **Goal:** Connect Laravel Backend to Evomi Reseller API for real proxy management.
+- **Major Changes:**
+  - **EvomiService:** Core wrapper for Evomi API (creation, bandwidth allocation, usage data).
+  - **Subuser Management:** Created `SubuserController` to link Laravel users to unique Evomi subuser identities.
+  - **Usage Tracking:** Implemented server-side caching (5 min) for subuser usage stats to optimize dashboard performance.
+  - **Database Migration:** Added `evomi_username` and `evomi_subuser_id` to `users` table.
+  - **Frontend Hooks:** Added `useSubuserStatus` and `useSetupSubuser` hooks to `use-backend.ts`.
+  - **Debug Route:** Added temporary public route `/api/test-evomi` for verification.
+
 ### Fix: Install Wizard — HTTP 500 on Install Now Button
 - **File:** `api/install.php` (complete rewrite)
 - **Problem:** Clicking "Install Now" caused HTTP 500 on cPanel
