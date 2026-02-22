@@ -181,7 +181,6 @@ function ApiKeysPanel() {
       const res = await createKey.mutateAsync(name.trim());
       setNewKeyResult(res.api_key);
       setName("");
-      setIsDialogOpen(false);
       toast({ title: "API Key Created", description: "Copy it now — it won't be shown again." });
     } catch (err: any) {
       toast({ title: "Error", description: "Failed to create API key.", variant: "destructive" });
