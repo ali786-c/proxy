@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Cache;
+use App\Services\EvomiService;
 
 class AuthController extends Controller
 {
@@ -123,23 +125,46 @@ class AuthController extends Controller
     public function stats(Request $request)
     {
         $user = $request->user();
+        $cacheKey = "user_stats_{$user->id}";
 
-        $activeOrders = Order::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->count();
+        return Cache::remember($cacheKey, 300, function () use ($user) {
+            $activeOrders = Order::where('user_id', $user->id)
+                ->where('status', 'active')
+                ->count();
 
-        $totalOrders = Order::where('user_id', $user->id)->count();
+            $totalOrders = Order::where('user_id', $user->id)->count();
 
-        $totalSpent = \App\Models\WalletTransaction::where('user_id', $user->id)
-            ->where('type', 'debit')
-            ->sum('amount');
+            $totalSpent = \App\Models\WalletTransaction::where('user_id', $user->id)
+                ->where('type', 'debit')
+                ->sum('amount');
 
-        return response()->json([
-            'balance'        => (float) $user->balance,
-            'active_proxies' => $activeOrders,
-            'total_orders'   => $totalOrders,
-            'total_spent'    => (float) $totalSpent,
-        ]);
+            // --- Bandwidth Stats from Evomi ---
+            $bandwidthTotal = 0;
+            $bandwidthUsed  = 0;
+
+            if ($user->evomi_username) {
+                $evomi = app(EvomiService::class);
+                $data  = $evomi->getSubuserData($user->evomi_username);
+                
+                if ($data && isset($data['data']['products'])) {
+                    // Evomi returns products as key => data object
+                    foreach ($data['data']['products'] as $type => $product) {
+                        $bandwidthTotal += (float) ($product['balance'] ?? 0);
+                        $bandwidthUsed  += (float) ($product['usage'] ?? 0);
+                    }
+                }
+            }
+
+            return [
+                'balance'          => (float) $user->balance,
+                'active_proxies'   => $activeOrders,
+                'total_orders'     => $totalOrders,
+                'total_spent'      => (float) $totalSpent,
+                'bandwidth_total'  => $bandwidthTotal,
+                'bandwidth_used'   => $bandwidthUsed,
+                'bandwidth_unit'   => 'MB',
+            ];
+        });
     }
 
     /**

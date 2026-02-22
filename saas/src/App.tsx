@@ -56,6 +56,7 @@ const Usage = lazy(() => import("./pages/app/Usage"));
 const AppSettings = lazy(() => import("./pages/app/Settings"));
 const Billing = lazy(() => import("./pages/app/Billing"));
 const Invoices = lazy(() => import("./pages/app/Invoices"));
+const ProxyHistory = lazy(() => import("./pages/app/ProxyHistory"));
 const Referral = lazy(() => import("./pages/app/Referral"));
 const FAQ = lazy(() => import("./pages/app/FAQ"));
 const ScraperAPI = lazy(() => import("./pages/app/ScraperAPI"));
@@ -96,111 +97,112 @@ const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-      <I18nProvider>
-      <CurrencyProvider>
-      <PaymentConfigProvider>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={<Loading />}>
-              <Routes>
-                {/* Public marketing pages */}
-                <Route element={<PublicLayout />}>
-                  <Route path="/" element={<Landing />} />
-                  <Route path="/pricing" element={<Pricing />} />
-                  <Route path="/docs" element={<Docs />} />
-                  <Route path="/docs/scraping-browser" element={<ScrapingBrowserDocs />} />
-                  <Route path="/blog" element={<Blog />} />
-                  <Route path="/blog/:slug" element={<BlogPost />} />
-                  <Route path="/residential-proxies" element={<ResidentialProxies />} />
-                  <Route path="/datacenter-proxies" element={<DatacenterProxies />} />
-                  <Route path="/isp-proxies" element={<ISPProxies />} />
-                  <Route path="/mobile-proxies" element={<MobileProxies />} />
-                  <Route path="/socks5-proxies" element={<Socks5Proxies />} />
-                  <Route path="/proxy-api" element={<ProxyAPI />} />
-                  <Route path="/locations" element={<Locations />} />
-                  <Route path="/use-cases" element={<UseCases />} />
-                  <Route path="/privacy" element={<Privacy />} />
-                  <Route path="/terms" element={<Terms />} />
-                  <Route path="/cookies" element={<CookiePolicy />} />
-                  <Route path="/ethics" element={<Ethics />} />
-                  <Route path="/status" element={<Status />} />
-                </Route>
+        <I18nProvider>
+          <CurrencyProvider>
+            <PaymentConfigProvider>
+              <AuthProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <BrowserRouter>
+                    <Suspense fallback={<Loading />}>
+                      <Routes>
+                        {/* Public marketing pages */}
+                        <Route element={<PublicLayout />}>
+                          <Route path="/" element={<Landing />} />
+                          <Route path="/pricing" element={<Pricing />} />
+                          <Route path="/docs" element={<Docs />} />
+                          <Route path="/docs/scraping-browser" element={<ScrapingBrowserDocs />} />
+                          <Route path="/blog" element={<Blog />} />
+                          <Route path="/blog/:slug" element={<BlogPost />} />
+                          <Route path="/residential-proxies" element={<ResidentialProxies />} />
+                          <Route path="/datacenter-proxies" element={<DatacenterProxies />} />
+                          <Route path="/isp-proxies" element={<ISPProxies />} />
+                          <Route path="/mobile-proxies" element={<MobileProxies />} />
+                          <Route path="/socks5-proxies" element={<Socks5Proxies />} />
+                          <Route path="/proxy-api" element={<ProxyAPI />} />
+                          <Route path="/locations" element={<Locations />} />
+                          <Route path="/use-cases" element={<UseCases />} />
+                          <Route path="/privacy" element={<Privacy />} />
+                          <Route path="/terms" element={<Terms />} />
+                          <Route path="/cookies" element={<CookiePolicy />} />
+                          <Route path="/ethics" element={<Ethics />} />
+                          <Route path="/status" element={<Status />} />
+                        </Route>
 
-                {/* Auth pages */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/install" element={<Install />} />
+                        {/* Auth pages */}
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/signup" element={<Signup />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                        <Route path="/reset-password" element={<ResetPassword />} />
+                        <Route path="/install" element={<Install />} />
 
-                {/* Client dashboard */}
-                <Route
-                  path="/app"
-                  element={
-                    <RequireAuth>
-                      <AppShell />
-                    </RequireAuth>
-                  }
-                >
-                  <Route index element={<AppDashboard />} />
-                  <Route path="proxies" element={<Proxies />} />
-                  <Route path="usage" element={<Usage />} />
-                  <Route path="settings" element={<AppSettings />} />
-                  <Route path="billing" element={<Billing />} />
-                  <Route path="invoices" element={<Invoices />} />
-                  <Route path="referral" element={<Referral />} />
-                  <Route path="faq" element={<FAQ />} />
-                  <Route path="scraper-api" element={<ScraperAPI />} />
-                  <Route path="scraping-browser" element={<ScrapingBrowser />} />
-                  <Route path="support" element={<Support />} />
-                  <Route path="rate-limits" element={<RateLimits />} />
-                  <Route path="security" element={<Security />} />
-                  <Route path="organization" element={<AppOrganization />} />
-                  <Route path="custom-domains" element={<CustomDomains />} />
-                </Route>
+                        {/* Client dashboard */}
+                        <Route
+                          path="/app"
+                          element={
+                            <RequireAuth>
+                              <AppShell />
+                            </RequireAuth>
+                          }
+                        >
+                          <Route index element={<AppDashboard />} />
+                          <Route path="proxies" element={<Proxies />} />
+                          <Route path="proxy-history" element={<ProxyHistory />} />
+                          <Route path="usage" element={<Usage />} />
+                          <Route path="settings" element={<AppSettings />} />
+                          <Route path="billing" element={<Billing />} />
+                          <Route path="invoices" element={<Invoices />} />
+                          <Route path="referral" element={<Referral />} />
+                          <Route path="faq" element={<FAQ />} />
+                          <Route path="scraper-api" element={<ScraperAPI />} />
+                          <Route path="scraping-browser" element={<ScrapingBrowser />} />
+                          <Route path="support" element={<Support />} />
+                          <Route path="rate-limits" element={<RateLimits />} />
+                          <Route path="security" element={<Security />} />
+                          <Route path="organization" element={<AppOrganization />} />
+                          <Route path="custom-domains" element={<CustomDomains />} />
+                        </Route>
 
-                {/* Admin dashboard */}
-                <Route
-                  path="/admin"
-                  element={
-                    <RequireAuth>
-                      <RequireRole role="admin">
-                        <AppShell />
-                      </RequireRole>
-                    </RequireAuth>
-                  }
-                >
-                  <Route index element={<AdminDashboard />} />
-                  <Route path="users" element={<AdminUsers />} />
-                  <Route path="products" element={<AdminProducts />} />
-                  <Route path="audit" element={<AdminAudit />} />
-                  <Route path="blog" element={<AdminBlog />} />
-                  <Route path="alerts" element={<AdminAlerts />} />
-                  <Route path="payment-gateways" element={<AdminPaymentGateways />} />
-                  <Route path="topup-settings" element={<AdminTopUpSettings />} />
-                  <Route path="settings" element={<AdminSettings />} />
-                  <Route path="invoices" element={<AdminInvoices />} />
-                  <Route path="support" element={<AdminSupport />} />
-                  <Route path="coupons" element={<AdminCoupons />} />
-                  <Route path="permissions" element={<AdminPermissions />} />
-                  <Route path="resellers" element={<AdminResellers />} />
-                  <Route path="fraud-detection" element={<AdminFraudDetection />} />
-                  <Route path="sla-monitoring" element={<AdminSLAMonitoring />} />
-                  <Route path="currencies" element={<AdminCurrencies />} />
-                </Route>
+                        {/* Admin dashboard */}
+                        <Route
+                          path="/admin"
+                          element={
+                            <RequireAuth>
+                              <RequireRole role="admin">
+                                <AppShell />
+                              </RequireRole>
+                            </RequireAuth>
+                          }
+                        >
+                          <Route index element={<AdminDashboard />} />
+                          <Route path="users" element={<AdminUsers />} />
+                          <Route path="products" element={<AdminProducts />} />
+                          <Route path="audit" element={<AdminAudit />} />
+                          <Route path="blog" element={<AdminBlog />} />
+                          <Route path="alerts" element={<AdminAlerts />} />
+                          <Route path="payment-gateways" element={<AdminPaymentGateways />} />
+                          <Route path="topup-settings" element={<AdminTopUpSettings />} />
+                          <Route path="settings" element={<AdminSettings />} />
+                          <Route path="invoices" element={<AdminInvoices />} />
+                          <Route path="support" element={<AdminSupport />} />
+                          <Route path="coupons" element={<AdminCoupons />} />
+                          <Route path="permissions" element={<AdminPermissions />} />
+                          <Route path="resellers" element={<AdminResellers />} />
+                          <Route path="fraud-detection" element={<AdminFraudDetection />} />
+                          <Route path="sla-monitoring" element={<AdminSLAMonitoring />} />
+                          <Route path="currencies" element={<AdminCurrencies />} />
+                        </Route>
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-      </PaymentConfigProvider>
-      </CurrencyProvider>
-      </I18nProvider>
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </Suspense>
+                  </BrowserRouter>
+                </TooltipProvider>
+              </AuthProvider>
+            </PaymentConfigProvider>
+          </CurrencyProvider>
+        </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </HelmetProvider>
