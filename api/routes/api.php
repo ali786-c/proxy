@@ -1,22 +1,57 @@
 <?php
 
-// Temporary Manual Test Route for Phase 2 (Publicly accessible for debugging)
+// ─── Debug Route ──────────────────────────────────────────────────────────
+// Comprehensive test of the entire proxy generation flow.
+Route::get('/debug-proxy', function() {
+    $evomi = app(\App\Services\EvomiService::class);
+
+    // 1. Check API key
+    $apiKey = config('services.evomi.key');
+
+    // 2. Get user state from DB
+    $user = \App\Models\User::where('email', 'aliyantarar@gmail.com')->first();
+
+    // 3. Test getSubuserData if username exists
+    $subuserData = null;
+    if ($user && $user->evomi_username) {
+        $subuserData = $evomi->getSubuserData($user->evomi_username);
+    }
+
+    // 4. Test getProxySettings
+    $proxySettings = $evomi->getProxySettings();
+
+    return response()->json([
+        'api_key_set'    => !empty($apiKey),
+        'api_key_prefix' => $apiKey ? substr($apiKey, 0, 8) . '...' : null,
+        'user' => $user ? [
+            'id'               => $user->id,
+            'email'            => $user->email,
+            'balance'          => $user->balance,
+            'evomi_username'   => $user->evomi_username,
+            'evomi_subuser_id' => $user->evomi_subuser_id,
+            'evomi_keys'       => $user->evomi_keys,
+        ] : 'user not found',
+        'subuser_data_from_evomi' => $subuserData,
+        'proxy_settings_ok'       => isset($proxySettings['data']) ? 'YES' : 'NO - ' . json_encode($proxySettings),
+    ]);
+});
+
+// Simple log tail
+Route::get('/debug-logs', function() {
+    $path  = storage_path('logs/laravel.log');
+    if (!file_exists($path)) return 'No log file found.';
+    $lines = file($path);
+    return implode('', array_slice($lines, -80));
+});
+
 Route::get('/test-evomi', function() {
     return [
-        'status' => 'API is reachable',
-        'api_key_configured' => !empty(config('services.evomi.key')),
-        'products_count' => \App\Models\Product::count(),
-        'products_list' => \App\Models\Product::all(['name', 'type']),
-        'time' => now()->toDateTimeString()
+        'status'       => 'API is reachable',
+        'products'     => \App\Models\Product::all(['name', 'type']),
+        'time'         => now()->toDateTimeString(),
     ];
 });
 
-Route::get('/debug-logs', function() {
-    $path = storage_path('logs/laravel.log');
-    if (!file_exists($path)) return "No log file found.";
-    $lines = file($path);
-    return array_slice($lines, -50);
-});
 
 // ─────────────────────────────────────────────
 // Auth Routes (prefix: /auth)

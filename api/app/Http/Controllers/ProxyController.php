@@ -23,125 +23,101 @@ class ProxyController extends Controller
     public function generate(Request $request)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|integer|min:1|max:100',
-            'country' => 'nullable|string|max:10',
+            'product_id'   => 'required|exists:products,id',
+            'quantity'     => 'required|integer|min:1|max:100',
+            'country'      => 'nullable|string|max:10',
             'session_type' => 'nullable|string|in:sticky,rotating',
         ]);
 
-        $user = $request->user();
-        $product = Product::find($request->product_id);
+        $user    = $request->user()->fresh();
+        $product = Product::findOrFail($request->product_id);
         $totalCost = $product->price * $request->quantity;
 
         if ($user->balance < $totalCost) {
-            return response()->json(['message' => 'Insufficient balance.'], 402);
+            return response()->json(['message' => 'Insufficient balance. Please top up your wallet.'], 402);
         }
 
         try {
-            return DB::transaction(function () use ($user, $product, $totalCost, $request) {
-                // Lock user row for update to prevent race conditions
-                $user = $user->fresh(); // Get latest
-                
-                // Re-check balance after lock
-                if ($user->balance < $totalCost) {
-                    throw new \Exception('Insufficient balance detected during transaction.');
-                }
+            // ── Step 1: Ensure subuser is initialized ──────────────────────
+            $subuserResult = $this->evomi->ensureSubuser($user);
 
-                // Ensure user has an Evomi subuser setup
-                if (!$user->evomi_username) {
-                    // Try to auto-setup if missing
-                    $subuserController = app(\App\Http\Controllers\SubuserController::class);
-                    $setupResponse = $subuserController->setup($request);
-                    
-                    if ($setupResponse->status() !== 200) {
-                        throw new \Exception('Failed to automatically initialize proxy account. Please contact support.');
-                    }
-                    
-                    $user = $user->fresh(); // Refresh user data after setup
-                }
+            if (!$subuserResult['success']) {
+                return response()->json(['message' => $subuserResult['error']], 503);
+            }
 
-                // Call Evomi API using standardized bandwidth allocation
-                $evomiResult = $this->evomi->allocateBandwidth($user->evomi_username, $request->quantity * 1024, $product->type);
+            $user    = $user->fresh(); // Refresh after potential update
+            $userKeys = $user->evomi_keys ?? [];
 
-                if (!$evomiResult) {
-                    throw new \Exception('Failed to communicate with proxy provider.');
-                }
+            // ── Step 2: Get the proxy key for this product type ────────────
+            $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
 
-                // Deduct Balance
+            if (!$proxyKey) {
+                Log::error('ProxyController: no proxy key found', [
+                    'user_id'      => $user->id,
+                    'product_type' => $product->type,
+                    'available_keys' => array_keys($userKeys),
+                ]);
+                return response()->json(['message' => "No proxy key found for type '{$product->type}'. Keys available: " . implode(', ', array_keys($userKeys))], 400);
+            }
+
+            // ── Step 3: Allocate bandwidth on Evomi side ───────────────────
+            $evomiResult = $this->evomi->allocateBandwidth($user->evomi_username, $request->quantity * 1024, $product->type);
+
+            if (!$evomiResult) {
+                return response()->json(['message' => 'Failed to allocate bandwidth on provider side. Check logs.'], 503);
+            }
+
+            // ── Step 4: Deduct balance + create order + save proxies ───────
+            return DB::transaction(function () use ($user, $product, $totalCost, $request, $proxyKey) {
+
                 $user->balance -= $totalCost;
                 $user->save();
 
-                // Log Transaction (Production safety)
                 WalletTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'debit',
-                    'amount' => $totalCost,
+                    'user_id'     => $user->id,
+                    'type'        => 'debit',
+                    'amount'      => $totalCost,
                     'description' => "Purchase: {$request->quantity}x {$product->name}",
                 ]);
 
-                // Create Order
                 $order = Order::create([
-                    'user_id' => $user->id,
+                    'user_id'    => $user->id,
                     'product_id' => $product->id,
-                    'status' => 'active',
-                    'expires_at' => now()->addDays(30), // Default 30 days
+                    'status'     => 'active',
+                    'expires_at' => now()->addDays(30),
                 ]);
 
-                // Construct Proxy URLs (Evomi Pattern)
+                $portMap = ['rp' => '1000', 'mp' => '2000', 'isp' => '3000', 'dc' => '3000'];
+                $port    = $portMap[$product->type] ?? '1000';
+
+                $country     = $request->country      ?? 'US';
+                $sessionType = $request->session_type ?? 'rotating';
+
                 $proxies = [];
-                
-                // Map product type to port
-                $portMap = [
-                    'rp'  => '1000',
-                    'mp'  => '2000',
-                    'isp' => '3000',
-                    'dc'  => '3000',
-                ];
-                $port = $portMap[$product->type] ?? '1000';
-
-                // Get the proxy key for the specific type (stored in evomi_keys JSON)
-                $userKeys = $user->evomi_keys ?? [];
-                
-                // If keys are empty, try to sync once from provider
-                if (empty($userKeys)) {
-                    $userKeys = $this->evomi->syncProxyKeys($user) ?: [];
-                }
-
-                $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null); // Fallback to residential key if specific missing
-
-                if (!$proxyKey) {
-                     throw new \Exception('Proxy key not found for this product type. Please try re-linking your account in settings.');
-                }
-
-                // Defaults for MVP
-                $country = $request->country ?? 'US';
-                $sessionType = $request->session_type ?? 'sticky'; // or 'rotating'
-
                 for ($i = 0; $i < $request->quantity; $i++) {
-                    // Evomi Password Pattern: {key}_country-{CODE}_session-{TYPE}
-                    $constructedPassword = "{$proxyKey}_country-{$country}_session-{$sessionType}";
-
-                    $proxy = Proxy::create([
+                    $password = "{$proxyKey}_country-{$country}_session-{$sessionType}";
+                    $proxy    = Proxy::create([
                         'order_id' => $order->id,
-                        'host' => 'gate.evomi.com',
-                        'port' => $port,
+                        'host'     => 'gate.evomi.com',
+                        'port'     => $port,
                         'username' => $user->evomi_username,
-                        'password' => $constructedPassword,
-                        'country' => $country,
+                        'password' => $password,
+                        'country'  => $country,
                     ]);
                     $proxies[] = $proxy;
                 }
 
                 return response()->json([
                     'message' => 'Proxies generated successfully.',
-                    'order' => $order,
+                    'order'   => $order,
                     'proxies' => $proxies,
-                    'balance' => $user->balance
+                    'balance' => $user->balance,
                 ]);
             });
+
         } catch (\Exception $e) {
-            Log::error('Proxy Generation Error: ' . $e->getMessage());
-            return response()->json(['message' => $e->getMessage()], 400);
+            Log::error('ProxyController Generate Error: ' . $e->getMessage());
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 
@@ -166,8 +142,8 @@ class ProxyController extends Controller
             return $this->evomi->getProxySettings();
         });
 
-        if (!$settings) {
-            return response()->json(['message' => 'Could not fetch settings from provider.'], 502);
+        if (!$settings || isset($settings['error'])) {
+            return response()->json(['message' => 'Could not fetch settings from provider.', 'detail' => $settings], 502);
         }
 
         return response()->json($settings);
