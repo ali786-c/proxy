@@ -25,6 +25,8 @@ class ProxyController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1|max:100',
+            'country' => 'nullable|string|max:10',
+            'session_type' => 'nullable|string|in:sticky,rotating',
         ]);
 
         $user = $request->user();
@@ -80,13 +82,39 @@ class ProxyController extends Controller
 
             // Construct Proxy URLs (Evomi Pattern)
             $proxies = [];
+            
+            // Map product type to port
+            $portMap = [
+                'rp'  => '1000',
+                'mp'  => '2000',
+                'isp' => '3000',
+                'dc'  => '3000',
+            ];
+            $port = $portMap[$product->type] ?? '1000';
+
+            // Get the proxy key for the specific type (stored in evomi_keys JSON)
+            $userKeys = $user->evomi_keys ?? [];
+            $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null); // Fallback to residential key if specific missing
+
+            if (!$proxyKey) {
+                 throw new \Exception('Proxy key not found for this product type. Please try re-linking your account in settings.');
+            }
+
+            // Defaults for MVP
+            $country = $request->country ?? 'US';
+            $sessionType = $request->session_type ?? 'sticky'; // or 'rotating'
+
             for ($i = 0; $i < $request->quantity; $i++) {
+                // Evomi Password Pattern: {key}_country-{CODE}_session-{TYPE}
+                $constructedPassword = "{$proxyKey}_country-{$country}_session-{$sessionType}";
+
                 $proxy = Proxy::create([
                     'order_id' => $order->id,
                     'host' => 'gate.evomi.com',
-                    'port' => '1000',
+                    'port' => $port,
                     'username' => $user->evomi_username,
-                    'password' => 'secret_pass_' . Str::random(6),
+                    'password' => $constructedPassword,
+                    'country' => $country,
                 ]);
                 $proxies[] = $proxy;
             }

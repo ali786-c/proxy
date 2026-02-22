@@ -27,6 +27,7 @@ class User extends Authenticatable
         'referral_code',
         'evomi_username',
         'evomi_subuser_id',
+        'evomi_keys',
     ];
 
     /**
@@ -50,6 +51,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'balance' => 'float',
+            'evomi_keys' => 'array',
         ];
     }
 

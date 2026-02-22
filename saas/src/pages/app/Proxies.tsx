@@ -13,13 +13,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Copy, Download, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-// type definition simplified or imported
+interface GeneratedProxy {
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+}
 
 import { useProducts, useGenerateProxy, useOrders } from "@/hooks/use-backend";
 
-const COUNTRIES = [
-  "United States", "United Kingdom", "Germany", "France", "Japan",
-  "Brazil", "India", "Canada", "Australia", "Netherlands",
+const COUNTRIES: { code: string; name: string }[] = [
+  { code: "US", name: "United States" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "JP", name: "Japan" },
+  { code: "BR", name: "Brazil" },
+  { code: "IN", name: "India" },
+  { code: "CA", name: "Canada" },
+  { code: "AU", name: "Australia" },
+  { code: "NL", name: "Netherlands" },
 ];
 
 function formatProxyLine(p: GeneratedProxy) {
@@ -82,6 +95,8 @@ export default function Proxies() {
       const result = await generateProxy.mutateAsync({
         product_id: selectedProduct.id,
         quantity: quantity,
+        country: country || 'US',
+        session_type: sessionType as any,
       });
 
       setProxies(result.proxies || []);
@@ -159,7 +174,7 @@ export default function Proxies() {
                   <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                   <SelectContent>
                     {COUNTRIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

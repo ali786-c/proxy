@@ -36,17 +36,29 @@ class SubuserController extends Controller
         $evomiUsername = 'up_' . $user->id . '_' . strtolower(Str::random(4));
         
         $result = $this->evomi->createSubUser($evomiUsername, $user->email);
+        
+        if ($result && isset($result['data']['id'])) {
+            // Extract proxy keys from the products object
+            $keys = [];
+            $products = $result['data']['products'] ?? [];
+            
+            foreach ($products as $type => $info) {
+                if (isset($info['proxy_key'])) {
+                    $keys[$type] = $info['proxy_key'];
+                }
+            }
 
-        if ($result && isset($result['id'])) {
             $user->update([
                 'evomi_username' => $evomiUsername,
-                'evomi_subuser_id' => $result['id'],
+                'evomi_subuser_id' => $result['data']['id'],
+                'evomi_keys' => $keys,
             ]);
 
             return response()->json([
                 'message' => 'Evomi subuser created successfully.',
                 'evomi_username' => $evomiUsername,
-                'evomi_subuser_id' => $result['id']
+                'evomi_subuser_id' => $result['data']['id'],
+                'evomi_keys' => $keys
             ]);
         }
 
