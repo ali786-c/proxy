@@ -121,11 +121,16 @@ class EvomiService
                 return $response->json();
             }
 
-            Log::error('Evomi API Fail: Fetch Proxy Settings', ['status' => $response->status(), 'response' => $response->body()]);
-            return false;
+            return [
+                'error' => 'API_FAIL',
+                'status' => $response->status(),
+                'body' => $response->body()
+            ];
         } catch (\Exception $e) {
-            Log::error('Evomi API Exception (GetProxySettings): ' . $e->getMessage());
-            return false;
+            return [
+                'error' => 'EXCEPTION',
+                'message' => $e->getMessage()
+            ];
         }
     }
 }

@@ -4,7 +4,8 @@
 Route::get('/test-evomi', function() {
     return [
         'status' => 'API is reachable',
-        'api_key_configured' => config('services.evomi.key') !== 'your_reseller_api_key_here',
+        'api_key_configured' => !empty(config('services.evomi.key')),
+        'api_key_masked' => substr(config('services.evomi.key'), 0, 4) . '...',
         'products_count' => \App\Models\Product::count(),
         'products_list' => \App\Models\Product::all(['name', 'type']),
         'raw_settings_result' => app(\App\Services\EvomiService::class)->getProxySettings(),
