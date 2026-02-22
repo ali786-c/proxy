@@ -20,20 +20,14 @@ interface GeneratedProxy {
   password: string;
 }
 
-import { useProducts, useGenerateProxy, useOrders } from "@/hooks/use-backend";
+import { useProducts, useGenerateProxy, useOrders, useProxySettings } from "@/hooks/use-backend";
 
-const COUNTRIES: { code: string; name: string }[] = [
-  { code: "US", name: "United States" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "DE", name: "Germany" },
-  { code: "FR", name: "France" },
-  { code: "JP", name: "Japan" },
-  { code: "BR", name: "Brazil" },
-  { code: "IN", name: "India" },
-  { code: "CA", name: "Canada" },
-  { code: "AU", name: "Australia" },
-  { code: "NL", name: "Netherlands" },
-];
+const TYPE_MAP: Record<string, string> = {
+  rp: "residential",
+  mp: "mobile",
+  isp: "isp",
+  dc: "datacenter",
+};
 
 function formatProxyLine(p: GeneratedProxy) {
   return `${p.host}:${p.port}:${p.username}:${p.password}`;
@@ -69,6 +63,7 @@ fetch('https://httpbin.org/ip', { agent })
 export default function Proxies() {
   const { data: products } = useProducts();
   const { data: orders } = useOrders();
+  const { data: settings } = useProxySettings();
   const generateProxy = useGenerateProxy();
 
   const [product, setProduct] = useState("");
@@ -173,9 +168,13 @@ export default function Proxies() {
                 <Select value={country} onValueChange={setCountry}>
                   <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                   <SelectContent>
-                    {COUNTRIES.map((c) => (
-                      <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
-                    ))}
+                    {(() => {
+                      const evomiType = TYPE_MAP[product] || "residential";
+                      const countriesObj = settings?.data?.[evomiType]?.countries || {};
+                      return Object.entries(countriesObj).map(([code, name]: any) => (
+                        <SelectItem key={code} value={code}>{name}</SelectItem>
+                      ));
+                    })()}
                   </SelectContent>
                 </Select>
               </div>

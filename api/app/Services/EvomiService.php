@@ -105,4 +105,27 @@ class EvomiService
             return false;
         }
     }
+
+    /**
+     * Fetch global proxy settings (available countries, cities, etc.)
+     */
+    public function getProxySettings()
+    {
+        try {
+            $response = Http::withHeaders([
+                'X-API-KEY' => $this->apiKey,
+                'Accept' => 'application/json',
+            ])->get("{$this->baseUrl}/reseller/proxy_settings");
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::error('Evomi API Fail: Fetch Proxy Settings', ['status' => $response->status(), 'response' => $response->body()]);
+            return false;
+        } catch (\Exception $e) {
+            Log::error('Evomi API Exception (GetProxySettings): ' . $e->getMessage());
+            return false;
+        }
+    }
 }

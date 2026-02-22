@@ -37,6 +37,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     // Proxy Routes
     Route::post('/proxies/generate', [\App\Http\Controllers\ProxyController::class, 'generate']);
     Route::get('/proxies',           [\App\Http\Controllers\ProxyController::class, 'list']);
+    Route::get('/proxies/settings',  [\App\Http\Controllers\ProxyController::class, 'settings']);
 
     // Subuser Routes
     Route::post('/subusers/setup',  [\App\Http\Controllers\SubuserController::class, 'setup']);

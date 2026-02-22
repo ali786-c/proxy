@@ -139,6 +139,17 @@ export function useSetupSubuser() {
   });
 }
 
+export function useProxySettings() {
+  return useQuery({
+    queryKey: ["proxy-settings"],
+    queryFn: async () => {
+      const { data } = await api.get("/proxies/settings");
+      return data;
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour cache
+  });
+}
+
 // ── Payment Actions ──────────────────────────
 
 export function useStripeCheckout() {

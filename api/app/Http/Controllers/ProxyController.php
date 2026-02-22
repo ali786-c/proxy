@@ -137,4 +137,22 @@ class ProxyController extends Controller
 
         return response()->json($orders);
     }
+
+    /**
+     * Get dynamic proxy settings (countries, cities, etc.)
+     */
+    public function settings()
+    {
+        $cacheKey = 'evomi_proxy_settings';
+
+        $settings = \Illuminate\Support\Facades\Cache::remember($cacheKey, 3600, function () {
+            return $this->evomi->getProxySettings();
+        });
+
+        if (!$settings) {
+            return response()->json(['message' => 'Could not fetch settings from provider.'], 502);
+        }
+
+        return response()->json($settings);
+    }
 }
