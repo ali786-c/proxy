@@ -68,12 +68,12 @@ class AdminController extends Controller
     public function stats()
     {
         return response()->json([
-            'total_users' => User::count(),
-            'total_active_proxies' => \App\Models\Order::where('status', 'active')->count(),
-            'total_revenue' => \App\Models\WalletTransaction::where('type', 'credit')->sum('amount'),
-            'system_total_balance' => User::sum('balance'),
-            'recent_registrations' => User::where('created_at', '>=', now()->subDays(7))->count(),
-            'revenue_last_24h' => \App\Models\WalletTransaction::where('type', 'credit')
+            'total_users' => (int) User::count(),
+            'total_active_proxies' => (int) \App\Models\Order::where('status', 'active')->count(),
+            'total_revenue' => (float) \App\Models\WalletTransaction::where('type', 'credit')->sum('amount'),
+            'system_total_balance' => (float) User::sum('balance'),
+            'recent_registrations' => (int) User::where('created_at', '>=', now()->subDays(7))->count(),
+            'revenue_last_24h' => (float) \App\Models\WalletTransaction::where('type', 'credit')
                 ->where('created_at', '>=', now()->subDay())
                 ->sum('amount'),
         ]);

@@ -102,7 +102,7 @@ export default function AdminUsers() {
           <Card>
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground">Total User Balances</p>
-              <p className="text-2xl font-bold">${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-2xl font-bold">${(totalBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </CardContent>
           </Card>
         </div>

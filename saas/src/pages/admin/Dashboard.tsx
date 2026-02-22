@@ -131,10 +131,10 @@ export default function AdminDashboard() {
 
         {/* KPI Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Users" value={kpi.total_users.toLocaleString()} icon={Users} change={kpi.recent_registrations > 0 ? 100 : 0} />
-          <StatCard title="Active Orders" value={kpi.active_orders.toLocaleString()} icon={CreditCard} />
-          <StatCard title="Total Revenue" value={(kpi.total_revenue).toLocaleString()} icon={DollarSign} prefix="$" change={kpi.revenue_24h > 0 ? 5 : 0} />
-          <StatCard title="Total Balance" value={(kpi.total_balance).toLocaleString()} icon={BarChart3} prefix="$" />
+          <StatCard title="Total Users" value={(kpi.total_users || 0).toLocaleString()} icon={Users} change={kpi.recent_registrations > 0 ? 100 : 0} />
+          <StatCard title="Active Orders" value={(kpi.active_orders || 0).toLocaleString()} icon={CreditCard} />
+          <StatCard title="Total Revenue" value={(kpi.total_revenue || 0).toLocaleString()} icon={DollarSign} prefix="$" change={kpi.revenue_24h > 0 ? 5 : 0} />
+          <StatCard title="Total Balance" value={(kpi.total_balance || 0).toLocaleString()} icon={BarChart3} prefix="$" />
         </div>
 
         {/* System Health Row */}
@@ -250,7 +250,7 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">
                         {geo.flag} {geo.country}
-                        <span className="ml-2 text-xs text-muted-foreground">({geo.users.toLocaleString()} users)</span>
+                        <span className="ml-2 text-xs text-muted-foreground">({(geo.users || 0).toLocaleString()} users)</span>
                       </span>
                       <span className="text-muted-foreground">{(geo.bandwidth_gb / 1000).toFixed(1)} TB</span>
                     </div>
