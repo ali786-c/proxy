@@ -208,7 +208,8 @@ export function useAllowlist() {
 
   const removeEntry = useMutation({
     mutationFn: async (entryId: string | number) => {
-      await api.delete(`/allowlist/${entryId}`);
+      // Use POST with _method spoofing if standard DELETE is blocked by some servers
+      await api.post(`/allowlist/${entryId}`, { _method: 'DELETE' });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["allowlist"] }),
   });

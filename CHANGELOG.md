@@ -7,6 +7,12 @@ All changes are logged here in reverse chronological order (newest first).
 
 ## 2026-02-22
 
+### Feature: Real Data Integration (Phase 4) 📊
+- **Dashboard Stats:** Switched from mock data to live metrics. Now displays real **Wallet Balance**, **Active Proxies**, **Total Orders**, and **Bandwidth Usage** (pulled from Evomi API).
+- **Profile Management:** Enabled real-time updates for **Display Name** and **Password** in Settings. Verified synchronization with the Laravel backend.
+- **IP Allowlist System:** Built a full backend (Model, Migration, Controller) for IP-based proxy authentication. Users can now add/remove server IPs with custom labels.
+- **API Key Management:** Integrated real API key generation and revocation. Keys are securely hashed on the backend and raw keys are displayed only once upon creation.
+
 ### Feature: Integrated Proxy History & Refined Sidebar 🚀
 - **Consolidated Refactor:** Merged the standalone "Proxy History" page into category-specific views. Users now visit `/app/my-proxies/:type` for an integrated experience.
 - **Sidebar UX:** Renamed and reorganized product categories (Residential, Datacenter, Mobile, Datacenter IPv6, etc.) to match the Evomi ecosystem.

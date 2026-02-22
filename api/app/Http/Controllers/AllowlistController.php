@@ -32,8 +32,10 @@ class AllowlistController extends Controller
 
     public function destroy($id, Request $request)
     {
+        \Log::info("Allowlist Delete Attempt", ['user_id' => $request->user()->id, 'entry_id' => $id]);
         $entry = AllowlistEntry::where('user_id', $request->user()->id)->findOrFail($id);
         $entry->delete();
+        \Log::info("Allowlist Delete Success", ['entry_id' => $id]);
         return response()->json(['message' => 'IP removed from allowlist']);
     }
 }

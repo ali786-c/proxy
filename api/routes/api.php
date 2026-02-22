@@ -149,7 +149,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     // IP Allowlist Routes
     Route::get('/allowlist',        [\App\Http\Controllers\AllowlistController::class, 'index']);
     Route::post('/allowlist',       [\App\Http\Controllers\AllowlistController::class, 'store']);
-    Route::delete('/allowlist/{id}', [\App\Http\Controllers\AllowlistController::class, 'destroy']);
+    Route::match(['DELETE', 'POST'], '/allowlist/{id}', [\App\Http\Controllers\AllowlistController::class, 'destroy']);
 });
 
 // ─────────────────────────────────────────────
