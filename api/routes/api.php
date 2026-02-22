@@ -1,8 +1,53 @@
-<?php
+// ─── REAL Proxy Connectivity Test ───────────────────────────────────────────
+Route::get('/debug-test-proxy', function() {
+    $user = \App\Models\User::where('email', 'aliyantarar@gmail.com')->first();
 
-// ─── Debug Route ──────────────────────────────────────────────────────────
-// Comprehensive test of the entire proxy generation flow.
-Route::get('/debug-proxy', function() {
+    if (!$user || !$user->evomi_username || empty($user->evomi_keys)) {
+        return response()->json(['error' => 'User has no proxy credentials in DB', 'user_state' => [
+            'evomi_username' => $user->evomi_username ?? null,
+            'evomi_keys'     => $user->evomi_keys,
+        ]]);
+    }
+
+    // Get the residential proxy key
+    $keys     = $user->evomi_keys;
+    $proxyKey = $keys['rp'] ?? $keys['residential'] ?? null;
+
+    if (!$proxyKey) {
+        return response()->json(['error' => 'No residential proxy key found', 'available_keys' => array_keys($keys)]);
+    }
+
+    // Construct proxy URL
+    $proxyUser = $user->evomi_username;
+    $proxyPass = "{$proxyKey}_country-US_session-rotating";
+    $proxyUrl  = "http://{$proxyUser}:{$proxyPass}@gate.evomi.com:1000";
+
+    // Make a real HTTP request THROUGH the proxy
+    try {
+        $ch = curl_init('http://ip-api.com/json');
+        curl_setopt($ch, CURLOPT_PROXY, $proxyUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $result = curl_exec($ch);
+        $error  = curl_error($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        return response()->json([
+            'proxy_used'       => "gate.evomi.com:1000",
+            'proxy_username'   => $proxyUser,
+            'proxy_pass_hint'  => substr($proxyPass, 0, 15) . '...',
+            'http_code'        => $httpCode,
+            'curl_error'       => $error ?: null,
+            'ip_api_response'  => $result ? json_decode($result, true) : null,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['exception' => $e->getMessage()]);
+    }
+});
+
     $evomi = app(\App\Services\EvomiService::class);
 
     // 1. Check API key
