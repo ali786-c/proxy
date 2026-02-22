@@ -25,11 +25,30 @@ class SubuserController extends Controller
     {
         $user = $request->user();
 
-        if ($user->evomi_subuser_id) {
+        if ($user->evomi_subuser_id && !empty($user->evomi_keys)) {
             return response()->json([
                 'message' => 'Subuser already exists.',
                 'evomi_username' => $user->evomi_username
             ]);
+        }
+
+        // If subuser exists but keys are missing, just fetch data and sync
+        if ($user->evomi_subuser_id && empty($user->evomi_keys)) {
+            $data = $this->evomi->getSubuserData($user->evomi_username);
+            if ($data && isset($data['data']['products'])) {
+                $keys = [];
+                foreach ($data['data']['products'] as $type => $info) {
+                    if (isset($info['proxy_key'])) {
+                        $keys[$type] = $info['proxy_key'];
+                    }
+                }
+                $user->update(['evomi_keys' => $keys]);
+                return response()->json([
+                    'message' => 'Subuser keys synced successfully.',
+                    'evomi_username' => $user->evomi_username,
+                    'evomi_keys' => $keys
+                ]);
+            }
         }
 
         // Generate a unique evomi username based on user id and random string
