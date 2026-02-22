@@ -50,22 +50,16 @@ Route::get('/debug-test-proxy', function() {
     }
 });
 
-    $evomi = app(\App\Services\EvomiService::class);
-
-    // 1. Check API key
+// ─── Debug Route ─────────────────────────────────────────────────────────────
+Route::get('/debug-proxy', function() {
+    $evomi  = app(\App\Services\EvomiService::class);
     $apiKey = config('services.evomi.key');
+    $user   = \App\Models\User::where('email', 'aliyantarar@gmail.com')->first();
 
-    // 2. Get user state from DB
-    $user = \App\Models\User::where('email', 'aliyantarar@gmail.com')->first();
-
-    // 3. Test getSubuserData if username exists
     $subuserData = null;
     if ($user && $user->evomi_username) {
         $subuserData = $evomi->getSubuserData($user->evomi_username);
     }
-
-    // 4. Test getProxySettings
-    $proxySettings = $evomi->getProxySettings();
 
     return response()->json([
         'api_key_set'    => !empty($apiKey),
@@ -79,7 +73,6 @@ Route::get('/debug-test-proxy', function() {
             'evomi_keys'       => $user->evomi_keys,
         ] : 'user not found',
         'subuser_data_from_evomi' => $subuserData,
-        'proxy_settings_ok'       => isset($proxySettings['data']) ? 'YES' : 'NO - ' . json_encode($proxySettings),
     ]);
 });
 
@@ -89,48 +82,6 @@ Route::get('/debug-logs', function() {
     if (!file_exists($path)) return 'No log file found.';
     $lines = file($path);
     return implode('', array_slice($lines, -80));
-});
-
-// Test creating a subuser directly — shows raw Evomi API response
-Route::get('/debug-create-subuser', function() {
-    $apiKey  = config('services.evomi.key');
-    $baseUrl = 'https://reseller.evomi.com/v2';
-    $testUsername = 'dbg_' . rand(1000, 9999);
-
-    // 1. Try PUT /create (documented method)
-    $responsePut = Illuminate\Support\Facades\Http::withoutVerifying()
-        ->withHeaders(['X-API-KEY' => $apiKey, 'Accept' => 'application/json'])
-        ->put("{$baseUrl}/reseller/sub_users/create", [
-            'username' => $testUsername,
-            'email'    => 'debug@test-evomi.com',
-        ]);
-
-    // 2. List all subusers (GET)
-    $listResponse = Illuminate\Support\Facades\Http::withoutVerifying()
-        ->withHeaders(['X-API-KEY' => $apiKey, 'Accept' => 'application/json'])
-        ->get("{$baseUrl}/reseller/sub_users");
-
-    // 3. If PUT worked, fetch the subuser by path param
-    $fetchByPath = null;
-    if ($responsePut->successful()) {
-        $fetchByPath = Illuminate\Support\Facades\Http::withoutVerifying()
-            ->withHeaders(['X-API-KEY' => $apiKey, 'Accept' => 'application/json'])
-            ->get("{$baseUrl}/reseller/sub_users/{$testUsername}");
-        $fetchByPath = ['status' => $fetchByPath->status(), 'body' => $fetchByPath->json() ?? $fetchByPath->body()];
-    }
-
-    return response()->json([
-        '1_PUT_create' => [
-            'url'    => "{$baseUrl}/reseller/sub_users/create",
-            'status' => $responsePut->status(),
-            'body'   => $responsePut->json() ?? $responsePut->body(),
-        ],
-        '2_GET_list' => [
-            'status' => $listResponse->status(),
-            'body'   => $listResponse->json() ?? $listResponse->body(),
-        ],
-        '3_GET_by_path_param' => $fetchByPath ?? 'PUT failed so skipped',
-    ]);
 });
 
 Route::get('/test-evomi', function() {
