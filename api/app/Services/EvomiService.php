@@ -24,7 +24,7 @@ class EvomiService
     public function createSubUser($username, $email)
     {
         try {
-            $response = Http::withHeaders([
+            $response = Http::withoutVerifying()->withHeaders([
                 'X-API-KEY' => $this->apiKey,
                 'Accept' => 'application/json',
             ])->put("{$this->baseUrl}/reseller/sub_users/create", [
@@ -61,7 +61,7 @@ class EvomiService
         $endpoint = $map[$type] ?? 'give_rp_balance';
 
         try {
-            $response = Http::withHeaders([
+            $response = Http::withoutVerifying()->withHeaders([
                 'X-API-KEY' => $this->apiKey,
                 'Accept' => 'application/json',
             ])->post("{$this->baseUrl}/reseller/sub_users/{$endpoint}", [
@@ -87,7 +87,7 @@ class EvomiService
     public function getSubuserData($username)
     {
         try {
-            $response = Http::withHeaders([
+            $response = Http::withoutVerifying()->withHeaders([
                 'X-API-KEY' => $this->apiKey,
                 'Accept' => 'application/json',
             ])->get("{$this->baseUrl}/reseller/sub_users/sub_user_data", [
