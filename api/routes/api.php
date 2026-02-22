@@ -1,3 +1,5 @@
+<?php
+
 // ─── REAL Proxy Connectivity Test ───────────────────────────────────────────
 Route::get('/debug-test-proxy', function() {
     $user = \App\Models\User::where('email', 'aliyantarar@gmail.com')->first();
