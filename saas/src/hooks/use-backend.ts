@@ -49,11 +49,13 @@ export function useStats() {
   });
 }
 
-export function useOrders() {
+export function useOrders(type?: string | null) {
   return useQuery({
-    queryKey: ["orders"],
+    queryKey: ["orders", type],
     queryFn: async () => {
-      const { data } = await api.get("/proxies");
+      const { data } = await api.get("/proxies", {
+        params: { type },
+      });
       return data;
     },
   });

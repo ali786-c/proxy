@@ -136,10 +136,18 @@ class ProxyController extends Controller
 
     public function list(Request $request)
     {
-        $orders = Order::with('proxies', 'product')
-            ->where('user_id', $request->user()->id)
-            ->latest()
-            ->get();
+        $type = $request->query('type');
+
+        $query = Order::with('proxies', 'product')
+            ->where('user_id', $request->user()->id);
+
+        if ($type) {
+            $query->whereHas('product', function ($q) use ($type) {
+                $q->where('type', $type);
+            });
+        }
+
+        $orders = $query->latest()->get();
 
         return response()->json($orders);
     }

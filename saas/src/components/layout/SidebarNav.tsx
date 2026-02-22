@@ -68,16 +68,21 @@ const CLIENT_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Products",
+    label: "Proxy Services",
+    items: [
+      { title: "Generate Proxies", url: "/app/proxies", icon: Globe, badge: "New" },
+    ],
+  },
+  {
+    label: "My Proxies",
     collapsible: true,
     defaultOpen: true,
     items: [
-      { title: "Core Residential", url: "/app/proxies?type=core-residential", icon: Globe, badge: "New" },
-      { title: "Static Residential", url: "/app/proxies?type=static-residential", icon: Layers, badge: "New" },
-      { title: "Premium Residential", url: "/app/proxies?type=premium-residential", icon: Wifi },
-      { title: "Datacenter Proxies", url: "/app/proxies?type=datacenter", icon: Server },
-      { title: "Mobile Proxies", url: "/app/proxies?type=mobile", icon: Smartphone },
-      { title: "Proxy History", url: "/app/proxy-history", icon: History },
+      { title: "Residential", url: "/app/proxy-history?type=rp", icon: Home },
+      { title: "Datacenter", url: "/app/proxy-history?type=dc", icon: Server },
+      { title: "Mobile", url: "/app/proxy-history?type=mp", icon: Smartphone },
+      { title: "Datacenter IPv6", url: "/app/proxy-history?type=isp", icon: Zap },
+      { title: "Datacenter (Unmetered)", url: "/app/proxy-history?type=dc_unmetered", icon: Activity },
     ],
   },
   {
