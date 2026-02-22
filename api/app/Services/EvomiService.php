@@ -63,16 +63,17 @@ class EvomiService
 
     /**
      * Fetch subuser data including proxy_keys from Evomi.
+     * Endpoint: GET /v2/reseller/sub_users/{username}
      */
     public function getSubuserData(string $username)
     {
         try {
-            $response = $this->http()->get("{$this->baseUrl}/reseller/sub_users/sub_user_data", [
-                'username' => $username,
-            ]);
+            // Correct endpoint: username is a PATH parameter, not query string
+            $response = $this->http()->get("{$this->baseUrl}/reseller/sub_users/{$username}");
 
             Log::info('Evomi GetSubuserData', [
                 'username' => $username,
+                'url'      => "{$this->baseUrl}/reseller/sub_users/{$username}",
                 'status'   => $response->status(),
                 'body'     => $response->body(),
             ]);
@@ -82,6 +83,7 @@ class EvomiService
             }
 
             Log::error('Evomi API Fail: Fetch Subuser Data', [
+                'url'    => "{$this->baseUrl}/reseller/sub_users/{$username}",
                 'status' => $response->status(),
                 'body'   => $response->body(),
             ]);
@@ -162,15 +164,24 @@ class EvomiService
 
     /**
      * Extract proxy keys from a subuser data response.
+     * Handles various response shapes from Evomi API.
      */
     public function extractKeys(array $data): array
     {
         $keys = [];
-        $products = $data['data']['products'] ?? [];
+        // Try nested data.products first, then top-level products
+        $products = $data['data']['products'] ?? $data['products'] ?? [];
         foreach ($products as $type => $info) {
-            if (isset($info['proxy_key'])) {
+            if (is_array($info) && isset($info['proxy_key'])) {
                 $keys[$type] = $info['proxy_key'];
+            } elseif (is_string($info)) {
+                // Sometimes API just returns the key directly
+                $keys[$type] = $info;
             }
+        }
+        // Also check for a direct proxy_key at top level
+        if (empty($keys) && isset($data['data']['proxy_key'])) {
+            $keys['rp'] = $data['data']['proxy_key'];
         }
         return $keys;
     }
@@ -192,10 +203,18 @@ class EvomiService
             Log::info('ensureSubuser: has username, fetching data from Evomi', ['username' => $user->evomi_username]);
             $data = $this->getSubuserData($user->evomi_username);
 
-            if ($data && isset($data['data']['id'])) {
+            // Accept various response shapes from Evomi
+            $subuserFound = $data && (
+                isset($data['data']['id']) ||
+                isset($data['id']) ||
+                isset($data['username'])
+            );
+
+            if ($subuserFound) {
                 $keys = $this->extractKeys($data);
+                $subuserDataBlock = $data['data'] ?? $data;
                 $user->update([
-                    'evomi_subuser_id' => $data['data']['id'],
+                    'evomi_subuser_id' => $subuserDataBlock['id'] ?? $user->evomi_subuser_id,
                     'evomi_keys'       => $keys,
                 ]);
                 $user->refresh();

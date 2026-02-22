@@ -48,44 +48,41 @@ Route::get('/debug-logs', function() {
 Route::get('/debug-create-subuser', function() {
     $apiKey  = config('services.evomi.key');
     $baseUrl = 'https://reseller.evomi.com/v2';
+    $testUsername = 'dbg_' . rand(1000, 9999);
 
-    // Try PUT method (documented)
-    $responsePut = Illuminate\Support\Facades\Http::withoutVerifying()->withHeaders([
-        'X-API-KEY' => $apiKey,
-        'Accept'    => 'application/json',
-    ])->put("{$baseUrl}/reseller/sub_users/create", [
-        'username' => 'debug_test_' . rand(1000, 9999),
-        'email'    => 'debug@test-evomi.com',
-    ]);
+    // 1. Try PUT /create (documented method)
+    $responsePut = Illuminate\Support\Facades\Http::withoutVerifying()
+        ->withHeaders(['X-API-KEY' => $apiKey, 'Accept' => 'application/json'])
+        ->put("{$baseUrl}/reseller/sub_users/create", [
+            'username' => $testUsername,
+            'email'    => 'debug@test-evomi.com',
+        ]);
 
-    // Also try POST method  
-    $responsePost = Illuminate\Support\Facades\Http::withoutVerifying()->withHeaders([
-        'X-API-KEY' => $apiKey,
-        'Accept'    => 'application/json',
-    ])->post("{$baseUrl}/reseller/sub_users/create", [
-        'username' => 'debug_test_' . rand(1000, 9999),
-        'email'    => 'debug@test-evomi.com',
-    ]);
+    // 2. List all subusers (GET)
+    $listResponse = Illuminate\Support\Facades\Http::withoutVerifying()
+        ->withHeaders(['X-API-KEY' => $apiKey, 'Accept' => 'application/json'])
+        ->get("{$baseUrl}/reseller/sub_users");
 
-    // Also try listing subusers to see if any exist
-    $listResponse = Illuminate\Support\Facades\Http::withoutVerifying()->withHeaders([
-        'X-API-KEY' => $apiKey,
-        'Accept'    => 'application/json',
-    ])->get("{$baseUrl}/reseller/sub_users");
+    // 3. If PUT worked, fetch the subuser by path param
+    $fetchByPath = null;
+    if ($responsePut->successful()) {
+        $fetchByPath = Illuminate\Support\Facades\Http::withoutVerifying()
+            ->withHeaders(['X-API-KEY' => $apiKey, 'Accept' => 'application/json'])
+            ->get("{$baseUrl}/reseller/sub_users/{$testUsername}");
+        $fetchByPath = ['status' => $fetchByPath->status(), 'body' => $fetchByPath->json() ?? $fetchByPath->body()];
+    }
 
     return response()->json([
-        'PUT /create' => [
+        '1_PUT_create' => [
+            'url'    => "{$baseUrl}/reseller/sub_users/create",
             'status' => $responsePut->status(),
             'body'   => $responsePut->json() ?? $responsePut->body(),
         ],
-        'POST /create' => [
-            'status' => $responsePost->status(),
-            'body'   => $responsePost->json() ?? $responsePost->body(),
-        ],
-        'GET /sub_users (list)' => [
+        '2_GET_list' => [
             'status' => $listResponse->status(),
             'body'   => $listResponse->json() ?? $listResponse->body(),
         ],
+        '3_GET_by_path_param' => $fetchByPath ?? 'PUT failed so skipped',
     ]);
 });
 
