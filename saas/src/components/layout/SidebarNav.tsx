@@ -43,6 +43,7 @@ import {
   DollarSign,
   Download,
   Store,
+  History,
 } from "lucide-react";
 
 interface NavItem {
@@ -214,8 +215,8 @@ function CollapsibleSection({ section }: { section: NavSection }) {
                     <span className="flex-1">{item.title}</span>
                     {item.badge && (
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none ${item.badge === "New" ? "bg-primary text-primary-foreground"
-                          : item.badge === "Beta" ? "bg-warning text-warning-foreground"
-                            : "bg-muted text-muted-foreground"
+                        : item.badge === "Beta" ? "bg-warning text-warning-foreground"
+                          : "bg-muted text-muted-foreground"
                         }`}>
                         {item.badge}
                       </span>
