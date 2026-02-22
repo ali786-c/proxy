@@ -27,14 +27,18 @@ class BillingController extends Controller
             'line_items' => [[
                 'price_data' => [
                     'currency' => 'usd',
-                    'product_data' => ['name' => 'Wallet Top-up'],
+                    'product_data' => [
+                        'name' => 'Balance Top-up',
+                        'description' => 'Add funds to your UpgradedProxy wallet',
+                    ],
                     'unit_amount' => $request->amount * 100,
                 ],
                 'quantity' => 1,
             ]],
             'mode' => 'payment',
-            'success_url' => url('/app/billing?success=true'),
-            'cancel_url' => url('/app/billing?canceled=true'),
+            // Redirect back to the root SPA, not the /api subdirectory
+            'success_url' => url('/') . '/app/billing?success=true',
+            'cancel_url' => url('/') . '/app/billing?canceled=true',
             'metadata' => [
                 'user_id' => $request->user()->id,
                 'amount' => $request->amount,

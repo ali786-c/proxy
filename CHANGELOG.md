@@ -10,8 +10,13 @@ All changes are logged here in reverse chronological order (newest first).
 ### Feature: Real Data Integration (Phase 4) 📊
 - **Dashboard Stats:** Switched from mock data to live metrics. Now displays real **Wallet Balance**, **Active Proxies**, **Total Orders**, and **Bandwidth Usage** (pulled from Evomi API).
 - **Profile Management:** Enabled real-time updates for **Display Name** and **Password** in Settings. Verified synchronization with the Laravel backend.
-- **IP Allowlist System:** Built a full backend (Model, Migration, Controller) for IP-based proxy authentication. Users can now add/remove server IPs with custom labels.
-- **API Key Management:** Integrated real API key generation and revocation. Keys are securely hashed on the backend and raw keys are displayed only once upon creation.
+- **IP Allowlist System:** Built a full backend (Model, Migration, Controller) for IP-based proxy authentication.
+- **API Key Management:** Integrated real API key generation and revocation. Keys are securely hashed on the backend.
+- **Phase 4 Refinement & UX Polish:**
+  - **Persistent Delete (Allowlist):** Implemented `POST` with `_method: DELETE` spoofing to ensure IP deletions work flawlessly on all server environments (including cPanel).
+  - **API Key UX:** Refactored key generation to show the raw key directly in the popup dialog with a one-click Copy button.
+  - **Settings Navigation:** Set "Profile" as the default tab to provide a more intuitive landing experience.
+  - **Backend Hardening:** Added `Log` facade imports and explicit request parameter handling to `AllowlistController` to eliminate 500 errors on production.
 
 ### Feature: Integrated Proxy History & Refined Sidebar 🚀
 - **Consolidated Refactor:** Merged the standalone "Proxy History" page into category-specific views. Users now visit `/app/my-proxies/:type` for an integrated experience.

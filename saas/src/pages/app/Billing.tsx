@@ -26,11 +26,14 @@ const PAYMENT_METHODS = [
   { id: "crypto" as const, name: "Crypto", subtitle: "BTC, ETH, USDT", icon: Bitcoin },
 ];
 
-import { useProducts, useStripeCheckout, useProfile } from "@/hooks/use-backend";
+import { Link } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useProducts, useStripeCheckout, useProfile, useInvoices } from "@/hooks/use-backend";
 
 export default function Billing() {
-  const { data: products } = useProducts();
+  const { data: products, isLoading: productsLoading } = useProducts();
   const { data: profile } = useProfile();
+  const { data: invoices, isLoading: invoicesLoading } = useInvoices();
   const stripeCheckout = useStripeCheckout();
 
   const [topUpAmount, setTopUpAmount] = useState("50");
@@ -45,7 +48,12 @@ export default function Billing() {
     }
 
     try {
-      await stripeCheckout.mutateAsync({ amount: parseFloat(topUpAmount) });
+      const amount = parseFloat(topUpAmount);
+      if (isNaN(amount) || amount < 5) {
+        toast({ title: "Invalid Amount", description: "Minimum top-up is $5.", variant: "destructive" });
+        return;
+      }
+      await stripeCheckout.mutateAsync({ amount });
     } catch (err: any) {
       toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
     }
@@ -99,7 +107,7 @@ export default function Billing() {
                     key={pm.id}
                     variant={enabled ? "default" : "outline"}
                     className={`h-auto py-4 flex-col gap-1 ${!enabled ? "opacity-40 cursor-not-allowed" : ""}`}
-                    disabled={!enabled}
+                    disabled={!enabled || stripeCheckout.isPending}
                     onClick={() => handlePay(pm.name)}
                   >
                     <pm.icon className="h-6 w-6" />
@@ -147,62 +155,76 @@ export default function Billing() {
 
         {/* Product Selection */}
         <div className="grid gap-4 sm:grid-cols-3">
-          {(products ?? []).map((plan: any) => {
-            return (
-              <Card key={plan.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">
-                    {plan.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-3xl font-bold">
-                    €{Number(plan.price).toFixed(2)}
-                    <span className="text-base font-normal text-muted-foreground">
-                      /GB
-                    </span>
-                  </p>
-                  <Button
-                    variant="default"
-                    className="w-full"
-                    asChild
-                  >
-                    <Link to="/app/proxies">Generate Now</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {productsLoading ? (
+            Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)
+          ) : (
+            (products ?? []).map((plan: any) => {
+              return (
+                <Card key={plan.id}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">
+                      {plan.name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-3xl font-bold">
+                      €{Number(plan.price).toFixed(2)}
+                      <span className="text-base font-normal text-muted-foreground">
+                        /GB
+                      </span>
+                    </p>
+                    <Button
+                      variant="default"
+                      className="w-full"
+                      asChild
+                    >
+                      <Link to="/app/proxies">Generate Now</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
         </div>
 
         {/* Invoices */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Recent Invoices</CardTitle>
+            <CardTitle className="text-lg">Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Period</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead className="text-right">Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MOCK_INVOICES.map((inv) => (
-                  <TableRow key={inv.id}>
-                    <TableCell className="font-medium">{inv.period}</TableCell>
-                    <TableCell>€{(inv.amount_cents / 100).toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[inv.status] ?? "secondary"}>{inv.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {new Date(inv.created_at).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {invoicesLoading ? (
+                  <TableRow><TableCell colSpan={4}><Skeleton className="h-20 w-full" /></TableCell></TableRow>
+                ) : invoices?.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="text-center py-4 text-muted-foreground">No transactions found.</TableCell></TableRow>
+                ) : (
+                  invoices?.map((inv: any) => (
+                    <TableRow key={inv.id}>
+                      <TableCell>
+                        <Badge variant={inv.type === 'credit' ? 'default' : 'secondary'}>
+                          {inv.type.toUpperCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className={inv.type === 'credit' ? 'text-green-600 font-bold' : ''}>
+                        {inv.type === 'credit' ? '+' : '-'}${Number(inv.amount).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-sm">{inv.description}</TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">
+                        {new Date(inv.created_at).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>

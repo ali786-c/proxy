@@ -17,7 +17,7 @@ const PaymentConfigContext = createContext<PaymentConfigContextValue | null>(nul
 
 export function PaymentConfigProvider({ children }: { children: ReactNode }) {
   const [gateways, setGateways] = useState<PaymentGatewayState>({
-    stripe: false,
+    stripe: true,
     paypal: false,
     crypto: false,
   });
