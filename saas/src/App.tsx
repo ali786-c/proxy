@@ -148,7 +148,7 @@ const App = () => (
                         >
                           <Route index element={<AppDashboard />} />
                           <Route path="proxies" element={<Proxies />} />
-                          <Route path="proxy-history" element={<ProxyHistory />} />
+                          <Route path="my-proxies/:type" element={<ProxyHistory />} />
                           <Route path="usage" element={<Usage />} />
                           <Route path="settings" element={<AppSettings />} />
                           <Route path="billing" element={<Billing />} />

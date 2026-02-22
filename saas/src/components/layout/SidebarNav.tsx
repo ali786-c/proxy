@@ -78,11 +78,11 @@ const CLIENT_SECTIONS: NavSection[] = [
     collapsible: true,
     defaultOpen: true,
     items: [
-      { title: "Residential", url: "/app/proxy-history?type=rp", icon: Home },
-      { title: "Datacenter", url: "/app/proxy-history?type=dc", icon: Server },
-      { title: "Mobile", url: "/app/proxy-history?type=mp", icon: Smartphone },
-      { title: "Datacenter IPv6", url: "/app/proxy-history?type=isp", icon: Zap },
-      { title: "Datacenter (Unmetered)", url: "/app/proxy-history?type=dc_unmetered", icon: Activity },
+      { title: "Residential", url: "/app/my-proxies/rp", icon: Home },
+      { title: "Datacenter", url: "/app/my-proxies/dc", icon: Server },
+      { title: "Mobile", url: "/app/my-proxies/mp", icon: Smartphone },
+      { title: "Datacenter IPv6", url: "/app/my-proxies/isp", icon: Zap },
+      { title: "Datacenter (Unmetered)", url: "/app/my-proxies/dc_unmetered", icon: Activity },
     ],
   },
   {
