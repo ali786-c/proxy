@@ -2,6 +2,21 @@
 
 All changes are logged here in reverse chronological order (newest first).
 
+
+---
+
+## 2026-02-22
+
+### Phase 3: Real Proxy Flow & Connectivity Verified ✅
+- **Phase 3 Completion:** Implemented the full proxy generation lifecycle: Subuser initialization → Proxy Key Retrieval → Bandwidth Allocation (Balance) → Database Persistence.
+- **Endpoint Alignment:** Updated `ProxyController` to use correct product-specific hosts (`rp.evomi.com`, `dcp.evomi.com`, `mp.evomi.com`) and ports (1000, 2000, 3000) as per latest documentation.
+- **EvomiService Robustness:** Enhanced `ensureSubuser` to handle cases where subuser data might be partially missing or corrupted in the local DB.
+- **Connectivity Test:** Successfully verified end-to-end routing with a Palau exit node (`country-PW`) via `curl`.
+
+### Frontend: Dynamic Data Integration
+- **Dynamic Geo:** Integrated Evomi's Proxy Settings API to fetch live countries/cities for the generation form.
+- **Real Stats:** Switched Dashboard from mock Supabase data to live Laravel data for balance and bandwidth monitoring.
+
 ---
 
 ## 2026-02-21
