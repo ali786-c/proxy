@@ -229,6 +229,15 @@ export function useStripeCheckout() {
   });
 }
 
+export function useValidateCoupon() {
+  return useMutation({
+    mutationFn: async (params: { code: string; amount: number }) => {
+      const { data } = await api.post("/coupons/validate", params);
+      return data;
+    },
+  });
+}
+
 // ── Admin Hooks ──────────────────────────────
 
 export function useAdminUsers() {
@@ -287,4 +296,78 @@ export function useAdminAction() {
   });
 
   return { updateBalance, banUser };
+}
+
+export function useAdminProducts() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["admin", "products"],
+    queryFn: async () => {
+      const { data } = await api.get("/products");
+      return data;
+    },
+  });
+
+  const createProduct = useMutation({
+    mutationFn: async (product: any) => {
+      const { data } = await api.post("/admin/products", product);
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "products"] }),
+  });
+
+  const updateProduct = useMutation({
+    mutationFn: async ({ id, ...product }: any) => {
+      const { data } = await api.put(`/admin/products/${id}`, product);
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "products"] }),
+  });
+
+  const deleteProduct = useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/admin/products/${id}`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "products"] }),
+  });
+
+  return { ...query, createProduct, updateProduct, deleteProduct };
+}
+
+export function useAdminCoupons() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["admin", "coupons"],
+    queryFn: async () => {
+      const { data } = await api.get("/admin/coupons");
+      return data;
+    },
+  });
+
+  const createCoupon = useMutation({
+    mutationFn: async (coupon: any) => {
+      const { data } = await api.post("/admin/coupons", coupon);
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] }),
+  });
+
+  const deleteCoupon = useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/admin/coupons/${id}`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] }),
+  });
+
+  const toggleCoupon = useMutation({
+    mutationFn: async (id: number) => {
+      const { data } = await api.post(`/admin/coupons/${id}/toggle`);
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "coupons"] }),
+  });
+
+  return { ...query, createCoupon, deleteCoupon, toggleCoupon };
 }

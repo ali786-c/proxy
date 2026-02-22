@@ -44,38 +44,50 @@ type FormData = {
 
 const EMPTY: FormData = { code: "", type: "percentage", value: "", min_amount: "0", max_uses: "", expires_at: "", is_active: true };
 
+import { useAdminCoupons } from "@/hooks/use-backend";
+
 export default function AdminCoupons() {
-  const [coupons, setCoupons] = useState<Coupon[]>(MOCK_COUPONS);
+  const { data: coupons, isLoading, createCoupon, deleteCoupon, toggleCoupon } = useAdminCoupons();
   const [form, setForm] = useState<FormData>(EMPTY);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const createCoupon = () => {
+  const handleCreate = async () => {
     if (!form.code.trim() || !form.value) return;
-    const coupon: Coupon = {
-      id: `c${Date.now()}`,
-      code: form.code.toUpperCase().replace(/\s/g, ""),
-      type: form.type,
-      value: Number(form.value),
-      min_amount: Number(form.min_amount) || 0,
-      max_uses: form.max_uses ? Number(form.max_uses) : null,
-      used_count: 0,
-      expires_at: form.expires_at || null,
-      is_active: form.is_active,
-      created_at: new Date().toISOString().slice(0, 10),
-    };
-    setCoupons((prev) => [coupon, ...prev]);
-    setForm(EMPTY);
-    setModalOpen(false);
-    toast({ title: "Coupon Created", description: `${coupon.code} is now active.` });
+    try {
+      const payload = {
+        code: form.code.toUpperCase().replace(/\s/g, ""),
+        type: form.type,
+        value: Number(form.value),
+        min_amount: Number(form.min_amount) || 0,
+        max_uses: form.max_uses ? Number(form.max_uses) : null,
+        expires_at: form.expires_at || null,
+        is_active: form.is_active,
+      };
+      await createCoupon.mutateAsync(payload);
+      setForm(EMPTY);
+      setModalOpen(false);
+      toast({ title: "Coupon Created" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
-  const toggleActive = (id: string) => {
-    setCoupons((prev) => prev.map((c) => (c.id === id ? { ...c, is_active: !c.is_active } : c)));
+  const handleToggle = async (id: number) => {
+    try {
+      await toggleCoupon.mutateAsync(id);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
-  const deleteCoupon = (id: string) => {
-    setCoupons((prev) => prev.filter((c) => c.id !== id));
-    toast({ title: "Deleted", description: "Coupon removed." });
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure?")) return;
+    try {
+      await deleteCoupon.mutateAsync(id);
+      toast({ title: "Deleted", description: "Coupon removed." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   const copyCode = (code: string) => {
@@ -83,8 +95,10 @@ export default function AdminCoupons() {
     toast({ title: "Copied", description: `${code} copied.` });
   };
 
-  const activeCount = coupons.filter((c) => c.is_active).length;
-  const totalRedemptions = coupons.reduce((s, c) => s + c.used_count, 0);
+  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading coupons…</div>;
+
+  const activeCount = (coupons ?? []).filter((c: any) => c.is_active).length;
+  const totalRedemptions = (coupons ?? []).reduce((s: number, c: any) => s + (c.used_count || 0), 0);
 
   return (
     <>
@@ -143,7 +157,7 @@ export default function AdminCoupons() {
               </div>
               <DialogFooter>
                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                <Button onClick={createCoupon} disabled={!form.code.trim() || !form.value}>Create</Button>
+                <Button onClick={handleCreate} disabled={!form.code.trim() || !form.value}>Create</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -190,7 +204,7 @@ export default function AdminCoupons() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {coupons.map((c) => (
+                {(coupons ?? []).map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -209,10 +223,10 @@ export default function AdminCoupons() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.expires_at ?? "Never"}</TableCell>
                     <TableCell>
-                      <Switch checked={c.is_active} onCheckedChange={() => toggleActive(c.id)} />
+                      <Switch checked={c.is_active} onCheckedChange={() => handleToggle(c.id)} />
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => deleteCoupon(c.id)}>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </TableCell>

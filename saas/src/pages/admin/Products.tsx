@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 interface Product {
   id: string;
@@ -61,21 +61,13 @@ type FormData = {
 
 const EMPTY_FORM: FormData = { name: "", proxy_type: "residential", unit: "GB", base_cost_eur: "", markup_pct: "30", is_active: true };
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { useAdminProducts } from "@/hooks/use-backend";
+import { toast } from "@/hooks/use-toast";
 
 export default function AdminProducts() {
-  const queryClient = useQueryClient();
-  const { data: products, isLoading } = useQuery({
-    queryKey: ["products"],
-    queryFn: async () => {
-      const { data } = await api.get("/products");
-      return data;
-    },
-  });
-
+  const { data: products, isLoading, createProduct, updateProduct, deleteProduct } = useAdminProducts();
   const [modalOpen, setModalOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | number | null>(null);
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading products…</div>;
@@ -86,15 +78,15 @@ export default function AdminProducts() {
     setModalOpen(true);
   };
 
-  const openEdit = (p: Product) => {
+  const openEdit = (p: any) => {
     setEditId(p.id);
     setForm({
       name: p.name,
-      proxy_type: p.proxy_type,
-      unit: p.unit,
-      base_cost_eur: String(p.base_cost_eur),
-      markup_pct: String(p.markup_pct),
-      is_active: p.is_active,
+      proxy_type: p.type,
+      unit: "GB", // Backend currently only supports GB flow
+      base_cost_eur: String(p.price * 0.7), // Estimating base cost
+      markup_pct: "30",
+      is_active: p.is_active !== false,
     });
     setModalOpen(true);
   };
@@ -105,9 +97,37 @@ export default function AdminProducts() {
     return (base * (1 + markup / 100)).toFixed(2);
   };
 
-  const handleSave = () => {
-    alert(`${editId ? "Update" : "Create"} product: ${form.name} — Sell price: €${computeSellPrice()}/${form.unit}`);
-    setModalOpen(false);
+  const handleSave = async () => {
+    try {
+      const payload = {
+        name: form.name,
+        type: form.proxy_type,
+        price: parseFloat(computeSellPrice()),
+        evomi_product_id: "TBD", // This would normally come from a list or be entered
+        is_active: form.is_active,
+      };
+
+      if (editId) {
+        await updateProduct.mutateAsync({ id: editId, ...payload });
+        toast({ title: "Product updated" });
+      } else {
+        await createProduct.mutateAsync(payload);
+        toast({ title: "Product created" });
+      }
+      setModalOpen(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure?")) return;
+    try {
+      await deleteProduct.mutateAsync(id);
+      toast({ title: "Product deleted" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   return (
@@ -155,9 +175,14 @@ export default function AdminProducts() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

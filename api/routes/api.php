@@ -132,6 +132,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 
     // Products
     Route::get('/products', [\App\Http\Controllers\ProductController::class, 'index']);
+    Route::post('/coupons/validate', [\App\Http\Controllers\CouponController::class, 'validateCoupon']);
 
     // Support Routes
     Route::get('/support/tickets',      [\App\Http\Controllers\SupportController::class, 'index']);
@@ -166,6 +167,17 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/users/ban',     [\App\Http\Controllers\AdminController::class, 'banUser']);
     Route::get('/stats',          [\App\Http\Controllers\AdminController::class, 'stats']);
     Route::get('/logs',           [\App\Http\Controllers\AdminController::class, 'logs']);
+
+    // Admin Products Management
+    Route::post('/products',        [\App\Http\Controllers\ProductController::class, 'store']);
+    Route::put('/products/{id}',     [\App\Http\Controllers\ProductController::class, 'update']);
+    Route::delete('/products/{id}',  [\App\Http\Controllers\ProductController::class, 'destroy']);
+
+    // Admin Coupons Management
+    Route::get('/coupons',           [\App\Http\Controllers\CouponController::class, 'index']);
+    Route::post('/coupons',          [\App\Http\Controllers\CouponController::class, 'store']);
+    Route::delete('/coupons/{id}',   [\App\Http\Controllers\CouponController::class, 'destroy']);
+    Route::post('/coupons/{id}/toggle', [\App\Http\Controllers\CouponController::class, 'toggle']);
 });
 
 // Public test route removed from bottom, moved to top.
