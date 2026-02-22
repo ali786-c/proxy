@@ -164,25 +164,47 @@ class EvomiService
 
     /**
      * Extract proxy keys from a subuser data response.
-     * Handles various response shapes from Evomi API.
+     * Maps Evomi type names to our internal names AND stores both.
+     * Evomi types: residential, mobile, dataCenter, sharedDataCenter, static
+     * Our types:   rp,          mp,     dc,          dc,               isp
      */
     public function extractKeys(array $data): array
     {
         $keys = [];
+
+        // Evomi internal type name → our product type code
+        $typeMap = [
+            'residential'      => 'rp',
+            'mobile'           => 'mp',
+            'dataCenter'       => 'dc',
+            'sharedDataCenter' => 'dc',
+            'static'           => 'isp',
+            'isp'              => 'isp',
+            'residentialIPV6'  => 'rp_ipv6',
+            'dataCenterIPV6'   => 'dc_ipv6',
+        ];
+
         // Try nested data.products first, then top-level products
         $products = $data['data']['products'] ?? $data['products'] ?? [];
-        foreach ($products as $type => $info) {
+
+        foreach ($products as $evomiType => $info) {
+            $proxyKey = null;
             if (is_array($info) && isset($info['proxy_key'])) {
-                $keys[$type] = $info['proxy_key'];
+                $proxyKey = $info['proxy_key'];
             } elseif (is_string($info)) {
-                // Sometimes API just returns the key directly
-                $keys[$type] = $info;
+                $proxyKey = $info;
+            }
+
+            if ($proxyKey) {
+                // Store with original Evomi name (e.g., 'residential')
+                $keys[$evomiType] = $proxyKey;
+                // Also store with our internal code (e.g., 'rp') for lookup compatibility
+                if (isset($typeMap[$evomiType])) {
+                    $keys[$typeMap[$evomiType]] = $proxyKey;
+                }
             }
         }
-        // Also check for a direct proxy_key at top level
-        if (empty($keys) && isset($data['data']['proxy_key'])) {
-            $keys['rp'] = $data['data']['proxy_key'];
-        }
+
         return $keys;
     }
 
@@ -198,33 +220,14 @@ class EvomiService
             return ['success' => true, 'keys' => $user->evomi_keys];
         }
 
-        // Case 2: Has username (maybe ID too), but no keys — try to fetch from Evomi
+        // Case 2: Has username, but subuser_id or keys missing.
+        // Since GET /sub_users/{username} returns 404, we CANNOT verify if the subuser
+        // exists on Evomi. Reset stale data and create a fresh subuser.
         if ($user->evomi_username) {
-            Log::info('ensureSubuser: has username, fetching data from Evomi', ['username' => $user->evomi_username]);
-            $data = $this->getSubuserData($user->evomi_username);
-
-            // Accept various response shapes from Evomi
-            $subuserFound = $data && (
-                isset($data['data']['id']) ||
-                isset($data['id']) ||
-                isset($data['username'])
-            );
-
-            if ($subuserFound) {
-                $keys = $this->extractKeys($data);
-                $subuserDataBlock = $data['data'] ?? $data;
-                $user->update([
-                    'evomi_subuser_id' => $subuserDataBlock['id'] ?? $user->evomi_subuser_id,
-                    'evomi_keys'       => $keys,
-                ]);
-                $user->refresh();
-                Log::info('ensureSubuser: synced from Evomi', ['keys' => $keys]);
-                return ['success' => true, 'keys' => $keys];
-            }
-
-            // Subuser not found on Evomi side — clear stale username and re-create below
-            Log::warning('ensureSubuser: username exists locally but not found on Evomi, resetting', [
-                'username' => $user->evomi_username,
+            Log::warning('ensureSubuser: has username but incomplete data, resetting for fresh create', [
+                'old_username'     => $user->evomi_username,
+                'evomi_subuser_id' => $user->evomi_subuser_id,
+                'has_keys'         => !empty($user->evomi_keys),
             ]);
             $user->update([
                 'evomi_username'   => null,
@@ -234,25 +237,34 @@ class EvomiService
             $user->refresh();
         }
 
-        // Case 3: No username at all — create new subuser
+        // Case 3: No username — create new subuser
         $newUsername = 'up_' . $user->id . '_' . strtolower(Str::random(6));
         Log::info('ensureSubuser: creating new subuser', ['username' => $newUsername]);
 
         $result = $this->createSubUser($newUsername, $user->email);
 
-        if ($result && isset($result['data']['id'])) {
+        // Evomi returns status 201 with data.username (NOT data.id)
+        $created = $result && (
+            ($result['status'] ?? 0) === 201 ||
+            isset($result['data']['username'])
+        );
+
+        if ($created) {
             $keys = $this->extractKeys($result);
             $user->update([
-                'evomi_username'   => $newUsername,
-                'evomi_subuser_id' => $result['data']['id'],
+                'evomi_username'   => $result['data']['username'] ?? $newUsername,
+                'evomi_subuser_id' => $result['data']['username'] ?? $newUsername, // use username as ID
                 'evomi_keys'       => $keys,
             ]);
             $user->refresh();
-            Log::info('ensureSubuser: created successfully', ['username' => $newUsername, 'id' => $result['data']['id']]);
+            Log::info('ensureSubuser: created successfully', [
+                'username' => $result['data']['username'] ?? $newUsername,
+                'keys'     => array_keys($keys),
+            ]);
             return ['success' => true, 'keys' => $keys];
         }
 
-        Log::error('ensureSubuser: failed to create subuser on Evomi');
+        Log::error('ensureSubuser: failed to create subuser on Evomi', ['result' => $result]);
         return ['success' => false, 'error' => 'Failed to initialize proxy account with provider. Please try again or contact support.'];
     }
 }
