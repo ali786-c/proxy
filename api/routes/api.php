@@ -7,7 +7,7 @@ Route::get('/test-evomi', function() {
         'api_key_configured' => config('services.evomi.key') !== 'your_reseller_api_key_here',
         'products_count' => \App\Models\Product::count(),
         'products_list' => \App\Models\Product::all(['name', 'type']),
-        'settings_preview' => array_keys(app(\App\Services\EvomiService::class)->getProxySettings()['data'] ?? []),
+        'raw_settings_result' => app(\App\Services\EvomiService::class)->getProxySettings(),
         'time' => now()->toDateTimeString()
     ];
 });
