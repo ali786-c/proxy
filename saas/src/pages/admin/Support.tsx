@@ -10,93 +10,58 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, MessageSquare } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-interface AdminTicket {
-  id: string;
-  user: string;
-  subject: string;
-  category: string;
-  status: "open" | "in_progress" | "resolved" | "closed";
-  priority: "low" | "medium" | "high";
-  created_at: string;
-  updated_at: string;
-  messages: { sender: "client" | "support"; text: string; time: string }[];
-}
-
-const MOCK_TICKETS: AdminTicket[] = [
-  {
-    id: "TK-1001", user: "alice@acme.co", subject: "Cannot connect to residential pool", category: "technical",
-    status: "in_progress", priority: "high", created_at: "2026-02-18T10:00:00Z", updated_at: "2026-02-19T14:30:00Z",
-    messages: [
-      { sender: "client", text: "Getting connection refused on port 10000.", time: "2026-02-18T10:00:00Z" },
-      { sender: "support", text: "We're investigating. Can you share your IP allowlist?", time: "2026-02-18T11:30:00Z" },
-    ],
-  },
-  {
-    id: "TK-1002", user: "bob@corp.io", subject: "Billing discrepancy on last invoice", category: "billing",
-    status: "open", priority: "medium", created_at: "2026-02-19T08:00:00Z", updated_at: "2026-02-19T08:00:00Z",
-    messages: [{ sender: "client", text: "Charged for 58GB but usage shows 42GB.", time: "2026-02-19T08:00:00Z" }],
-  },
-  {
-    id: "TK-1003", user: "charlie@mail.com", subject: "Account suspended without notice", category: "other",
-    status: "open", priority: "high", created_at: "2026-02-20T06:00:00Z", updated_at: "2026-02-20T06:00:00Z",
-    messages: [{ sender: "client", text: "My account was suspended. I didn't violate any TOS.", time: "2026-02-20T06:00:00Z" }],
-  },
-  {
-    id: "TK-1004", user: "eve@startup.co", subject: "Request SOCKS5 on mobile", category: "feature",
-    status: "resolved", priority: "low", created_at: "2026-02-14T12:00:00Z", updated_at: "2026-02-15T16:00:00Z",
-    messages: [
-      { sender: "client", text: "Would love SOCKS5 on mobile proxies.", time: "2026-02-14T12:00:00Z" },
-      { sender: "support", text: "Added to our roadmap. Thanks for the suggestion!", time: "2026-02-15T16:00:00Z" },
-    ],
-  },
-];
+import { useAdminTickets } from "@/hooks/use-backend";
 
 const STATUS_COLOR = { open: "secondary", in_progress: "default", resolved: "outline", closed: "outline" } as const;
-const PRIORITY_COLOR = { low: "secondary", medium: "default", high: "destructive" } as const;
+const PRIORITY_COLOR = { low: "secondary", normal: "default", high: "destructive" } as const;
 
 export default function AdminSupport() {
-  const [tickets, setTickets] = useState<AdminTicket[]>(MOCK_TICKETS);
+  const { data: tickets, isLoading, replyTicket, updateStatus } = useAdminTickets();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedTicket, setSelectedTicket] = useState<AdminTicket | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  const filtered = tickets.filter((t) => {
+  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading tickets...</div>;
+
+  const selectedTicket = tickets?.find((t: any) => t.id === selectedTicketId);
+
+  const filtered = (tickets ?? []).filter((t: any) => {
     if (statusFilter !== "all" && t.status !== statusFilter) return false;
     if (search) {
       const q = search.toLowerCase();
-      return t.id.toLowerCase().includes(q) || t.user.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q);
+      return (
+        String(t.id).includes(q) ||
+        t.user?.name?.toLowerCase().includes(q) ||
+        t.user?.email?.toLowerCase().includes(q) ||
+        t.subject.toLowerCase().includes(q)
+      );
     }
     return true;
   });
 
-  const sendReply = () => {
-    if (!replyText.trim() || !selectedTicket) return;
-    const updated = tickets.map((t) =>
-      t.id === selectedTicket.id
-        ? {
-          ...t,
-          status: "in_progress" as const,
-          messages: [...t.messages, { sender: "support" as const, text: replyText, time: new Date().toISOString() }],
-          updated_at: new Date().toISOString(),
-        }
-        : t
-    );
-    setTickets(updated);
-    setSelectedTicket(updated.find((t) => t.id === selectedTicket.id) ?? null);
-    setReplyText("");
-    toast({ title: "Reply Sent", description: `Response sent to ${selectedTicket.user}` });
+  const sendReply = async () => {
+    if (!replyText.trim() || !selectedTicketId) return;
+    try {
+      await replyTicket.mutateAsync({ id: selectedTicketId, message: replyText });
+      setReplyText("");
+      toast({ title: "Reply Sent" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
-  const changeStatus = (ticketId: string, status: AdminTicket["status"]) => {
-    const updated = tickets.map((t) => (t.id === ticketId ? { ...t, status, updated_at: new Date().toISOString() } : t));
-    setTickets(updated);
-    setSelectedTicket(updated.find((t) => t.id === ticketId) ?? null);
-    toast({ title: "Status Updated", description: `Ticket ${ticketId} → ${status}` });
+  const changeStatus = async (ticketId: number, status: string) => {
+    try {
+      await updateStatus.mutateAsync({ id: ticketId, status });
+      toast({ title: "Status Updated", description: `Ticket #${ticketId} → ${status}` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
-  const openCount = tickets.filter((t) => t.status === "open").length;
-  const inProgressCount = tickets.filter((t) => t.status === "in_progress").length;
+  const openCount = (tickets ?? []).filter((t: any) => t.status === "open").length;
+  const inProgressCount = (tickets ?? []).filter((t: any) => t.status === "in_progress").length;
 
   return (
     <>
@@ -113,17 +78,17 @@ export default function AdminSupport() {
 
         {selectedTicket ? (
           <div className="space-y-4">
-            <Button variant="outline" size="sm" onClick={() => setSelectedTicket(null)}>← Back</Button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedTicketId(null)}>← Back</Button>
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-lg">{selectedTicket.subject}</CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">{selectedTicket.id} · {selectedTicket.user} · {selectedTicket.category}</p>
+                    <p className="text-xs text-muted-foreground mt-1">#{selectedTicket.id} · {selectedTicket.user?.name} ({selectedTicket.user?.email})</p>
                   </div>
                   <div className="flex gap-2 items-center">
-                    <Badge variant={PRIORITY_COLOR[selectedTicket.priority]}>{selectedTicket.priority}</Badge>
-                    <Select value={selectedTicket.status} onValueChange={(v: AdminTicket["status"]) => changeStatus(selectedTicket.id, v)}>
+                    <Badge variant={(PRIORITY_COLOR as any)[selectedTicket.priority]}>{selectedTicket.priority}</Badge>
+                    <Select value={selectedTicket.status} onValueChange={(v) => changeStatus(selectedTicket.id, v)}>
                       <SelectTrigger className="w-[140px] h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
@@ -138,20 +103,22 @@ export default function AdminSupport() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {selectedTicket.messages.map((msg, i) => (
-                    <div key={i} className={`rounded-lg p-3 text-sm ${msg.sender === "support" ? "bg-primary/5 ml-8" : "bg-muted mr-8"}`}>
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                  {(selectedTicket.messages ?? []).map((msg: any, i: number) => (
+                    <div key={i} className={`rounded-lg p-3 text-sm ${msg.is_admin_reply ? "bg-primary/5 ml-8 border border-primary/10" : "bg-muted mr-8"}`}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-xs">{msg.sender === "support" ? "Support (You)" : selectedTicket.user}</span>
-                        <span className="text-xs text-muted-foreground">{msg.time ? new Date(msg.time).toLocaleString() : "—"}</span>
+                        <span className="font-bold text-xs">{msg.is_admin_reply ? "Support (You)" : selectedTicket.user?.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{new Date(msg.created_at).toLocaleString()}</span>
                       </div>
-                      <p>{msg.text}</p>
+                      <p className="whitespace-pre-wrap">{msg.message}</p>
                     </div>
                   ))}
                 </div>
                 <div className="flex gap-2">
                   <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your reply..." rows={2} className="flex-1" />
-                  <Button onClick={sendReply} disabled={!replyText.trim()} className="self-end">Send</Button>
+                  <Button onClick={sendReply} disabled={!replyText.trim() || replyTicket.isPending} className="self-end">
+                    {replyTicket.isPending ? "Sending..." : "Send"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -166,7 +133,7 @@ export default function AdminSupport() {
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="open">Open</SelectItem>
                   <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="resolved">Resolved</SelectItem>
@@ -180,27 +147,32 @@ export default function AdminSupport() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
+                      <TableHead className="w-16">ID</TableHead>
                       <TableHead>User</TableHead>
                       <TableHead>Subject</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Updated</TableHead>
+                      <TableHead className="w-24">Priority</TableHead>
+                      <TableHead className="w-32">Status</TableHead>
+                      <TableHead className="text-right">Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((t) => (
-                      <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedTicket(t)}>
-                        <TableCell className="font-mono text-xs">{t.id}</TableCell>
-                        <TableCell className="text-sm">{t.user}</TableCell>
+                    {filtered.map((t: any) => (
+                      <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedTicketId(t.id)}>
+                        <TableCell className="font-mono text-[10px] text-muted-foreground">#{t.id}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{t.user?.name}</span>
+                            <span className="text-[10px] text-muted-foreground line-clamp-1">{t.user?.email}</span>
+                          </div>
+                        </TableCell>
                         <TableCell className="font-medium">{t.subject}</TableCell>
-                        <TableCell><Badge variant={PRIORITY_COLOR[t.priority]} className="text-xs">{t.priority}</Badge></TableCell>
-                        <TableCell><Badge variant={STATUS_COLOR[t.status]} className="text-xs">{t.status.replace("_", " ")}</Badge></TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground">{t.updated_at ? new Date(t.updated_at).toLocaleDateString() : "—"}</TableCell>
+                        <TableCell><Badge variant={(PRIORITY_COLOR as any)[t.priority] ?? "secondary"} className="text-[10px]">{t.priority}</Badge></TableCell>
+                        <TableCell><Badge variant={(STATUS_COLOR as any)[t.status] ?? "secondary"} className="text-[10px] capitalize">{t.status.replace("_", " ")}</Badge></TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</TableCell>
                       </TableRow>
                     ))}
                     {filtered.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">No tickets match.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">No tickets found.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>

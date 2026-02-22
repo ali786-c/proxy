@@ -119,7 +119,18 @@ export function useSupportTickets() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
   });
 
-  return { ...query, createTicket };
+  const replyTicket = useMutation({
+    mutationFn: async ({ id, message }: { id: number | string; message: string }) => {
+      const { data } = await api.post(`/support/tickets/${id}/reply`, { message });
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "tickets"] });
+    },
+  });
+
+  return { ...query, createTicket, replyTicket };
 }
 
 export function useProducts() {
@@ -370,4 +381,37 @@ export function useAdminCoupons() {
   });
 
   return { ...query, createCoupon, deleteCoupon, toggleCoupon };
+}
+
+export function useAdminTickets() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["admin", "tickets"],
+    queryFn: async () => {
+      const { data } = await api.get("/admin/support/tickets");
+      return data;
+    },
+  });
+
+  const replyTicket = useMutation({
+    mutationFn: async ({ id, message }: { id: number | string; message: string }) => {
+      const { data } = await api.post(`/admin/support/tickets/${id}/reply`, { message });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    },
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: number | string; status: string }) => {
+      const { data } = await api.post(`/admin/support/tickets/${id}/status`, { status });
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "tickets"] }),
+  });
+
+  return { ...query, replyTicket, updateStatus };
 }

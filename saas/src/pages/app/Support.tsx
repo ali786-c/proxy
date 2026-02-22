@@ -25,11 +25,15 @@ const STATUS_CONFIG: Record<string, { color: "secondary" | "default" | "outline"
 const PRIORITY_COLOR: Record<string, "secondary" | "default" | "destructive"> = { low: "secondary", normal: "default", high: "destructive" };
 
 export default function Support() {
-  const { data: tickets, isLoading, createTicket } = useSupportTickets();
+  const { data: tickets, isLoading, createTicket, replyTicket } = useSupportTickets();
   const [newSubject, setNewSubject] = useState("");
   const [newPriority, setNewPriority] = useState("normal");
   const [newMessage, setNewMessage] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+
+  const selectedTicket = tickets?.find((t: any) => t.id === selectedTicketId);
 
   const handleCreate = async () => {
     if (!newSubject.trim() || !newMessage.trim()) return;
@@ -39,6 +43,17 @@ export default function Support() {
       setNewMessage("");
       setDialogOpen(false);
       toast({ title: "Ticket Created", description: "Your support ticket has been submitted." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim() || !selectedTicketId) return;
+    try {
+      await replyTicket.mutateAsync({ id: selectedTicketId, message: replyText });
+      setReplyText("");
+      toast({ title: "Reply Sent" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -89,7 +104,41 @@ export default function Support() {
           </Dialog>
         </div>
 
-        {!tickets?.length ? (
+        {selectedTicket ? (
+          <div className="space-y-4">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedTicketId(null)}>← Back to Tickets</Button>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">{selectedTicket.subject}</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1 text-primary italic lowercase">#{selectedTicket.id} · {selectedTicket.status.replace("_", " ")}</p>
+                  </div>
+                  <Badge variant={PRIORITY_COLOR[selectedTicket.priority] ?? "secondary"}>{selectedTicket.priority}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                  {(selectedTicket.messages ?? []).map((msg: any, i: number) => (
+                    <div key={i} className={`rounded-lg p-3 text-sm ${msg.is_admin_reply ? "bg-primary/5 mr-8 border border-primary/10" : "bg-muted ml-8"}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-xs">{msg.is_admin_reply ? "Support Ninja" : "You"}</span>
+                        <span className="text-[10px] text-muted-foreground">{new Date(msg.created_at).toLocaleString()}</span>
+                      </div>
+                      <p className="whitespace-pre-wrap">{msg.message}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your message..." rows={2} className="flex-1" />
+                  <Button onClick={handleReply} disabled={!replyText.trim() || replyTicket.isPending} className="self-end">
+                    {replyTicket.isPending ? "Sending..." : "Send"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : !tickets?.length ? (
           <EmptyState icon={MessageSquare} title="No tickets" description="You haven't created any support tickets yet." />
         ) : (
           <Card>
@@ -100,17 +149,20 @@ export default function Support() {
                     <TableHead>Subject</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Admin Reply</TableHead>
                     <TableHead className="text-right">Created</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tickets.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-medium">{t.subject}</TableCell>
-                      <TableCell><Badge variant={PRIORITY_COLOR[t.priority] ?? "secondary"} className="text-xs">{t.priority}</Badge></TableCell>
-                      <TableCell><Badge variant={STATUS_CONFIG[t.status]?.color ?? "secondary"} className="text-xs">{t.status.replace("_", " ")}</Badge></TableCell>
-                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{t.admin_reply ?? "—"}</TableCell>
+                  {tickets.map((t: any) => (
+                    <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedTicketId(t.id)}>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{t.subject}</span>
+                          <span className="text-[10px] text-muted-foreground">#{t.id}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge variant={PRIORITY_COLOR[t.priority] ?? "secondary"} className="text-[10px]">{t.priority}</Badge></TableCell>
+                      <TableCell><Badge variant={STATUS_CONFIG[t.status]?.color ?? "secondary"} className="text-[10px] capitalize">{t.status.replace("_", " ")}</Badge></TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground">{t.created_at ? new Date(t.created_at).toLocaleDateString() : "—"}</TableCell>
                     </TableRow>
                   ))}

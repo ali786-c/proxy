@@ -138,6 +138,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::get('/support/tickets',      [\App\Http\Controllers\SupportController::class, 'index']);
     Route::post('/support/tickets',     [\App\Http\Controllers\SupportController::class, 'store']);
     Route::get('/support/tickets/{id}', [\App\Http\Controllers\SupportController::class, 'show']);
+    Route::post('/support/tickets/{id}/reply', [\App\Http\Controllers\SupportController::class, 'reply']);
 
     // Referral Routes
     Route::get('/referrals', [\App\Http\Controllers\ReferralController::class, 'index']);
@@ -178,6 +179,11 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/coupons',          [\App\Http\Controllers\CouponController::class, 'store']);
     Route::delete('/coupons/{id}',   [\App\Http\Controllers\CouponController::class, 'destroy']);
     Route::post('/coupons/{id}/toggle', [\App\Http\Controllers\CouponController::class, 'toggle']);
+
+    // Admin Support Management
+    Route::get('/support/tickets',    [\App\Http\Controllers\SupportController::class, 'adminIndex']);
+    Route::post('/support/tickets/{id}/status', [\App\Http\Controllers\SupportController::class, 'updateStatus']);
+    Route::post('/support/tickets/{id}/reply', [\App\Http\Controllers\SupportController::class, 'reply']);
 });
 
 // Public test route removed from bottom, moved to top.
