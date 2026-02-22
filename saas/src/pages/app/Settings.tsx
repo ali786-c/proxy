@@ -192,55 +192,69 @@ function ApiKeysPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Show new key once */}
-      {newKeyResult && (
-        <Card className="border-primary bg-primary/5">
-          <CardContent className="flex items-center justify-between gap-4 py-4">
-            <div className="flex-1">
-              <p className="text-sm font-bold text-primary">Your new API key (copy it now!):</p>
-              <div className="mt-2 flex gap-2">
-                <code className="flex-1 block text-xs font-mono text-primary break-all bg-background border border-primary/20 p-2 rounded">{newKeyResult}</code>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(newKeyResult || "");
-                    toast({ title: "Copied to clipboard" });
-                  }}
-                >
-                  <Copy className="mr-1 h-3.5 w-3.5" /> Copy
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setNewKeyResult(null)}>Close</Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">API Keys</CardTitle>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setNewKeyResult(null);
+              setName("");
+            }
+          }}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="mr-1 h-4 w-4" /> Create Key</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Create API Key</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Key Name</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Production" />
+              <DialogHeader>
+                <DialogTitle>{newKeyResult ? "API Key Created" : "Create API Key"}</DialogTitle>
+              </DialogHeader>
+
+              {newKeyResult ? (
+                <div className="space-y-4 py-4">
+                  <div className="rounded-lg border bg-muted p-4 space-y-2">
+                    <p className="text-sm font-medium">Your API Key (shown only once):</p>
+                    <div className="flex gap-2">
+                      <code className="flex-1 block text-xs font-mono text-primary break-all bg-background border p-2 rounded">
+                        {newKeyResult}
+                      </code>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(newKeyResult);
+                          toast({ title: "Copied to clipboard" });
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-destructive font-medium uppercase tracking-tight">
+                    Warning: Copy this key now. You will not be able to see it again.
+                  </p>
+                  <DialogFooter>
+                    <Button className="w-full" onClick={() => setIsDialogOpen(false)}>Done</Button>
+                  </DialogFooter>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  API keys allow you to generate proxies and check usage via our REST API.
-                </p>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreate} disabled={!name.trim() || createKey.isPending}>
-                  {createKey.isPending ? "Creating..." : "Create"}
-                </Button>
-              </DialogFooter>
+              ) : (
+                <>
+                  <div className="space-y-4 py-2">
+                    <div className="space-y-2">
+                      <Label>Key Name</Label>
+                      <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Production Server" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      API keys allow you to generate proxies and check usage programmatically.
+                    </p>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleCreate} disabled={!name.trim() || createKey.isPending}>
+                      {createKey.isPending ? "Creating..." : "Create"}
+                    </Button>
+                  </DialogFooter>
+                </>
+              )}
             </DialogContent>
           </Dialog>
         </CardHeader>
