@@ -87,8 +87,21 @@ class ProxyController extends Controller
                     'expires_at' => now()->addDays(30),
                 ]);
 
-                $portMap = ['rp' => '1000', 'mp' => '2000', 'isp' => '3000', 'dc' => '3000'];
+                $portMap = [
+                    'rp'  => '1000', 
+                    'mp'  => '3000', 
+                    'isp' => '3000', 
+                    'dc'  => '2000'
+                ];
+                $hostMap = [
+                    'rp'  => 'rp.evomi.com',
+                    'mp'  => 'mp.evomi.com',
+                    'dc'  => 'dcp.evomi.com',
+                    'isp' => 'isp.evomi.com'
+                ];
+
                 $port    = $portMap[$product->type] ?? '1000';
+                $host    = $hostMap[$product->type] ?? 'gate.evomi.com';
 
                 $country     = $request->country      ?? 'US';
                 $sessionType = $request->session_type ?? 'rotating';
@@ -98,7 +111,7 @@ class ProxyController extends Controller
                     $password = "{$proxyKey}_country-{$country}_session-{$sessionType}";
                     $proxy    = Proxy::create([
                         'order_id' => $order->id,
-                        'host'     => 'gate.evomi.com',
+                        'host'     => $host,
                         'port'     => $port,
                         'username' => $user->evomi_username,
                         'password' => $password,
