@@ -11,6 +11,13 @@ Route::get('/test-evomi', function() {
     ];
 });
 
+Route::get('/debug-logs', function() {
+    $path = storage_path('logs/laravel.log');
+    if (!file_exists($path)) return "No log file found.";
+    $lines = file($path);
+    return array_slice($lines, -50);
+});
+
 // ─────────────────────────────────────────────
 // Auth Routes (prefix: /auth)
 // Frontend calls: /auth/login, /auth/signup, /auth/me, /auth/logout

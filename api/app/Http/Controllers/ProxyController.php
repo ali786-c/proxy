@@ -37,95 +37,104 @@ class ProxyController extends Controller
             return response()->json(['message' => 'Insufficient balance.'], 402);
         }
 
-        return DB::transaction(function () use ($user, $product, $totalCost, $request) {
-            // Lock user row for update to prevent race conditions
-            $user = $user->fresh(); // Get latest
-            
-            // Re-check balance after lock
-            if ($user->balance < $totalCost) {
-                throw new \Exception('Insufficient balance detected during transaction.');
-            }
+        try {
+            return DB::transaction(function () use ($user, $product, $totalCost, $request) {
+                // Lock user row for update to prevent race conditions
+                $user = $user->fresh(); // Get latest
+                
+                // Re-check balance after lock
+                if ($user->balance < $totalCost) {
+                    throw new \Exception('Insufficient balance detected during transaction.');
+                }
 
-            // Ensure user has an Evomi subuser setup
-            if (!$user->evomi_username) {
-                throw new \Exception('Proxy account not initialized. Please go to settings/profile to link your account.');
-            }
+                // Ensure user has an Evomi subuser setup
+                if (!$user->evomi_username) {
+                    throw new \Exception('Proxy account not initialized. Please go to settings/profile to link your account.');
+                }
 
-            // Call Evomi API using standardized bandwidth allocation
-            // Note: $request->quantity is bandwidth in GB or count? 
-            // The product usually defines this. Assuming 1 unit = 1 GB (1024 MB)
-            $evomiResult = $this->evomi->allocateBandwidth($user->evomi_username, $request->quantity * 1024, $product->type);
+                // Call Evomi API using standardized bandwidth allocation
+                $evomiResult = $this->evomi->allocateBandwidth($user->evomi_username, $request->quantity * 1024, $product->type);
 
-            if (!$evomiResult) {
-                throw new \Exception('Failed to communicate with proxy provider.');
-            }
+                if (!$evomiResult) {
+                    throw new \Exception('Failed to communicate with proxy provider.');
+                }
 
-            // Deduct Balance
-            $user->balance -= $totalCost;
-            $user->save();
+                // Deduct Balance
+                $user->balance -= $totalCost;
+                $user->save();
 
-            // Log Transaction (Production safety)
-            WalletTransaction::create([
-                'user_id' => $user->id,
-                'type' => 'debit',
-                'amount' => $totalCost,
-                'description' => "Purchase: {$request->quantity}x {$product->name}",
-            ]);
-
-            // Create Order
-            $order = Order::create([
-                'user_id' => $user->id,
-                'product_id' => $product->id,
-                'status' => 'active',
-                'expires_at' => now()->addDays(30), // Default 30 days
-            ]);
-
-            // Construct Proxy URLs (Evomi Pattern)
-            $proxies = [];
-            
-            // Map product type to port
-            $portMap = [
-                'rp'  => '1000',
-                'mp'  => '2000',
-                'isp' => '3000',
-                'dc'  => '3000',
-            ];
-            $port = $portMap[$product->type] ?? '1000';
-
-            // Get the proxy key for the specific type (stored in evomi_keys JSON)
-            $userKeys = $user->evomi_keys ?? [];
-            $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null); // Fallback to residential key if specific missing
-
-            if (!$proxyKey) {
-                 throw new \Exception('Proxy key not found for this product type. Please try re-linking your account in settings.');
-            }
-
-            // Defaults for MVP
-            $country = $request->country ?? 'US';
-            $sessionType = $request->session_type ?? 'sticky'; // or 'rotating'
-
-            for ($i = 0; $i < $request->quantity; $i++) {
-                // Evomi Password Pattern: {key}_country-{CODE}_session-{TYPE}
-                $constructedPassword = "{$proxyKey}_country-{$country}_session-{$sessionType}";
-
-                $proxy = Proxy::create([
-                    'order_id' => $order->id,
-                    'host' => 'gate.evomi.com',
-                    'port' => $port,
-                    'username' => $user->evomi_username,
-                    'password' => $constructedPassword,
-                    'country' => $country,
+                // Log Transaction (Production safety)
+                WalletTransaction::create([
+                    'user_id' => $user->id,
+                    'type' => 'debit',
+                    'amount' => $totalCost,
+                    'description' => "Purchase: {$request->quantity}x {$product->name}",
                 ]);
-                $proxies[] = $proxy;
-            }
 
-            return response()->json([
-                'message' => 'Proxies generated successfully.',
-                'order' => $order,
-                'proxies' => $proxies,
-                'balance' => $user->balance
-            ]);
-        });
+                // Create Order
+                $order = Order::create([
+                    'user_id' => $user->id,
+                    'product_id' => $product->id,
+                    'status' => 'active',
+                    'expires_at' => now()->addDays(30), // Default 30 days
+                ]);
+
+                // Construct Proxy URLs (Evomi Pattern)
+                $proxies = [];
+                
+                // Map product type to port
+                $portMap = [
+                    'rp'  => '1000',
+                    'mp'  => '2000',
+                    'isp' => '3000',
+                    'dc'  => '3000',
+                ];
+                $port = $portMap[$product->type] ?? '1000';
+
+                // Get the proxy key for the specific type (stored in evomi_keys JSON)
+                $userKeys = $user->evomi_keys ?? [];
+                
+                // If keys are empty, try to sync once from provider
+                if (empty($userKeys)) {
+                    $userKeys = $this->evomi->syncProxyKeys($user) ?: [];
+                }
+
+                $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null); // Fallback to residential key if specific missing
+
+                if (!$proxyKey) {
+                     throw new \Exception('Proxy key not found for this product type. Please try re-linking your account in settings.');
+                }
+
+                // Defaults for MVP
+                $country = $request->country ?? 'US';
+                $sessionType = $request->session_type ?? 'sticky'; // or 'rotating'
+
+                for ($i = 0; $i < $request->quantity; $i++) {
+                    // Evomi Password Pattern: {key}_country-{CODE}_session-{TYPE}
+                    $constructedPassword = "{$proxyKey}_country-{$country}_session-{$sessionType}";
+
+                    $proxy = Proxy::create([
+                        'order_id' => $order->id,
+                        'host' => 'gate.evomi.com',
+                        'port' => $port,
+                        'username' => $user->evomi_username,
+                        'password' => $constructedPassword,
+                        'country' => $country,
+                    ]);
+                    $proxies[] = $proxy;
+                }
+
+                return response()->json([
+                    'message' => 'Proxies generated successfully.',
+                    'order' => $order,
+                    'proxies' => $proxies,
+                    'balance' => $user->balance
+                ]);
+            });
+        } catch (\Exception $e) {
+            Log::error('Proxy Generation Error: ' . $e->getMessage());
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 
     public function list(Request $request)

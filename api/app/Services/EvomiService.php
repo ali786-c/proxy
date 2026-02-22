@@ -133,4 +133,26 @@ class EvomiService
             ];
         }
     }
+    /**
+     * Sync proxy keys for a user from Evomi API.
+     */
+    public function syncProxyKeys(\App\Models\User $user)
+    {
+        if (!$user->evomi_username) return false;
+
+        $result = $this->getSubuserData($user->evomi_username);
+
+        if ($result && isset($result['data']['products'])) {
+            $keys = [];
+            foreach ($result['data']['products'] as $type => $info) {
+                if (isset($info['proxy_key'])) {
+                    $keys[$type] = $info['proxy_key'];
+                }
+            }
+            $user->update(['evomi_keys' => $keys]);
+            return $keys;
+        }
+
+        return false;
+    }
 }
