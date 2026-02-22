@@ -44,6 +44,7 @@ import {
   Download,
   Store,
   History,
+  Zap,
 } from "lucide-react";
 
 interface NavItem {
