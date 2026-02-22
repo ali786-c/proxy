@@ -112,7 +112,7 @@ class EvomiService
     public function getProxySettings()
     {
         try {
-            $response = Http::withHeaders([
+            $response = Http::withoutVerifying()->withHeaders([
                 'X-API-KEY' => $this->apiKey,
                 'Accept' => 'application/json',
             ])->get("{$this->baseUrl}/reseller/proxy_settings");
