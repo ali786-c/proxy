@@ -7,6 +7,21 @@ All changes are logged here in reverse chronological order (newest first).
 
 ## 2026-02-22
 
+### Feature: Integrated Proxy History & Refined Sidebar 🚀
+- **Consolidated Refactor:** Merged the standalone "Proxy History" page into category-specific views. Users now visit `/app/my-proxies/:type` for an integrated experience.
+- **Sidebar UX:** Renamed and reorganized product categories (Residential, Datacenter, Mobile, Datacenter IPv6, etc.) to match the Evomi ecosystem.
+- **Detailed Proxy View:** Implemented a "View Details" (eye icon) modal for every historical order.
+  - **Auto-Config Snippets:** Added ready-to-use samples for **cURL**, **Python (Requests)**, and **Node.js (Fetch)** within the modal.
+  - **Table View:** Clean rendering of individual proxy credentials (host:port:user:pass) for each order.
+- **Backend Optimization:** Updated `ProxyController::list` to support server-side filtering by product type via query parameters.
+
+### Critical Fixes (Production Reliability) 🛠️
+- **Icon Rendering Fix:** Resolved a `ReferenceError: Zap is not defined` in `SidebarNav.tsx` that caused a white page crash in production.
+- **Dialog Modal Fix:** Resolved a `ReferenceError: DialogDescription is not defined` in `ProxyHistory.tsx` preventing users from opening proxy details.
+- **Accessibility:** Added missing `DialogTitle` and corrected Radix UI implementation for better screen reader and browser compatibility.
+
+---
+
 ### Phase 3: Real Proxy Flow & Connectivity Verified ✅
 - **Phase 3 Completion:** Implemented the full proxy generation lifecycle: Subuser initialization → Proxy Key Retrieval → Bandwidth Allocation (Balance) → Database Persistence.
 - **Endpoint Alignment:** Updated `ProxyController` to use correct product-specific hosts (`rp.evomi.com`, `dcp.evomi.com`, `mp.evomi.com`) and ports (1000, 2000, 3000) as per latest documentation.
