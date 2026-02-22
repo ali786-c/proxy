@@ -42,9 +42,10 @@ export default function Signup() {
   const onSubmit = async (data: Required<SignupInput>) => {
     setSubmitting(true);
     try {
-      await signup(data);
+      const user = await signup(data);
       toast({ title: "Account created", description: "Welcome to UpgradedProxy!" });
-      navigate("/app");
+      const defaultNext = user.role === "admin" ? "/admin" : "/app";
+      navigate(defaultNext);
     } catch {
       // error is set in context
     } finally {

@@ -18,8 +18,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (data: LoginInput) => Promise<void>;
-  signup: (data: SignupInput) => Promise<void>;
+  login: (data: LoginInput) => Promise<User>;
+  signup: (data: SignupInput) => Promise<User>;
   logout: () => Promise<void>;
   clearError: () => void;
   isAuthenticated: boolean;
@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user, token } = await authApi.login(data);
       tokenStorage.set(token);
       setState({ user, isLoading: false, error: null });
+      return user;
     } catch (err: any) {
       const message = err?.message ?? "Login failed. Check your credentials.";
       setState((s) => ({ ...s, isLoading: false, error: message }));
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user, token } = await authApi.signup(data);
       tokenStorage.set(token);
       setState({ user, isLoading: false, error: null });
+      return user;
     } catch (err: any) {
       const message = err?.message ?? "Registration failed.";
       setState((s) => ({ ...s, isLoading: false, error: message }));
