@@ -49,7 +49,15 @@ class ProxyController extends Controller
 
                 // Ensure user has an Evomi subuser setup
                 if (!$user->evomi_username) {
-                    throw new \Exception('Proxy account not initialized. Please go to settings/profile to link your account.');
+                    // Try to auto-setup if missing
+                    $subuserController = app(\App\Http\Controllers\SubuserController::class);
+                    $setupResponse = $subuserController->setup($request);
+                    
+                    if ($setupResponse->status() !== 200) {
+                        throw new \Exception('Failed to automatically initialize proxy account. Please contact support.');
+                    }
+                    
+                    $user = $user->fresh(); // Refresh user data after setup
                 }
 
                 // Call Evomi API using standardized bandwidth allocation
