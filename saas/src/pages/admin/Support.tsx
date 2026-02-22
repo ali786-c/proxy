@@ -196,7 +196,7 @@ export default function AdminSupport() {
                         <TableCell className="font-medium">{t.subject}</TableCell>
                         <TableCell><Badge variant={PRIORITY_COLOR[t.priority]} className="text-xs">{t.priority}</Badge></TableCell>
                         <TableCell><Badge variant={STATUS_COLOR[t.status]} className="text-xs">{t.status.replace("_", " ")}</Badge></TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground">{new Date(t.updated_at).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">{t.updated_at ? new Date(t.updated_at).toLocaleDateString() : "—"}</TableCell>
                       </TableRow>
                     ))}
                     {filtered.length === 0 && (

@@ -38,7 +38,7 @@ export default function Invoices() {
                       <TableCell>${Number(inv.amount).toFixed(2)}</TableCell>
                       <TableCell className="capitalize">{inv.gateway ?? "—"}</TableCell>
                       <TableCell><Badge variant={SV[inv.status] ?? "secondary"}>{inv.status}</Badge></TableCell>
-                      <TableCell className="text-right text-sm text-muted-foreground">{new Date(inv.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">{inv.created_at ? new Date(inv.created_at).toLocaleDateString() : "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

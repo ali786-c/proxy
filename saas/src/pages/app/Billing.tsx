@@ -220,7 +220,7 @@ export default function Billing() {
                       </TableCell>
                       <TableCell className="text-sm">{inv.description}</TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground">
-                        {new Date(inv.created_at).toLocaleDateString()}
+                        {inv.created_at ? new Date(inv.created_at).toLocaleDateString() : "—"}
                       </TableCell>
                     </TableRow>
                   ))

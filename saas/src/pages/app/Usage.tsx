@@ -89,11 +89,11 @@ export default function Usage() {
         <div className="grid gap-4 sm:grid-cols-3">
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Bandwidth</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold">{(totalBw / 1000).toFixed(1)} GB</p></CardContent>
+            <CardContent><p className="text-2xl font-bold">{Number(totalBw / 1000).toFixed(1)} GB</p></CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Requests</CardTitle></CardHeader>
-            <CardContent><p className="text-2xl font-bold">{totalReqs.toLocaleString()}</p></CardContent>
+            <CardContent><p className="text-2xl font-bold">{(totalReqs || 0).toLocaleString()}</p></CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Avg Success Rate</CardTitle></CardHeader>
@@ -177,7 +177,7 @@ export default function Usage() {
                     </TableCell>
                     <TableCell className="text-sm">{ev.message}</TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">
-                      {new Date(ev.created_at).toLocaleString()}
+                      {ev.created_at ? new Date(ev.created_at).toLocaleString() : "—"}
                     </TableCell>
                   </TableRow>
                 ))}

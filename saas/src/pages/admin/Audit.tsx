@@ -44,11 +44,12 @@ export default function AdminAudit() {
     );
   });
 
-  const actionTypes = [...new Set((entries ?? []).map((e) => e.action.split("_")[0]))];
+  const actionTypes = [...new Set((entries ?? []).map((e: any) => e.action.split("_")[0]))] as string[];
 
   const formatTime = (ts: string) => {
+    if (!ts) return "—";
     const d = new Date(ts);
-    return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return isNaN(d.getTime()) ? "—" : d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
   return (

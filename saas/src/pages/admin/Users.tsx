@@ -142,7 +142,9 @@ export default function AdminUsers() {
                       </Badge>
                     </TableCell>
                     <TableCell>${Number(user.balance ?? 0).toFixed(2)}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
@@ -170,7 +172,7 @@ export default function AdminUsers() {
                   <div><p className="text-muted-foreground">Role</p><p className="font-medium capitalize">{selectedUser.role || "client"}</p></div>
                   <div><p className="text-muted-foreground">Status</p><Badge variant={selectedUser.role === 'banned' ? "destructive" : "default"}>{selectedUser.role === 'banned' ? "Banned" : "Active"}</Badge></div>
                   <div><p className="text-muted-foreground">Balance</p><p className="font-medium text-lg">${Number(selectedUser.balance ?? 0).toFixed(2)}</p></div>
-                  <div><p className="text-muted-foreground">Joined</p><p className="font-medium">{new Date(selectedUser.created_at).toLocaleDateString()}</p></div>
+                  <div><p className="text-muted-foreground">Joined</p><p className="font-medium">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : "—"}</p></div>
                 </div>
 
                 {/* User Stats */}

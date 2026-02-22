@@ -111,7 +111,7 @@ export default function Support() {
                       <TableCell><Badge variant={PRIORITY_COLOR[t.priority] ?? "secondary"} className="text-xs">{t.priority}</Badge></TableCell>
                       <TableCell><Badge variant={STATUS_CONFIG[t.status]?.color ?? "secondary"} className="text-xs">{t.status.replace("_", " ")}</Badge></TableCell>
                       <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{t.admin_reply ?? "—"}</TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">{t.created_at ? new Date(t.created_at).toLocaleDateString() : "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

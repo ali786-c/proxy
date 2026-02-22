@@ -63,9 +63,9 @@ export default function RateLimits() {
                     </Badge>
                   </div>
                   <p className="text-2xl font-bold">
-                    {key === "bandwidth_gb" ? `${q.used} GB` : q.used.toLocaleString()}
+                    {key === "bandwidth_gb" ? `${q.used} GB` : (q.used || 0).toLocaleString()}
                     <span className="text-sm font-normal text-muted-foreground">
-                      {" "}/ {key === "bandwidth_gb" ? `${q.limit} GB` : q.limit.toLocaleString()}
+                      {" "}/ {key === "bandwidth_gb" ? `${q.limit} GB` : (q.limit || 0).toLocaleString()}
                     </span>
                   </p>
                   <Progress value={Math.min(pct, 100)} className="h-2" />
@@ -107,7 +107,7 @@ export default function RateLimits() {
                         <div className="flex items-center gap-2">
                           <Progress value={Math.min(pct, 100)} className="h-1.5 w-20" />
                           <span className="text-xs text-muted-foreground">
-                            {rl.used.toLocaleString()} / {rl.limit.toLocaleString()}
+                            {(rl.used || 0).toLocaleString()} / {(rl.limit || 0).toLocaleString()}
                           </span>
                         </div>
                       </TableCell>

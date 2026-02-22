@@ -187,7 +187,7 @@ export default function Organization() {
                         <TableCell className="text-sm">{m.profiles?.email || "—"}</TableCell>
                         <TableCell><Badge variant={roleColor[m.role] ?? "outline"} className="text-xs">{m.role}</Badge></TableCell>
                         <TableCell className="text-sm text-muted-foreground">{m.department || "—"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{new Date(m.joined_at).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{m.joined_at ? new Date(m.joined_at).toLocaleDateString() : "—"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -215,7 +215,7 @@ export default function Organization() {
                         <TableRow key={inv.id}>
                           <TableCell className="text-sm">{inv.email}</TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{inv.role}</Badge></TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{new Date(inv.expires_at).toLocaleDateString()}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{inv.expires_at ? new Date(inv.expires_at).toLocaleDateString() : "—"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

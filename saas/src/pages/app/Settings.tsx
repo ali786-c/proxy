@@ -141,7 +141,7 @@ function AllowlistPanel() {
                 <TableRow key={e.id}>
                   <TableCell className="font-mono text-sm">{e.ip}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{e.label ?? "—"}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{new Date(e.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{e.created_at ? new Date(e.created_at).toLocaleDateString() : "—"}</TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
@@ -280,7 +280,7 @@ function ApiKeysPanel() {
                       {k.api_key.substring(0, 12)}****
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(k.created_at).toLocaleDateString()}
+                      {k.created_at ? new Date(k.created_at).toLocaleDateString() : "—"}
                     </TableCell>
                     <TableCell>
                       <Button

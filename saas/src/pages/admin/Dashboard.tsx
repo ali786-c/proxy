@@ -144,7 +144,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Active Proxies</p>
-                  <p className="text-2xl font-bold">{(kpi.active_proxies / 1_000_000).toFixed(1)}M+</p>
+                  <p className="text-2xl font-bold">{Number(kpi.active_proxies / 1_000_000).toFixed(1)}M+</p>
                 </div>
                 <div className="rounded-lg bg-primary/10 p-3">
                   <Server className="h-5 w-5 text-primary" />
@@ -253,7 +253,7 @@ export default function AdminDashboard() {
                         {geo.flag} {geo.country}
                         <span className="ml-2 text-xs text-muted-foreground">({(geo.users || 0).toLocaleString()} users)</span>
                       </span>
-                      <span className="text-muted-foreground">{(geo.bandwidth_gb / 1000).toFixed(1)} TB</span>
+                      <span className="text-muted-foreground">{Number(geo.bandwidth_gb / 1000).toFixed(1)} TB</span>
                     </div>
                     <div className="h-2 w-full rounded-full bg-muted">
                       <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
