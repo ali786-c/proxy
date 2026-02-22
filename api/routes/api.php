@@ -44,11 +44,56 @@ Route::get('/debug-logs', function() {
     return implode('', array_slice($lines, -80));
 });
 
+// Test creating a subuser directly — shows raw Evomi API response
+Route::get('/debug-create-subuser', function() {
+    $apiKey  = config('services.evomi.key');
+    $baseUrl = 'https://reseller.evomi.com/v2';
+
+    // Try PUT method (documented)
+    $responsePut = Illuminate\Support\Facades\Http::withoutVerifying()->withHeaders([
+        'X-API-KEY' => $apiKey,
+        'Accept'    => 'application/json',
+    ])->put("{$baseUrl}/reseller/sub_users/create", [
+        'username' => 'debug_test_' . rand(1000, 9999),
+        'email'    => 'debug@test-evomi.com',
+    ]);
+
+    // Also try POST method  
+    $responsePost = Illuminate\Support\Facades\Http::withoutVerifying()->withHeaders([
+        'X-API-KEY' => $apiKey,
+        'Accept'    => 'application/json',
+    ])->post("{$baseUrl}/reseller/sub_users/create", [
+        'username' => 'debug_test_' . rand(1000, 9999),
+        'email'    => 'debug@test-evomi.com',
+    ]);
+
+    // Also try listing subusers to see if any exist
+    $listResponse = Illuminate\Support\Facades\Http::withoutVerifying()->withHeaders([
+        'X-API-KEY' => $apiKey,
+        'Accept'    => 'application/json',
+    ])->get("{$baseUrl}/reseller/sub_users");
+
+    return response()->json([
+        'PUT /create' => [
+            'status' => $responsePut->status(),
+            'body'   => $responsePut->json() ?? $responsePut->body(),
+        ],
+        'POST /create' => [
+            'status' => $responsePost->status(),
+            'body'   => $responsePost->json() ?? $responsePost->body(),
+        ],
+        'GET /sub_users (list)' => [
+            'status' => $listResponse->status(),
+            'body'   => $listResponse->json() ?? $listResponse->body(),
+        ],
+    ]);
+});
+
 Route::get('/test-evomi', function() {
     return [
-        'status'       => 'API is reachable',
-        'products'     => \App\Models\Product::all(['name', 'type']),
-        'time'         => now()->toDateTimeString(),
+        'status'   => 'API is reachable',
+        'products' => \App\Models\Product::all(['name', 'type']),
+        'time'     => now()->toDateTimeString(),
     ];
 });
 
