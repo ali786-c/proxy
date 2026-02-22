@@ -14,6 +14,41 @@ export function useProfile() {
   });
 }
 
+export function useProfileInfo() {
+  return useQuery({
+    queryKey: ["profile-info"],
+    queryFn: async () => {
+      const { data } = await api.get("/profile");
+      return data;
+    },
+  });
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { name?: string; password?: string; password_confirmation?: string }) => {
+      const { data } = await api.post("/profile", params);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["profile-info"] });
+    },
+  });
+}
+
+export function useStats() {
+  return useQuery({
+    queryKey: ["stats"],
+    queryFn: async () => {
+      const { data } = await api.get("/stats");
+      return data;
+    },
+    refetchInterval: 1000 * 60 * 5, // 5 min auto refetch
+  });
+}
+
 export function useOrders() {
   return useQuery({
     queryKey: ["orders"],

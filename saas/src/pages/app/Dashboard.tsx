@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
+import { useStats } from "@/hooks/use-backend";
 import {
   Globe,
   Shield,
@@ -17,6 +18,9 @@ import {
   FileText,
   DollarSign,
   MessageSquare,
+  Activity,
+  CreditCard,
+  ShoppingBag,
 } from "lucide-react";
 
 const PRODUCTS = [
@@ -113,11 +117,79 @@ const QUICK_LINKS = [
 ];
 
 export default function AppDashboard() {
+  const { data: stats, isLoading } = useStats();
+
   return (
     <>
       <SEOHead title="Dashboard" noindex />
 
       <div className="space-y-6">
+        {/* Stats Overview */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-success/10 p-2">
+                  <CreditCard className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Wallet Balance</p>
+                  <h3 className="text-2xl font-bold">
+                    {isLoading ? "..." : `$${stats?.balance?.toFixed(2) || "0.00"}`}
+                  </h3>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-primary/10 p-2">
+                  <Globe className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Active Proxies</p>
+                  <h3 className="text-2xl font-bold">
+                    {isLoading ? "..." : stats?.active_proxies || "0"}
+                  </h3>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-warning/10 p-2">
+                  <ShoppingBag className="h-5 w-5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Total Orders</p>
+                  <h3 className="text-2xl font-bold">
+                    {isLoading ? "..." : stats?.total_orders || "0"}
+                  </h3>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-info/10 p-2">
+                  <Activity className="h-5 w-5 text-info" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">Total Spent</p>
+                  <h3 className="text-2xl font-bold">
+                    {isLoading ? "..." : `$${stats?.total_spent?.toFixed(2) || "0.00"}`}
+                  </h3>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
         {/* Quality Badges */}
         <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5"><Shield className="h-4 w-4 text-primary" /> Swiss Quality</span>

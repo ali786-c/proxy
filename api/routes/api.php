@@ -5,10 +5,8 @@ Route::get('/test-evomi', function() {
     return [
         'status' => 'API is reachable',
         'api_key_configured' => !empty(config('services.evomi.key')),
-        'api_key_masked' => substr(config('services.evomi.key'), 0, 4) . '...',
         'products_count' => \App\Models\Product::count(),
         'products_list' => \App\Models\Product::all(['name', 'type']),
-        'raw_settings_result' => app(\App\Services\EvomiService::class)->getProxySettings(),
         'time' => now()->toDateTimeString()
     ];
 });
@@ -33,8 +31,9 @@ Route::prefix('auth')->group(function () {
 Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 
     // Profile & Stats
-    Route::get('/profile', [\App\Http\Controllers\AuthController::class, 'profile']);
-    Route::get('/stats',   [\App\Http\Controllers\AuthController::class, 'stats']);
+    Route::get('/profile',  [\App\Http\Controllers\AuthController::class, 'profile']);
+    Route::post('/profile', [\App\Http\Controllers\AuthController::class, 'updateProfile']);
+    Route::get('/stats',    [\App\Http\Controllers\AuthController::class, 'stats']);
 
     // Proxy Routes
     Route::post('/proxies/generate', [\App\Http\Controllers\ProxyController::class, 'generate']);

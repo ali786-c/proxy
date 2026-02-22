@@ -143,6 +143,35 @@ class AuthController extends Controller
     }
 
     /**
+     * Update user profile (name/password).
+     * POST /profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'name'     => 'nullable|string|max:255',
+            'password' => 'nullable|string|min:8|confirmed',
+        ]);
+
+        if ($request->name) {
+            $user->name = $request->name;
+        }
+
+        if ($request->password) {
+            $user->password = Hash::make($request->password);
+        }
+
+        $user->save();
+
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'user'    => $this->formatUser($user),
+        ]);
+    }
+
+    /**
      * Format user for API response — ensures id is string for frontend Zod schema.
      */
     private function formatUser(User $user): array
