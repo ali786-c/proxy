@@ -244,7 +244,8 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="space-y-3">
               {kpi.top_geos.map((geo, i) => {
-                const pct = Math.round((geo.bandwidth_gb / kpi.top_geos[0].bandwidth_gb) * 100);
+                const maxBandwidth = kpi.top_geos[0]?.bandwidth_gb || 1;
+                const pct = Math.round((geo.bandwidth_gb / maxBandwidth) * 100);
                 return (
                   <div key={geo.country} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">

@@ -169,7 +169,7 @@ export default function AdminCoupons() {
           <Card>
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground">Total Redemptions</p>
-              <p className="text-2xl font-bold">{totalRedemptions.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{(totalRedemptions || 0).toLocaleString()}</p>
             </CardContent>
           </Card>
         </div>

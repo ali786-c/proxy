@@ -75,11 +75,11 @@ export default function AdminSupport() {
     const updated = tickets.map((t) =>
       t.id === selectedTicket.id
         ? {
-            ...t,
-            status: "in_progress" as const,
-            messages: [...t.messages, { sender: "support" as const, text: replyText, time: new Date().toISOString() }],
-            updated_at: new Date().toISOString(),
-          }
+          ...t,
+          status: "in_progress" as const,
+          messages: [...t.messages, { sender: "support" as const, text: replyText, time: new Date().toISOString() }],
+          updated_at: new Date().toISOString(),
+        }
         : t
     );
     setTickets(updated);
@@ -143,7 +143,7 @@ export default function AdminSupport() {
                     <div key={i} className={`rounded-lg p-3 text-sm ${msg.sender === "support" ? "bg-primary/5 ml-8" : "bg-muted mr-8"}`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-medium text-xs">{msg.sender === "support" ? "Support (You)" : selectedTicket.user}</span>
-                        <span className="text-xs text-muted-foreground">{new Date(msg.time).toLocaleString()}</span>
+                        <span className="text-xs text-muted-foreground">{msg.time ? new Date(msg.time).toLocaleString() : "—"}</span>
                       </div>
                       <p>{msg.text}</p>
                     </div>
