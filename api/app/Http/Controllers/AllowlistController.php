@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AllowlistEntry;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AllowlistController extends Controller
 {
@@ -23,8 +24,8 @@ class AllowlistController extends Controller
 
         $entry = AllowlistEntry::create([
             'user_id' => $request->user()->id,
-            'ip'      => $request->ip,
-            'label'   => $request->label,
+            'ip'      => $request->input('ip'),
+            'label'   => $request->input('label'),
         ]);
 
         return response()->json($entry, 201);
@@ -32,10 +33,10 @@ class AllowlistController extends Controller
 
     public function destroy($id, Request $request)
     {
-        \Log::info("Allowlist Delete Attempt", ['user_id' => $request->user()->id, 'entry_id' => $id]);
+        Log::info("Allowlist Delete Attempt", ['user_id' => $request->user()->id, 'entry_id' => $id]);
         $entry = AllowlistEntry::where('user_id', $request->user()->id)->findOrFail($id);
         $entry->delete();
-        \Log::info("Allowlist Delete Success", ['entry_id' => $id]);
+        Log::info("Allowlist Delete Success", ['entry_id' => $id]);
         return response()->json(['message' => 'IP removed from allowlist']);
     }
 }

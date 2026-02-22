@@ -170,18 +170,18 @@ const ALL_SCOPES = ["proxy:generate", "usage:read", "allowlist:manage", "keys:ma
 function ApiKeysPanel() {
   const { data: keys, isLoading, createKey, revokeKey } = useApiKeys();
   const [newKeyResult, setNewKeyResult] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Create key form state
   const [name, setName] = useState("");
-  // Backend only supports name currently, so keeping it simple for now as per controller logic
 
   const handleCreate = async () => {
     if (!name.trim()) return;
     try {
       const res = await createKey.mutateAsync(name.trim());
-      // The backend returns the raw key in 'api_key'
       setNewKeyResult(res.api_key);
       setName("");
+      setIsDialogOpen(false);
       toast({ title: "API Key Created", description: "Copy it now — it won't be shown again." });
     } catch (err: any) {
       toast({ title: "Error", description: "Failed to create API key.", variant: "destructive" });
@@ -194,22 +194,25 @@ function ApiKeysPanel() {
     <div className="space-y-4">
       {/* Show new key once */}
       {newKeyResult && (
-        <Card className="border-primary">
+        <Card className="border-primary bg-primary/5">
           <CardContent className="flex items-center justify-between gap-4 py-4">
             <div className="flex-1">
-              <p className="text-sm font-medium">Your new API key (copy now — shown once):</p>
-              <code className="mt-1 block text-xs font-mono text-primary break-all bg-muted p-2 rounded">{newKeyResult}</code>
+              <p className="text-sm font-bold text-primary">Your new API key (copy it now!):</p>
+              <div className="mt-2 flex gap-2">
+                <code className="flex-1 block text-xs font-mono text-primary break-all bg-background border border-primary/20 p-2 rounded">{newKeyResult}</code>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(newKeyResult || "");
+                    toast({ title: "Copied to clipboard" });
+                  }}
+                >
+                  <Copy className="mr-1 h-3.5 w-3.5" /> Copy
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setNewKeyResult(null)}>Close</Button>
+              </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                navigator.clipboard.writeText(newKeyResult || "");
-                toast({ title: "Copied" });
-              }}
-            >
-              <Copy className="mr-1 h-3.5 w-3.5" /> Copy
-            </Button>
           </CardContent>
         </Card>
       )}
@@ -217,7 +220,7 @@ function ApiKeysPanel() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">API Keys</CardTitle>
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="mr-1 h-4 w-4" /> Create Key</Button>
             </DialogTrigger>
@@ -233,7 +236,7 @@ function ApiKeysPanel() {
                 </p>
               </div>
               <DialogFooter>
-                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                 <Button onClick={handleCreate} disabled={!name.trim() || createKey.isPending}>
                   {createKey.isPending ? "Creating..." : "Create"}
                 </Button>
