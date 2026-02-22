@@ -5,6 +5,8 @@ Route::get('/test-evomi', function() {
     return [
         'status' => 'API is reachable',
         'api_key_configured' => config('services.evomi.key') !== 'your_reseller_api_key_here',
+        'products_count' => \App\Models\Product::count(),
+        'products_list' => \App\Models\Product::all(['name', 'type']),
         'time' => now()->toDateTimeString()
     ];
 });
