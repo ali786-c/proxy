@@ -145,6 +145,11 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::get('/api_keys',        [\App\Http\Controllers\ApiKeyController::class, 'index']);
     Route::post('/api_keys',       [\App\Http\Controllers\ApiKeyController::class, 'store']);
     Route::delete('/api_keys/{id}', [\App\Http\Controllers\ApiKeyController::class, 'destroy']);
+
+    // IP Allowlist Routes
+    Route::get('/allowlist',        [\App\Http\Controllers\AllowlistController::class, 'index']);
+    Route::post('/allowlist',       [\App\Http\Controllers\AllowlistController::class, 'store']);
+    Route::delete('/allowlist/{id}', [\App\Http\Controllers\AllowlistController::class, 'destroy']);
 });
 
 // ─────────────────────────────────────────────

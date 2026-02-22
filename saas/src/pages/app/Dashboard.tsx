@@ -181,9 +181,9 @@ export default function AppDashboard() {
                   <Activity className="h-5 w-5 text-info" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Total Spent</p>
+                  <p className="text-sm text-muted-foreground font-medium">Bandwidth Used</p>
                   <h3 className="text-2xl font-bold">
-                    {isLoading ? "..." : `$${stats?.total_spent?.toFixed(2) || "0.00"}`}
+                    {isLoading ? "..." : `${stats?.bandwidth_used?.toFixed(2) || "0.00"} ${stats?.bandwidth_unit || "MB"}`}
                   </h3>
                 </div>
               </div>

@@ -187,6 +187,35 @@ export function useProxySettings() {
   });
 }
 
+export function useAllowlist() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["allowlist"],
+    queryFn: async () => {
+      const { data } = await api.get("/allowlist");
+      return data;
+    },
+  });
+
+  const addEntry = useMutation({
+    mutationFn: async (entry: { ip: string; label?: string }) => {
+      const { data } = await api.post("/allowlist", entry);
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["allowlist"] }),
+  });
+
+  const removeEntry = useMutation({
+    mutationFn: async (entryId: string | number) => {
+      await api.delete(`/allowlist/${entryId}`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["allowlist"] }),
+  });
+
+  return { ...query, addEntry, removeEntry };
+}
+
 // ── Payment Actions ──────────────────────────
 
 export function useStripeCheckout() {

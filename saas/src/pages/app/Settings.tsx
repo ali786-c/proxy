@@ -21,7 +21,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Plus, Trash2, Key, Shield, Copy, User as UserIcon, Lock } from "lucide-react";
 import type { AllowlistEntry, ApiKey } from "@/lib/api/dashboard";
-import { useProfileInfo, useUpdateProfile } from "@/hooks/use-backend";
+import { useProfileInfo, useUpdateProfile, useApiKeys, useAllowlist } from "@/hooks/use-backend";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Mock data
@@ -81,36 +81,32 @@ export default function AppSettings() {
 // ── IP Allowlist Panel ───────────────────────────────
 
 function AllowlistPanel() {
-  const [entries, setEntries] = useState<AllowlistEntry[]>(INITIAL_IPS);
+  const { data: entries, isLoading, addEntry, removeEntry } = useAllowlist();
   const [newIp, setNewIp] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const addEntry = () => {
+  const handleAdd = async () => {
     setError(null);
     const trimmed = newIp.trim();
     if (!trimmed) { setError("IP address is required."); return; }
-    // basic IPv4 check
+
     if (!/^\d{1,3}(\.\d{1,3}){3}(\/\d{1,2})?$/.test(trimmed)) {
       setError("Enter a valid IPv4 address or CIDR range.");
       return;
     }
-    const entry: AllowlistEntry = {
-      id: Date.now().toString(),
-      ip: trimmed,
-      label: newLabel.trim() || undefined,
-      created_at: new Date().toISOString(),
-    };
-    setEntries((e) => [...e, entry]);
-    setNewIp("");
-    setNewLabel("");
-    toast({ title: "IP Added", description: `${trimmed} added to allowlist.` });
+
+    try {
+      await addEntry.mutateAsync({ ip: trimmed, label: newLabel.trim() || undefined });
+      setNewIp("");
+      setNewLabel("");
+      toast({ title: "IP Added", description: `${trimmed} added to allowlist.` });
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to add IP.");
+    }
   };
 
-  const removeEntry = (id: string) => {
-    setEntries((e) => e.filter((x) => x.id !== id));
-    toast({ title: "Removed", description: "IP removed from allowlist." });
-  };
+  if (isLoading) return <div className="p-8 space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /></div>;
 
   return (
     <Card>
@@ -123,10 +119,12 @@ function AllowlistPanel() {
         <div className="flex gap-2">
           <Input placeholder="203.0.113.0/24" value={newIp} onChange={(e) => setNewIp(e.target.value)} className="max-w-xs" />
           <Input placeholder="Label (optional)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} className="max-w-xs" />
-          <Button onClick={addEntry}><Plus className="mr-1 h-4 w-4" /> Add</Button>
+          <Button onClick={handleAdd} disabled={addEntry.isPending}>
+            {addEntry.isPending ? "Adding..." : <><Plus className="mr-1 h-4 w-4" /> Add</>}
+          </Button>
         </div>
 
-        {entries.length === 0 ? (
+        {!entries || entries.length === 0 ? (
           <EmptyState icon={Shield} title="No IPs allowlisted" description="Add your server IPs to authenticate without credentials." />
         ) : (
           <Table>
@@ -139,13 +137,19 @@ function AllowlistPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((e) => (
+              {entries.map((e: any) => (
                 <TableRow key={e.id}>
                   <TableCell className="font-mono text-sm">{e.ip}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{e.label ?? "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{new Date(e.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => removeEntry(e.id)} aria-label="Remove">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeEntry.mutate(e.id)}
+                      disabled={removeEntry.isPending}
+                      aria-label="Remove"
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
@@ -164,48 +168,27 @@ function AllowlistPanel() {
 const ALL_SCOPES = ["proxy:generate", "usage:read", "allowlist:manage", "keys:manage"];
 
 function ApiKeysPanel() {
-  const [keys, setKeys] = useState<ApiKey[]>(INITIAL_KEYS);
+  const { data: keys, isLoading, createKey, revokeKey } = useApiKeys();
   const [newKeyResult, setNewKeyResult] = useState<string | null>(null);
 
   // Create key form state
   const [name, setName] = useState("");
-  const [countries, setCountries] = useState("");
-  const [gbCap, setGbCap] = useState("");
-  const [reqCap, setReqCap] = useState("");
-  const [scopes, setScopes] = useState<string[]>(["proxy:generate"]);
+  // Backend only supports name currently, so keeping it simple for now as per controller logic
 
-  const toggleScope = (scope: string) => {
-    setScopes((s) => s.includes(scope) ? s.filter((x) => x !== scope) : [...s, scope]);
-  };
-
-  const createKey = () => {
+  const handleCreate = async () => {
     if (!name.trim()) return;
-    const fakeKey = `upx_${name.toLowerCase().replace(/\s/g, "_")}_${Math.random().toString(36).slice(2, 14)}`;
-    const newKey: ApiKey = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      key_prefix: fakeKey.slice(0, 12) + "****",
-      allowed_countries: countries ? countries.split(",").map((c) => c.trim().toUpperCase()) : [],
-      daily_gb_cap: gbCap ? Number(gbCap) : null,
-      daily_request_cap: reqCap ? Number(reqCap) : null,
-      allowed_scopes: scopes,
-      created_at: new Date().toISOString(),
-      last_used_at: null,
-    };
-    setKeys((k) => [...k, newKey]);
-    setNewKeyResult(fakeKey);
-    setName("");
-    setCountries("");
-    setGbCap("");
-    setReqCap("");
-    setScopes(["proxy:generate"]);
-    toast({ title: "API Key Created", description: "Copy it now — it won't be shown again." });
+    try {
+      const res = await createKey.mutateAsync(name.trim());
+      // The backend returns the raw key in 'api_key'
+      setNewKeyResult(res.api_key);
+      setName("");
+      toast({ title: "API Key Created", description: "Copy it now — it won't be shown again." });
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to create API key.", variant: "destructive" });
+    }
   };
 
-  const revokeKey = (id: string) => {
-    setKeys((k) => k.filter((x) => x.id !== id));
-    toast({ title: "Revoked", description: "API key has been revoked." });
-  };
+  if (isLoading) return <div className="p-8 space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /></div>;
 
   return (
     <div className="space-y-4">
@@ -213,15 +196,15 @@ function ApiKeysPanel() {
       {newKeyResult && (
         <Card className="border-primary">
           <CardContent className="flex items-center justify-between gap-4 py-4">
-            <div>
+            <div className="flex-1">
               <p className="text-sm font-medium">Your new API key (copy now — shown once):</p>
-              <code className="mt-1 block text-xs font-mono text-primary">{newKeyResult}</code>
+              <code className="mt-1 block text-xs font-mono text-primary break-all bg-muted p-2 rounded">{newKeyResult}</code>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                navigator.clipboard.writeText(newKeyResult);
+                navigator.clipboard.writeText(newKeyResult || "");
                 toast({ title: "Copied" });
               }}
             >
@@ -245,45 +228,21 @@ function ApiKeysPanel() {
                   <Label>Key Name</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Production" />
                 </div>
-                <div className="space-y-2">
-                  <Label>Allowed Countries (comma-separated, optional)</Label>
-                  <Input value={countries} onChange={(e) => setCountries(e.target.value)} placeholder="US, UK, DE" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Daily GB Cap</Label>
-                    <Input type="number" value={gbCap} onChange={(e) => setGbCap(e.target.value)} placeholder="No limit" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Daily Request Cap</Label>
-                    <Input type="number" value={reqCap} onChange={(e) => setReqCap(e.target.value)} placeholder="No limit" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Scopes</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {ALL_SCOPES.map((scope) => (
-                      <Badge
-                        key={scope}
-                        variant={scopes.includes(scope) ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => toggleScope(scope)}
-                      >
-                        {scope}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  API keys allow you to generate proxies and check usage via our REST API.
+                </p>
               </div>
               <DialogFooter>
                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                <Button onClick={createKey} disabled={!name.trim()}>Create</Button>
+                <Button onClick={handleCreate} disabled={!name.trim() || createKey.isPending}>
+                  {createKey.isPending ? "Creating..." : "Create"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </CardHeader>
         <CardContent className="p-0">
-          {keys.length === 0 ? (
+          {!keys || keys.length === 0 ? (
             <div className="p-6">
               <EmptyState icon={Key} title="No API keys" description="Create a key to access the UpgradedProxy API programmatically." />
             </div>
@@ -292,34 +251,29 @@ function ApiKeysPanel() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Key</TableHead>
-                  <TableHead>Scopes</TableHead>
-                  <TableHead>Limits</TableHead>
-                  <TableHead>Last Used</TableHead>
+                  <TableHead>Key Prefix</TableHead>
+                  <TableHead>Added</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {keys.map((k) => (
+                {keys.map((k: any) => (
                   <TableRow key={k.id}>
-                    <TableCell className="font-medium text-sm">{k.name}</TableCell>
-                    <TableCell className="font-mono text-xs">{k.key_prefix}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {k.allowed_scopes?.map((s) => (
-                          <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>
-                        ))}
-                      </div>
+                    <TableCell className="font-medium text-sm">{k.key_name}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {k.api_key.substring(0, 12)}****
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {k.daily_gb_cap ? `${k.daily_gb_cap} GB/d` : "—"}
-                      {k.daily_request_cap ? ` / ${k.daily_request_cap.toLocaleString()} req/d` : ""}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {k.last_used_at ? new Date(k.last_used_at).toLocaleDateString() : "Never"}
+                      {new Date(k.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => revokeKey(k.id)} aria-label="Revoke">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => revokeKey.mutate(k.id)}
+                        disabled={revokeKey.isPending}
+                        aria-label="Revoke"
+                      >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </TableCell>
