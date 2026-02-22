@@ -15,64 +15,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/lib/api";
 
-function useAdminUsers() {
-  return useQuery({
-    queryKey: ["admin-users"],
-    queryFn: async () => {
-      const { data } = await api.get("/admin/users");
-      return data;
-    },
-  });
-}
-
-function useAdminAction() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (params: { action: string;[key: string]: any }) => {
-      let endpoint = "/admin/users";
-      let payload = params;
-
-      if (params.action === "adjust_balance") {
-        endpoint = "/admin/users/balance";
-        payload = {
-          user_id: params.user_id,
-          amount: params.amount,
-          reason: params.reason
-        };
-      } else if (params.action === "ban_user" || params.action === "unban_user") {
-        endpoint = "/admin/users/ban";
-        payload = {
-          user_id: params.user_id,
-          is_banned: params.action === "ban_user",
-          reason: params.ban_reason
-        };
-      }
-
-      const { data } = await api.post(endpoint, payload);
-      return data;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
-  });
-}
-
-function useUserStats() {
-  return useQuery({
-    queryKey: ["admin-stats"],
-    queryFn: async () => {
-      const { data } = await api.get("/admin/stats");
-      return data;
-    },
-  });
-}
+import { useAdminUsers, useAdminAction, useAdminStats } from "@/hooks/use-backend";
 
 export default function AdminUsers() {
   const { data: users, isLoading } = useAdminUsers();
-  const adminAction = useAdminAction();
+  const { updateBalance, banUser } = useAdminAction();
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [balanceAmount, setBalanceAmount] = useState("");
   const [balanceReason, setBalanceReason] = useState("");
-  const { data: userStats } = useUserStats(selectedUser?.user_id ?? null);
+
+  // Global system stats for comparison/overview
+  const { data: globalStats } = useAdminStats();
+  // Placeholder for individual user stats (will be implemented in 6.5)
+  const userStats = null;
 
   if (isLoading) return <LoadingSkeleton />;
 
@@ -81,12 +37,12 @@ export default function AdminUsers() {
     return true;
   });
 
-  const handleBan = async (userId: string, isBanned: boolean) => {
+  const handleBan = async (user: any) => {
+    const isBanned = user.role === 'banned';
     try {
-      await adminAction.mutateAsync({
-        action: isBanned ? "unban_user" : "ban_user",
-        user_id: userId,
-        ban_reason: isBanned ? undefined : "Violated terms of service",
+      await banUser.mutateAsync({
+        user_id: user.id,
+        reason: isBanned ? "Unbanning" : "Violated terms of service", // Backend needs to be updated for unban logic or role toggle
       });
       setSelectedUser(null);
       toast({ title: isBanned ? "User unbanned" : "User banned" });
@@ -102,9 +58,8 @@ export default function AdminUsers() {
       return;
     }
     try {
-      const result = await adminAction.mutateAsync({
-        action: "adjust_balance",
-        user_id: selectedUser.user_id,
+      const result = await updateBalance.mutateAsync({
+        user_id: selectedUser.id,
         amount: isTopUp ? amount : -amount,
         reason: balanceReason || (isTopUp ? "Admin top-up" : "Admin deduction"),
       });
@@ -118,7 +73,7 @@ export default function AdminUsers() {
   };
 
   const totalUsers = (users ?? []).length;
-  const bannedUsers = (users ?? []).filter((u: any) => u.is_banned).length;
+  const bannedUsers = (users ?? []).filter((u: any) => u.role === 'banned').length;
   const totalBalance = (users ?? []).reduce((s: number, u: any) => s + Number(u.balance ?? 0), 0);
 
   return (
@@ -147,7 +102,7 @@ export default function AdminUsers() {
           <Card>
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground">Total User Balances</p>
-              <p className="text-2xl font-bold">${totalBalance.toFixed(2)}</p>
+              <p className="text-2xl font-bold">${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </CardContent>
           </Card>
         </div>
@@ -180,10 +135,10 @@ export default function AdminUsers() {
                         <p className="text-xs text-muted-foreground">{user.email}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="capitalize">{user.user_roles?.[0]?.role ?? "client"}</TableCell>
+                    <TableCell className="capitalize">{user.role || "client"}</TableCell>
                     <TableCell>
-                      <Badge variant={user.is_banned ? "destructive" : "default"}>
-                        {user.is_banned ? "Banned" : "Active"}
+                      <Badge variant={user.role === 'banned' ? "destructive" : "default"}>
+                        {user.role === 'banned' ? "Banned" : "Active"}
                       </Badge>
                     </TableCell>
                     <TableCell>${Number(user.balance ?? 0).toFixed(2)}</TableCell>
@@ -212,8 +167,8 @@ export default function AdminUsers() {
               <div className="mt-6 space-y-5">
                 {/* Basic Info */}
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><p className="text-muted-foreground">Role</p><p className="font-medium capitalize">{selectedUser.user_roles?.[0]?.role ?? "client"}</p></div>
-                  <div><p className="text-muted-foreground">Status</p><Badge variant={selectedUser.is_banned ? "destructive" : "default"}>{selectedUser.is_banned ? "Banned" : "Active"}</Badge></div>
+                  <div><p className="text-muted-foreground">Role</p><p className="font-medium capitalize">{selectedUser.role || "client"}</p></div>
+                  <div><p className="text-muted-foreground">Status</p><Badge variant={selectedUser.role === 'banned' ? "destructive" : "default"}>{selectedUser.role === 'banned' ? "Banned" : "Active"}</Badge></div>
                   <div><p className="text-muted-foreground">Balance</p><p className="font-medium text-lg">${Number(selectedUser.balance ?? 0).toFixed(2)}</p></div>
                   <div><p className="text-muted-foreground">Joined</p><p className="font-medium">{new Date(selectedUser.created_at).toLocaleDateString()}</p></div>
                 </div>
@@ -286,7 +241,7 @@ export default function AdminUsers() {
                       <Button
                         size="sm"
                         onClick={() => handleBalanceAdjust(true)}
-                        disabled={adminAction.isPending || !balanceAmount}
+                        disabled={updateBalance.isPending || !balanceAmount}
                         className="flex-1"
                       >
                         <Plus className="mr-1 h-4 w-4" /> Top Up
@@ -295,7 +250,7 @@ export default function AdminUsers() {
                         size="sm"
                         variant="destructive"
                         onClick={() => handleBalanceAdjust(false)}
-                        disabled={adminAction.isPending || !balanceAmount}
+                        disabled={updateBalance.isPending || !balanceAmount}
                         className="flex-1"
                       >
                         <Minus className="mr-1 h-4 w-4" /> Deduct
@@ -309,13 +264,13 @@ export default function AdminUsers() {
                   <p className="text-sm font-semibold">Access Control</p>
                   <div className="flex flex-wrap gap-2">
                     <Button
-                      variant={selectedUser.is_banned ? "default" : "destructive"}
+                      variant={selectedUser.role === 'banned' ? "default" : "destructive"}
                       size="sm"
-                      onClick={() => handleBan(selectedUser.user_id, selectedUser.is_banned)}
-                      disabled={adminAction.isPending}
+                      onClick={() => handleBan(selectedUser)}
+                      disabled={banUser.isPending}
                     >
-                      {selectedUser.is_banned ? <Shield className="mr-2 h-4 w-4" /> : <ShieldOff className="mr-2 h-4 w-4" />}
-                      {selectedUser.is_banned ? "Unban User" : "Ban User"}
+                      {selectedUser.role === 'banned' ? <Shield className="mr-2 h-4 w-4" /> : <ShieldOff className="mr-2 h-4 w-4" />}
+                      {selectedUser.role === 'banned' ? "Unban User" : "Ban User"}
                     </Button>
                   </div>
                 </div>

@@ -228,3 +228,63 @@ export function useStripeCheckout() {
     },
   });
 }
+
+// ── Admin Hooks ──────────────────────────────
+
+export function useAdminUsers() {
+  return useQuery({
+    queryKey: ["admin", "users"],
+    queryFn: async () => {
+      const { data } = await api.get("/admin/users");
+      return data;
+    },
+  });
+}
+
+export function useAdminStats() {
+  return useQuery({
+    queryKey: ["admin", "stats"],
+    queryFn: async () => {
+      const { data } = await api.get("/admin/stats");
+      return data;
+    },
+    refetchInterval: 1000 * 60, // 1 min refresh for admin stats
+  });
+}
+
+export function useAdminLogs() {
+  return useQuery({
+    queryKey: ["admin", "logs"],
+    queryFn: async () => {
+      const { data } = await api.get("/admin/logs");
+      return data;
+    },
+  });
+}
+
+export function useAdminAction() {
+  const queryClient = useQueryClient();
+
+  const updateBalance = useMutation({
+    mutationFn: async (params: { user_id: number; amount: number; reason: string }) => {
+      const { data } = await api.post("/admin/users/balance", params);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "stats"] });
+    },
+  });
+
+  const banUser = useMutation({
+    mutationFn: async (params: { user_id: number; reason: string }) => {
+      const { data } = await api.post("/admin/users/ban", params);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+
+  return { updateBalance, banUser };
+}

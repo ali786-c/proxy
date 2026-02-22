@@ -51,17 +51,18 @@ class AdminController extends Controller
         $admin = $request->user();
         $target = User::findOrFail($request->user_id);
 
-        $target->role = 'banned';
+        $isBanning = $target->role !== 'banned';
+        $target->role = $isBanning ? 'banned' : 'client';
         $target->save();
 
         AdminLog::create([
             'admin_id' => $admin->id,
-            'action' => 'ban_user',
+            'action' => $isBanning ? 'ban_user' : 'unban_user',
             'target_user_id' => $target->id,
-            'details' => "User banned. Reason: {$request->reason}",
+            'details' => ($isBanning ? "User banned. " : "User unbanned. ") . "Reason: {$request->reason}",
         ]);
 
-        return response()->json(['message' => 'User banned successfully']);
+        return response()->json(['message' => 'User status updated successfully', 'new_role' => $target->role]);
     }
 
     public function stats()
@@ -69,8 +70,12 @@ class AdminController extends Controller
         return response()->json([
             'total_users' => User::count(),
             'total_active_proxies' => \App\Models\Order::where('status', 'active')->count(),
-            'system_revenue' => \App\Models\WalletTransaction::where('type', 'credit')->sum('amount'),
-            'total_balance' => User::sum('balance'),
+            'total_revenue' => \App\Models\WalletTransaction::where('type', 'credit')->sum('amount'),
+            'system_total_balance' => User::sum('balance'),
+            'recent_registrations' => User::where('created_at', '>=', now()->subDays(7))->count(),
+            'revenue_last_24h' => \App\Models\WalletTransaction::where('type', 'credit')
+                ->where('created_at', '>=', now()->subDay())
+                ->sum('amount'),
         ]);
     }
 

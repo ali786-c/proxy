@@ -98,24 +98,25 @@ function StatCard({
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
+import { useAdminStats } from "@/hooks/use-backend";
+
 export default function AdminDashboard() {
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ["admin-stats"],
-    queryFn: async () => {
-      const { data } = await api.get("/admin/stats");
-      return data;
-    },
-  });
+  const { data: stats, isLoading } = useAdminStats();
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading stats…</div>;
 
-  const kpi = stats || {
-    total_users: 0,
-    active_orders: 0,
-    total_balance: 0,
-    total_revenue: 0,
-    recent_sales: [],
-    top_geos: []
+  const kpi = {
+    total_users: stats?.total_users ?? 0,
+    active_orders: stats?.total_active_proxies ?? 0,
+    total_revenue: stats?.total_revenue ?? 0,
+    total_balance: stats?.system_total_balance ?? 0,
+    recent_registrations: stats?.recent_registrations ?? 0,
+    revenue_24h: stats?.revenue_last_24h ?? 0,
+    active_proxies: 3_200_000, // Still placeholder until SLA module
+    uptime: 99.98,
+    error_rate: 1.2,
+    recent_sales: [], // Will be added in 6.2
+    top_geos: MOCK_KPIS.top_geos // Still mock
   };
 
   return (
@@ -130,9 +131,9 @@ export default function AdminDashboard() {
 
         {/* KPI Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Users" value={kpi.total_users.toLocaleString()} icon={Users} />
+          <StatCard title="Total Users" value={kpi.total_users.toLocaleString()} icon={Users} change={kpi.recent_registrations > 0 ? 100 : 0} />
           <StatCard title="Active Orders" value={kpi.active_orders.toLocaleString()} icon={CreditCard} />
-          <StatCard title="Total Revenue" value={(kpi.total_revenue).toLocaleString()} icon={DollarSign} prefix="$" />
+          <StatCard title="Total Revenue" value={(kpi.total_revenue).toLocaleString()} icon={DollarSign} prefix="$" change={kpi.revenue_24h > 0 ? 5 : 0} />
           <StatCard title="Total Balance" value={(kpi.total_balance).toLocaleString()} icon={BarChart3} prefix="$" />
         </div>
 
@@ -190,18 +191,18 @@ export default function AdminDashboard() {
                 <div
                   key={alert.id}
                   className={`flex items-start gap-3 rounded-md border p-3 text-sm ${alert.type === "error"
-                      ? "border-destructive/30 bg-destructive/5"
-                      : alert.type === "warning"
-                        ? "border-yellow-500/30 bg-yellow-500/5"
-                        : "border-border bg-muted/30"
+                    ? "border-destructive/30 bg-destructive/5"
+                    : alert.type === "warning"
+                      ? "border-yellow-500/30 bg-yellow-500/5"
+                      : "border-border bg-muted/30"
                     }`}
                 >
                   <alert.icon
                     className={`mt-0.5 h-4 w-4 shrink-0 ${alert.type === "error"
-                        ? "text-destructive"
-                        : alert.type === "warning"
-                          ? "text-yellow-600"
-                          : "text-muted-foreground"
+                      ? "text-destructive"
+                      : alert.type === "warning"
+                        ? "text-yellow-600"
+                        : "text-muted-foreground"
                       }`}
                   />
                   <span>{alert.message}</span>
