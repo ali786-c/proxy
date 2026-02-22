@@ -49,7 +49,7 @@ export default function AppSettings() {
       <SEOHead title="Settings" noindex />
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <Tabs defaultValue="allowlist">
+        <Tabs defaultValue="profile">
           <TabsList>
             <TabsTrigger value="profile">
               <UserIcon className="mr-1 h-3.5 w-3.5" /> Profile
