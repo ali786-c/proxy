@@ -97,7 +97,7 @@ export default function Proxies() {
       setProxies(result.proxies || []);
       toast({ title: "Proxies Generated", description: `${result.proxies?.length || 0} proxies ready.` });
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message);
+      setError(err.response?.data?.message || err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
