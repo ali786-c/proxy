@@ -132,25 +132,6 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 
     // Products
     Route::get('/products', [\App\Http\Controllers\ProductController::class, 'index']);
-    Route::post('/coupons/validate', [\App\Http\Controllers\CouponController::class, 'validateCoupon']);
-
-    // Support Routes
-    Route::get('/support/tickets',      [\App\Http\Controllers\SupportController::class, 'index']);
-    Route::post('/support/tickets',     [\App\Http\Controllers\SupportController::class, 'store']);
-    Route::get('/support/tickets/{id}', [\App\Http\Controllers\SupportController::class, 'show']);
-    Route::post('/support/tickets/{id}/reply', [\App\Http\Controllers\SupportController::class, 'reply']);
-
-    // Referral Routes
-    Route::get('/referrals', [\App\Http\Controllers\ReferralController::class, 'index']);
-
-    // API Key Routes
-    Route::get('/api_keys',        [\App\Http\Controllers\ApiKeyController::class, 'index']);
-    Route::post('/api_keys',       [\App\Http\Controllers\ApiKeyController::class, 'store']);
-    Route::delete('/api_keys/{id}', [\App\Http\Controllers\ApiKeyController::class, 'destroy']);
-
-    // IP Allowlist Routes
-    Route::get('/allowlist',        [\App\Http\Controllers\AllowlistController::class, 'index']);
-    Route::post('/allowlist',       [\App\Http\Controllers\AllowlistController::class, 'store']);
     Route::match(['DELETE', 'POST'], '/allowlist/{id}', [\App\Http\Controllers\AllowlistController::class, 'destroy']);
 });
 
@@ -161,7 +142,7 @@ Route::post('/webhook/stripe', [\App\Http\Controllers\BillingController::class, 
 Route::get('/currencies', [\App\Http\Controllers\CurrencyController::class, 'index']);
 Route::post('/auth/password/email', [\App\Http\Controllers\PasswordResetController::class, 'sendResetLink']);
 Route::post('/auth/password/reset', [\App\Http\Controllers\PasswordResetController::class, 'reset']);
-Route::post('/newsletters', function(Request $request) {
+Route::post('/newsletters', function() {
     return response()->json(['message' => 'Successfully subscribed to newsletter.']);
 });
 

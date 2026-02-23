@@ -9,7 +9,21 @@ class ProductController extends Controller
 {
     public function index()
     {
-        return response()->json(Product::all());
+        try {
+            $products = Product::all()->map(function($product) {
+                return [
+                    'id'          => (string) $product->id,
+                    'name'        => $product->name,
+                    'price_cents' => (int) ($product->price * 100),
+                    'type'        => $product->type,
+                    'included_gb' => 1,
+                    'features'    => ['High Speed', '99.9% Uptime', 'Global Locations'],
+                ];
+            });
+            return response()->json($products);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     public function store(Request $request)
