@@ -1,5 +1,5 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/devwithguru/public_html/
+    - export DEPLOYPATH=/home/upgrnbzy/public_html/
     - /bin/cp -R * $DEPLOYPATH
