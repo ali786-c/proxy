@@ -88,10 +88,10 @@ class ProxyController extends Controller
                 ]);
 
                 $portMap = [
-                    'rp'  => '1000', 
-                    'mp'  => '3000', 
-                    'isp' => '3000', 
-                    'dc'  => '2000'
+                    'rp'  => 1000,
+                    'mp'  => 3000,
+                    'isp' => 3000,
+                    'dc'  => 2000
                 ];
                 $hostMap = [
                     'rp'  => 'rp.evomi.com',
@@ -100,7 +100,7 @@ class ProxyController extends Controller
                     'isp' => 'isp.evomi.com'
                 ];
 
-                $port    = $portMap[$product->type] ?? '1000';
+                $port    = $portMap[$product->type] ?? 1000;
                 $host    = $hostMap[$product->type] ?? 'gate.evomi.com';
 
                 $country     = $request->country      ?? 'US';
@@ -122,8 +122,13 @@ class ProxyController extends Controller
 
                 return response()->json([
                     'message' => 'Proxies generated successfully.',
-                    'order'   => $order,
-                    'proxies' => $proxies,
+                    'proxies' => collect($proxies)->map(fn($p) => [
+                        'host'     => $p->host,
+                        'port'     => (int) $p->port,
+                        'username' => $p->username,
+                        'password' => $p->password,
+                    ]),
+                    'expires_at' => $order->expires_at,
                     'balance' => $user->balance,
                 ]);
             });

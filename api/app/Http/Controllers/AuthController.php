@@ -210,4 +210,40 @@ class AuthController extends Controller
             'referral_code' => $user->referral_code,
         ];
     }
+
+    /**
+     * GET /me/usage - Bandwidth usage over time (stub)
+     */
+    public function usage(Request $request)
+    {
+        return response()->json([
+            'data'               => [],
+            'total_bandwidth_mb' => 0,
+            'total_requests'     => 0,
+            'avg_success_rate'   => 0,
+        ]);
+    }
+
+    /**
+     * GET /me/events - Recent activity events (stub)
+     */
+    public function events(Request $request)
+    {
+        return response()->json([]);
+    }
+
+    /**
+     * GET /me/subscription - Current subscription info (stub)
+     */
+    public function subscription(Request $request)
+    {
+        return response()->json([
+            'plan'         => 'pay_as_you_go',
+            'included_gb'  => 0,
+            'used_gb'      => 0,
+            'renewal_date' => now()->addMonth()->toDateString(),
+            'price_cents'  => 0,
+            'status'       => 'active',
+        ]);
+    }
 }
