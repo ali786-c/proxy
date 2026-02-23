@@ -95,10 +95,21 @@ class BillingController extends Controller
 
     public function invoices(Request $request)
     {
-        $history = WalletTransaction::where('user_id', $request->user()->id)
+        $transactions = WalletTransaction::where('user_id', $request->user()->id)
             ->latest()
             ->get();
 
-        return response()->json($history);
+        $invoices = $transactions->map(function ($t) {
+            return [
+                'id'           => (string) $t->id,
+                'amount_cents' => (int) ($t->amount * 100),
+                'status'       => 'paid', // All transactions in wallet_transactions are completed
+                'period'       => $t->created_at->format('M Y'),
+                'created_at'   => $t->created_at->toIso8601String(),
+                'description'  => $t->description,
+            ];
+        });
+
+        return response()->json($invoices);
     }
 }

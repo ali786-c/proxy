@@ -4,6 +4,7 @@ CHANGELOG.md
 
 # ── React source (only push compiled dist output) ──
 saas/
+lovable-export-d31f97fa/
 
 # ── Laravel (api/) ──
 api/.env
@@ -27,3 +28,10 @@ Thumbs.db
 
 # ── Deployment Packages ──
 UpgradedProxy_Live_Package/
+htdocs.zip
+*.zip
+
+# ── Backups & Unusable files ──
+frontend_backup_old/
+legacy_frontend/
+evomi_settings.json

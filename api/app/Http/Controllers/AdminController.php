@@ -83,4 +83,41 @@ class AdminController extends Controller
     {
         return response()->json(AdminLog::with(['admin', 'targetUser'])->latest()->limit(100)->get());
     }
+
+    public function listResellers()
+    {
+        return response()->json(\App\Models\ResellerProfile::with('user')->latest()->get());
+    }
+
+    public function storeReseller(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'company_name' => 'required|string|max:255',
+            'commission_rate' => 'required|numeric|min:0|max:100',
+            'brand_primary_color' => 'nullable|string',
+            'brand_secondary_color' => 'nullable|string',
+            'custom_domain' => 'nullable|string|unique:reseller_profiles,custom_domain',
+        ]);
+
+        $reseller = \App\Models\ResellerProfile::create($validated);
+        return response()->json($reseller, 201);
+    }
+
+    public function updateReseller(Request $request, $id)
+    {
+        $reseller = \App\Models\ResellerProfile::findOrFail($id);
+        
+        $validated = $request->validate([
+            'company_name' => 'sometimes|required|string|max:255',
+            'commission_rate' => 'sometimes|required|numeric|min:0|max:100',
+            'brand_primary_color' => 'nullable|string',
+            'brand_secondary_color' => 'nullable|string',
+            'custom_domain' => 'nullable|string|unique:reseller_profiles,custom_domain,' . $id,
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        $reseller->update($validated);
+        return response()->json($reseller);
+    }
 }

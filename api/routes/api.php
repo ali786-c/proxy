@@ -158,6 +158,12 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 // Public Routes (no auth)
 // ─────────────────────────────────────────────
 Route::post('/webhook/stripe', [\App\Http\Controllers\BillingController::class, 'handleWebhook']);
+Route::get('/currencies', [\App\Http\Controllers\CurrencyController::class, 'index']);
+Route::post('/auth/password/email', [\App\Http\Controllers\PasswordResetController::class, 'sendResetLink']);
+Route::post('/auth/password/reset', [\App\Http\Controllers\PasswordResetController::class, 'reset']);
+Route::post('/newsletters', function(Request $request) {
+    return response()->json(['message' => 'Successfully subscribed to newsletter.']);
+});
 
 // ─────────────────────────────────────────────
 // Admin Routes
