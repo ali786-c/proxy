@@ -112,4 +112,16 @@ class BillingController extends Controller
 
         return response()->json($invoices);
     }
+
+    /**
+     * Admin: List all invoices/transactions for all users.
+     */
+    public function adminInvoices()
+    {
+        $transactions = WalletTransaction::with('user:id,name,email')
+            ->latest()
+            ->get();
+
+        return response()->json($transactions);
+    }
 }

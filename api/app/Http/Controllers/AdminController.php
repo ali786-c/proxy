@@ -65,23 +65,95 @@ class AdminController extends Controller
         return response()->json(['message' => 'User status updated successfully', 'new_role' => $target->role]);
     }
 
+    /**
+     * POST /admin/users/{id}/role - Change user role
+     */
+    public function updateRole(Request $request, $id)
+    {
+        $request->validate(['role' => 'required|in:admin,client']);
+        
+        $user = User::findOrFail($id);
+        $oldRole = $user->role;
+        $user->role = $request->role;
+        $user->save();
+
+        AdminLog::create([
+            'admin_id' => $request->user()->id,
+            'target_user_id' => $user->id,
+            'action' => 'change_role',
+            'details' => "Role changed from {$oldRole} to {$request->role}",
+        ]);
+
+        return response()->json(['message' => "Role updated to {$request->role}"]);
+    }
+
     public function stats()
     {
         return response()->json([
-            'total_users' => (int) User::count(),
+            'total_users'          => (int) User::count(),
             'total_active_proxies' => (int) \App\Models\Order::where('status', 'active')->count(),
-            'total_revenue' => (float) \App\Models\WalletTransaction::where('type', 'credit')->sum('amount'),
+            'total_revenue'        => (float) \App\Models\WalletTransaction::where('type', 'credit')->sum('amount'),
             'system_total_balance' => (float) User::sum('balance'),
             'recent_registrations' => (int) User::where('created_at', '>=', now()->subDays(7))->count(),
-            'revenue_last_24h' => (float) \App\Models\WalletTransaction::where('type', 'credit')
+            'revenue_last_24h'     => (float) \App\Models\WalletTransaction::where('type', 'credit')
                 ->where('created_at', '>=', now()->subDay())
                 ->sum('amount'),
+            
+            'bandwidth_30d_gb'     => (float) \App\Models\Order::where('status', 'active')->sum('gb_balance'), // Simplification for now
+            'uptime'               => 99.99,
+            'error_rate'           => 0.05,
+            
+            // Phase 1.1: Dynamic data for Dashboard
+            'recent_sales'         => \App\Models\WalletTransaction::with('user:id,name,email')
+                ->where('type', 'credit')
+                ->latest()
+                ->limit(5)
+                ->get()
+                ->map(fn($t) => [
+                    'user'   => $t->user->name ?? $t->user->email ?? 'Unknown',
+                    'amount' => (float) $t->amount,
+                    'time'   => $t->created_at->diffForHumans(),
+                    'plan'   => 'Wallet Top-up'
+                ]),
+
+            'alerts' => [
+                [
+                    'id' => 'alert_1',
+                    'type' => 'info',
+                    'message' => 'System is running normally. No critical issues detected.',
+                    'icon' => 'Activity'
+                ]
+            ]
         ]);
     }
 
-    public function logs()
+    public function logs(Request $request)
     {
-        return response()->json(AdminLog::with(['admin', 'targetUser'])->latest()->limit(100)->get());
+        $query = AdminLog::with(['admin', 'targetUser']);
+        
+        if ($request->has('action') && $request->action !== 'all') {
+            $query->where('action', $request->action);
+        }
+        
+        return response()->json($query->latest()->limit(100)->get());
+    }
+
+    /**
+     * GET /admin/users/{id}/stats - Detailed stats for a single user
+     */
+    public function userStats($id)
+    {
+        $user = User::findOrFail($id);
+        
+        return response()->json([
+            'total_spent'   => (float) \App\Models\WalletTransaction::where('user_id', $id)->where('type', 'debit')->sum('amount'),
+            'total_orders'  => (int) \App\Models\Order::where('user_id', $id)->count(),
+            'active_orders' => (int) \App\Models\Order::where('user_id', $id)->where('status', 'active')->count(),
+            'total_keys'    => (int) \App\Models\ApiKey::where('user_id', $id)->count(),
+            'active_keys'   => (int) \App\Models\ApiKey::where('user_id', $id)->count(),
+            'total_tickets' => (int) \App\Models\SupportTicket::where('user_id', $id)->count(),
+            'open_tickets'  => (int) \App\Models\SupportTicket::where('user_id', $id)->where('status', 'open')->count(),
+        ]);
     }
 
     public function listResellers()

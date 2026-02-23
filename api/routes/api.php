@@ -173,10 +173,15 @@ Route::post('/newsletters', function() {
 // ─────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/users',          [\App\Http\Controllers\AdminController::class, 'users']);
+    Route::get('/users/{id}/stats', [\App\Http\Controllers\AdminController::class, 'userStats']);
     Route::post('/users/balance', [\App\Http\Controllers\AdminController::class, 'updateBalance']);
     Route::post('/users/ban',     [\App\Http\Controllers\AdminController::class, 'banUser']);
+    Route::post('/users/{id}/role', [\App\Http\Controllers\AdminController::class, 'updateRole']);
     Route::get('/stats',          [\App\Http\Controllers\AdminController::class, 'stats']);
     Route::get('/logs',           [\App\Http\Controllers\AdminController::class, 'logs']);
+    Route::get('/invoices',       [\App\Http\Controllers\BillingController::class, 'adminInvoices']);
+    Route::get('/settings',       [\App\Http\Controllers\SettingsController::class, 'index']);
+    Route::post('/settings',      [\App\Http\Controllers\SettingsController::class, 'update']);
 
     // Admin Products Management
     Route::post('/products',        [\App\Http\Controllers\ProductController::class, 'store']);
@@ -193,6 +198,17 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/support/tickets',    [\App\Http\Controllers\SupportController::class, 'adminIndex']);
     Route::post('/support/tickets/{id}/status', [\App\Http\Controllers\SupportController::class, 'updateStatus']);
     Route::post('/support/tickets/{id}/reply', [\App\Http\Controllers\SupportController::class, 'reply']);
+
+    // Admin Resellers Management
+    Route::get('/resellers',          [\App\Http\Controllers\AdminController::class, 'listResellers']);
+    Route::post('/resellers',         [\App\Http\Controllers\AdminController::class, 'storeReseller']);
+    Route::put('/resellers/{id}',      [\App\Http\Controllers\AdminController::class, 'updateReseller']);
+
+    // Admin Currencies Management
+    Route::get('/currencies',          [\App\Http\Controllers\CurrencyController::class, 'adminIndex']);
+    Route::post('/currencies',         [\App\Http\Controllers\CurrencyController::class, 'store']);
+    Route::put('/currencies/{id}',      [\App\Http\Controllers\CurrencyController::class, 'update']);
+    Route::post('/currencies/{id}/toggle', [\App\Http\Controllers\CurrencyController::class, 'toggle']);
 });
 
 // Public test route removed from bottom, moved to top.
