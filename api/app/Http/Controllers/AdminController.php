@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\AdminLog;
 use App\Models\User;
+use App\Models\Order;
+use App\Models\WalletTransaction;
+use App\Models\UsageLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -91,26 +94,26 @@ class AdminController extends Controller
     {
         return response()->json([
             'total_users'          => (int) User::count(),
-            'total_active_proxies' => (int) \App\Models\Order::where('status', 'active')->count(),
-            'total_revenue'        => (float) \App\Models\WalletTransaction::where('type', 'credit')->sum('amount'),
+            'total_active_proxies' => (int) Order::where('status', 'active')->count(),
+            'total_revenue'        => (float) WalletTransaction::where('type', 'credit')->sum('amount'),
             'system_total_balance' => (float) User::sum('balance'),
             'recent_registrations' => (int) User::where('created_at', '>=', now()->subDays(7))->count(),
-            'revenue_last_24h'     => (float) \App\Models\WalletTransaction::where('type', 'credit')
+            'revenue_last_24h'     => (float) WalletTransaction::where('type', 'credit')
                 ->where('created_at', '>=', now()->subDay())
                 ->sum('amount'),
             
-            'bandwidth_30d_gb'     => (float) \App\Models\Order::where('status', 'active')->sum('gb_balance'), // Simplification for now
+            'bandwidth_30d_gb'     => 0.0, // Future: UsageLog::where('date', '>=', now()->subDays(30))->sum('gb_used')
             'uptime'               => 99.99,
             'error_rate'           => 0.05,
             
             // Phase 1.1: Dynamic data for Dashboard
-            'recent_sales'         => \App\Models\WalletTransaction::with('user:id,name,email')
+            'recent_sales'         => WalletTransaction::with('user:id,name,email')
                 ->where('type', 'credit')
                 ->latest()
                 ->limit(5)
                 ->get()
                 ->map(fn($t) => [
-                    'user'   => $t->user->name ?? $t->user->email ?? 'Unknown',
+                    'user'   => $t->user ? ($t->user->name ?? $t->user->email) : 'Unknown',
                     'amount' => (float) $t->amount,
                     'time'   => $t->created_at->diffForHumans(),
                     'plan'   => 'Wallet Top-up'
