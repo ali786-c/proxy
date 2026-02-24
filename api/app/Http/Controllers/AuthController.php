@@ -74,6 +74,14 @@ class AuthController extends Controller
         }
 
         $user  = User::where('email', $request->email)->firstOrFail();
+        
+        if ($user->role === 'banned') {
+            $this->recordLoginAttempt($request, $user, false);
+            throw ValidationException::withMessages([
+                'email' => ['Your account has been suspended.'],
+            ]);
+        }
+
         $this->recordLoginAttempt($request, $user, true);
         $token = $user->createToken('auth_token')->plainTextToken;
 
