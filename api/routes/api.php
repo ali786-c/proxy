@@ -180,8 +180,18 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/stats',          [\App\Http\Controllers\AdminController::class, 'stats']);
     Route::get('/logs',           [\App\Http\Controllers\AdminController::class, 'logs']);
     Route::get('/invoices',       [\App\Http\Controllers\BillingController::class, 'adminInvoices']);
+    Route::get('/payment-gateways', [\App\Http\Controllers\BillingController::class, 'gatewayStatus']);
     Route::get('/settings',       [\App\Http\Controllers\SettingsController::class, 'index']);
     Route::post('/settings',      [\App\Http\Controllers\SettingsController::class, 'update']);
+
+    // Blog
+    Route::get('/orders', [\App\Http\Controllers\OrderController::class, 'index']);
+    Route::post('/orders', [\App\Http\Controllers\OrderController::class, 'store']);
+    Route::get('/blog',           [\App\Http\Controllers\BlogController::class, 'index']);
+    Route::post('/blog',          [\App\Http\Controllers\BlogController::class, 'store']);
+    Route::put('/blog/{id}',      [\App\Http\Controllers\BlogController::class, 'update']);
+    Route::post('/blog/{id}/publish', [\App\Http\Controllers\BlogController::class, 'publish']);
+    Route::delete('/blog/{id}',   [\App\Http\Controllers\BlogController::class, 'destroy']);
 
     // Admin Products Management
     Route::post('/products',        [\App\Http\Controllers\ProductController::class, 'store']);
@@ -212,4 +222,3 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
 });
 
 // Public test route removed from bottom, moved to top.
-

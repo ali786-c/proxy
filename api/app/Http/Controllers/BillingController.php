@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\WalletTransaction;
 use App\Models\WebhookLog;
@@ -20,7 +21,7 @@ class BillingController extends Controller
             'amount' => 'required|numeric|min:5', // Min $5 top-up
         ]);
 
-        Stripe::setApiKey(config('services.stripe.secret'));
+        Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
 
         $session = Session::create([
             'payment_method_types' => ['card'],
@@ -52,7 +53,7 @@ class BillingController extends Controller
     {
         $payload = $request->getContent();
         $sigHeader = $request->header('Stripe-Signature');
-        $endpointSecret = config('services.stripe.webhook_secret');
+        $endpointSecret = Setting::getValue('stripe_webhook_secret') ?: config('services.stripe.webhook_secret');
 
         try {
             $event = Webhook::constructEvent($payload, $sigHeader, $endpointSecret);
@@ -123,5 +124,53 @@ class BillingController extends Controller
             ->get();
 
         return response()->json($transactions);
+    }
+
+    /**
+     * Admin: Check status of payment gateways.
+     */
+    public function gatewayStatus()
+    {
+        $stripeSecret = Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret');
+        $stripePublishable = Setting::getValue('stripe_publishable_key') ?: config('services.stripe.publishable');
+        $stripeWebhook = Setting::getValue('stripe_webhook_secret') ?: config('services.stripe.webhook_secret');
+
+        $stripeStatus = 'not_configured';
+        if ($stripeSecret && $stripePublishable) {
+            try {
+                Stripe::setApiKey($stripeSecret);
+                // Simple call to verify key
+                \Stripe\Account::retrieve();
+                $stripeStatus = 'connected';
+            } catch (\Exception $e) {
+                $stripeStatus = 'error';
+            }
+        }
+
+        return response()->json([
+            'gateways' => [
+                [
+                    'id' => 'stripe',
+                    'name' => 'Stripe',
+                    'status' => $stripeStatus,
+                    'webhook_health' => $stripeWebhook ? 'good' : 'missing',
+                    'last_sync' => now()->toIso8601String(),
+                ],
+                [
+                    'id' => 'paypal',
+                    'name' => 'PayPal',
+                    'status' => Setting::getValue('paypal_client_id') ? 'connected' : 'not_configured',
+                    'webhook_health' => 'unknown',
+                    'last_sync' => now()->toIso8601String(),
+                ],
+                [
+                    'id' => 'crypto',
+                    'name' => 'Crypto',
+                    'status' => Setting::getValue('crypto_wallet_address') ? 'connected' : 'not_configured',
+                    'webhook_health' => 'unknown',
+                    'last_sync' => now()->toIso8601String(),
+                ]
+            ]
+        ]);
     }
 }
