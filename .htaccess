@@ -1,18 +1,22 @@
-Options -Indexes -MultiViews
-
 <IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  
-  # Allow physical files and directories to be served
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
-  RewriteRule ^ - [L]
+    Options -MultiViews -Indexes
+    RewriteEngine On
+    RewriteBase /
 
-  # Exclude API folder from this rewrite
-  RewriteCond %{REQUEST_URI} ^/api [NC]
-  RewriteRule ^ - [L]
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-  # Route everything else to the Smart Entry Point (index.php)
-  RewriteRule ^ index.php [L]
+    # Avoid infinite loops and exclude API
+    RewriteRule ^index\.php$ - [L]
+    RewriteCond %{REQUEST_URI} ^/api [NC]
+    RewriteRule ^ - [L]
+
+    # If the request is not for a real file or directory, send it to index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.php [L]
 </IfModule>
+
+# Modern fallback (works on LiteSpeed/Apache)
+FallbackResource /index.php
