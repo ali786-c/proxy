@@ -95,8 +95,19 @@ class AdminController extends Controller
         $errorThreshold = (float) \App\Models\Setting::getValue('alert_error_spike_pct', 5.0);
         $banThreshold   = (float) \App\Models\Setting::getValue('alert_ban_spike_pct', 8.0);
         
-        $currentErrorRate = 0.05; // Future: calculate from actual logs
-        $currentBanRate   = 1.2;  // Future: calculate from actual logs
+        // 1. Calculate Error Rate (last 24h)
+        $totalChecks = UptimeRecord::where('checked_at', '>=', now()->subDay())->count();
+        $errorChecks = UptimeRecord::where('checked_at', '>=', now()->subDay())
+            ->where('status', '!=', 'up')
+            ->count();
+        $currentErrorRate = $totalChecks > 0 ? round(($errorChecks / $totalChecks) * 100, 2) : 0.0;
+
+        // 2. Calculate Ban Rate (last 24h)
+        $totalUsers = User::count();
+        $bannedRecently = AdminLog::where('action', 'ban_user')
+            ->where('created_at', '>=', now()->subDay())
+            ->count();
+        $currentBanRate = $totalUsers > 0 ? round(($bannedRecently / $totalUsers) * 100, 2) : 0.0;
 
         $alerts = [];
         if ($currentErrorRate > $errorThreshold) {
@@ -117,6 +128,28 @@ class AdminController extends Controller
             ];
         }
 
+        // 3. Pending Support Tickets
+        $openTickets = \App\Models\SupportTicket::where('status', '!=', 'closed')->count();
+        if ($openTickets > 0) {
+            $alerts[] = [
+                'id' => 'support_' . time(),
+                'type' => 'info',
+                'message' => "{$openTickets} pending support tickets require attention.",
+                'icon' => 'Ticket'
+            ];
+        }
+
+        // 4. Pending SLA Credits
+        $pendingCredits = \App\Models\SLACredit::where('status', 'pending')->count();
+        if ($pendingCredits > 0) {
+            $alerts[] = [
+                'id' => 'sla_' . time(),
+                'type' => 'warning',
+                'message' => "{$pendingCredits} SLA compensation credits pending approval.",
+                'icon' => 'DollarSign'
+            ];
+        }
+
         if (empty($alerts)) {
             $alerts[] = [
                 'id' => 'ok_' . time(),
@@ -125,6 +158,41 @@ class AdminController extends Controller
                 'icon' => 'Activity'
             ];
         }
+
+        // Merge Recent Sales (Top-ups and Purchases)
+        $topups = WalletTransaction::with('user:id,name,email')
+            ->where('type', 'credit')
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(fn($t) => [
+                'user'   => $t->user ? ($t->user->name ?? $t->user->email) : 'Unknown',
+                'amount' => (float) $t->amount,
+                'time'   => $t->created_at->diffForHumans(),
+                'plan'   => 'Wallet Top-up',
+                'created_at' => $t->created_at
+            ]);
+
+        $orders = Order::with(['user:id,name,email', 'product:id,name,price'])
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(fn($o) => [
+                'user'   => $o->user ? ($o->user->name ?? $o->user->email) : 'Unknown',
+                'amount' => (float) ($o->product->price ?? 0),
+                'time'   => $o->created_at->diffForHumans(),
+                'plan'   => $o->product->name ?? 'Proxy Order',
+                'created_at' => $o->created_at
+            ]);
+
+        $recentSales = $topups->concat($orders)
+            ->sortByDesc('created_at')
+            ->values()
+            ->take(5)
+            ->map(function($item) {
+                unset($item['created_at']);
+                return $item;
+            });
 
         return response()->json([
             'total_users'          => (int) User::count(),
@@ -140,19 +208,8 @@ class AdminController extends Controller
             'uptime'               => 99.99,
             'error_rate'           => $currentErrorRate,
             
-            'recent_sales'         => WalletTransaction::with('user:id,name,email')
-                ->where('type', 'credit')
-                ->latest()
-                ->limit(5)
-                ->get()
-                ->map(fn($t) => [
-                    'user'   => $t->user ? ($t->user->name ?? $t->user->email) : 'Unknown',
-                    'amount' => (float) $t->amount,
-                    'time'   => $t->created_at->diffForHumans(),
-                    'plan'   => 'Wallet Top-up'
-                ]),
-
-            'alerts' => $alerts
+            'recent_sales'         => $recentSales,
+            'alerts'               => $alerts
         ]);
     }
 
