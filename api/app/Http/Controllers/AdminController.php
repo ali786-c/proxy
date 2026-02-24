@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Order;
 use App\Models\WalletTransaction;
 use App\Models\UsageLog;
+use App\Models\UptimeRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
