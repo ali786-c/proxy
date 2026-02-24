@@ -9,6 +9,9 @@ define('API_PATH',  __DIR__ . '/api');
 define('LOCK_FILE', API_PATH . '/storage/installed.lock');
 define('ENV_FILE',  API_PATH . '/.env');
 
+// Diagnostic logging (remove after fix)
+@file_put_contents(API_PATH . '/storage/logs/routing.log', date('Y-m-d H:i:s') . ' - ' . ($_SERVER['REQUEST_URI'] ?? 'N/A') . "\n", FILE_APPEND);
+
 // ─── INSTALLED: Serve React SPA ───────────────────────────────────────────
 if (file_exists(LOCK_FILE)) {
     $uri  = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
