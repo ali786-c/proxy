@@ -196,6 +196,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::delete('/blog/{id}',   [\App\Http\Controllers\BlogController::class, 'destroy']);
 
     // Admin Products Management
+    Route::get('/products',          [\App\Http\Controllers\ProductController::class, 'adminIndex']);
     Route::post('/products',        [\App\Http\Controllers\ProductController::class, 'store']);
     Route::put('/products/{id}',     [\App\Http\Controllers\ProductController::class, 'update']);
     Route::delete('/products/{id}',  [\App\Http\Controllers\ProductController::class, 'destroy']);

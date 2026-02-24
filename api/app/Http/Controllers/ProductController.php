@@ -10,7 +10,7 @@ class ProductController extends Controller
     public function index()
     {
         try {
-            $products = Product::all()->map(function($product) {
+            $products = Product::where('is_active', true)->get()->map(function($product) {
                 return [
                     'id'          => (string) $product->id,
                     'name'        => $product->name,
@@ -24,6 +24,11 @@ class ProductController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    public function adminIndex()
+    {
+        return response()->json(Product::latest()->get());
     }
 
     public function store(Request $request)
