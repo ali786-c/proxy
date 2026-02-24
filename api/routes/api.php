@@ -221,6 +221,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/currencies',         [\App\Http\Controllers\CurrencyController::class, 'store']);
     Route::put('/currencies/{id}',      [\App\Http\Controllers\CurrencyController::class, 'update']);
     Route::post('/currencies/{id}/toggle', [\App\Http\Controllers\CurrencyController::class, 'toggle']);
+
+    // Admin Fraud Detection
+    Route::get('/fraud/signals',      [\App\Http\Controllers\FraudController::class, 'signals']);
+    Route::get('/fraud/risk-scores',  [\App\Http\Controllers\FraudController::class, 'riskScores']);
+    Route::get('/fraud/login-history', [\App\Http\Controllers\FraudController::class, 'loginHistory']);
+    Route::put('/fraud/signals/{id}/resolve', [\App\Http\Controllers\FraudController::class, 'resolveSignal']);
 });
 
 // Public test route removed from bottom, moved to top.

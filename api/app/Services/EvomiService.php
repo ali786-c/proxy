@@ -136,6 +136,25 @@ class EvomiService
     }
 
     /**
+     * Fetch usage stats for a subuser from Evomi.
+     */
+    public function getUsage(string $username)
+    {
+        try {
+            $response = $this->http()->get("{$this->baseUrl}/reseller/sub_users/{$username}/usage");
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            Log::error('Evomi API Exception (GetUsage): ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Fetch global proxy settings (countries, cities, etc.)
      */
     public function getProxySettings()

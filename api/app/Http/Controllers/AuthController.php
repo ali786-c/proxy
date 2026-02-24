@@ -67,18 +67,37 @@ class AuthController extends Controller
         ]);
 
         if (!Auth::attempt($request->only('email', 'password'))) {
+            $this->recordLoginAttempt($request, null, false);
             throw ValidationException::withMessages([
                 'email' => ['Invalid email or password.'],
             ]);
         }
 
         $user  = User::where('email', $request->email)->firstOrFail();
+        $this->recordLoginAttempt($request, $user, true);
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'user'  => $this->formatUser($user),
             'token' => $token,
         ]);
+    }
+
+    private function recordLoginAttempt(Request $request, ?User $user, bool $success)
+    {
+        if (!$user && $request->has('email')) {
+             $user = User::where('email', $request->email)->first();
+        }
+
+        if ($user) {
+            \App\Models\LoginHistory::create([
+                'user_id'    => $user->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'success'    => $success,
+                // geo fields can be populated later with a service
+            ]);
+        }
     }
 
     /**
