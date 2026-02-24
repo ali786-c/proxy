@@ -1,6 +1,3 @@
-# INTENTIONAL ERROR TO TEST DETECTION
-BROKEN_LINE_FOR_TESTING
-
 # Failsafe for LiteSpeed/Apache virtual routes
 ErrorDocument 404 /index.php
 
