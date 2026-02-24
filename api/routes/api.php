@@ -183,6 +183,8 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/payment-gateways', [\App\Http\Controllers\BillingController::class, 'gatewayStatus']);
     Route::get('/settings',       [\App\Http\Controllers\SettingsController::class, 'index']);
     Route::post('/settings',      [\App\Http\Controllers\SettingsController::class, 'update']);
+    Route::get('/alerts/config',  [\App\Http\Controllers\AdminController::class, 'getAlertConfig']);
+    Route::patch('/alerts/config', [\App\Http\Controllers\AdminController::class, 'updateAlertConfig']);
 
     // Blog
     Route::get('/orders', [\App\Http\Controllers\OrderController::class, 'index']);

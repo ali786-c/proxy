@@ -92,6 +92,40 @@ class AdminController extends Controller
 
     public function stats()
     {
+        $errorThreshold = (float) \App\Models\Setting::getValue('alert_error_spike_pct', 5.0);
+        $banThreshold   = (float) \App\Models\Setting::getValue('alert_ban_spike_pct', 8.0);
+        
+        $currentErrorRate = 0.05; // Future: calculate from actual logs
+        $currentBanRate   = 1.2;  // Future: calculate from actual logs
+
+        $alerts = [];
+        if ($currentErrorRate > $errorThreshold) {
+            $alerts[] = [
+                'id' => 'err_' . time(),
+                'type' => 'error',
+                'message' => "Error rate spike: {$currentErrorRate}% exceeds threshold of {$errorThreshold}%",
+                'icon' => 'Zap'
+            ];
+        }
+
+        if ($currentBanRate > $banThreshold) {
+            $alerts[] = [
+                'id' => 'ban_' . time(),
+                'type' => 'warning',
+                'message' => "Ban rate spike: {$currentBanRate}% exceeds threshold of {$banThreshold}%",
+                'icon' => 'ShieldAlert'
+            ];
+        }
+
+        if (empty($alerts)) {
+            $alerts[] = [
+                'id' => 'ok_' . time(),
+                'type' => 'info',
+                'message' => 'System is running normally. No critical issues detected.',
+                'icon' => 'Activity'
+            ];
+        }
+
         return response()->json([
             'total_users'          => (int) User::count(),
             'total_active_proxies' => (int) Order::where('status', 'active')->count(),
@@ -102,11 +136,10 @@ class AdminController extends Controller
                 ->where('created_at', '>=', now()->subDay())
                 ->sum('amount'),
             
-            'bandwidth_30d_gb'     => 0.0, // Future: UsageLog::where('date', '>=', now()->subDays(30))->sum('gb_used')
+            'bandwidth_30d_gb'     => 0.0,
             'uptime'               => 99.99,
-            'error_rate'           => 0.05,
+            'error_rate'           => $currentErrorRate,
             
-            // Phase 1.1: Dynamic data for Dashboard
             'recent_sales'         => WalletTransaction::with('user:id,name,email')
                 ->where('type', 'credit')
                 ->latest()
@@ -119,15 +152,45 @@ class AdminController extends Controller
                     'plan'   => 'Wallet Top-up'
                 ]),
 
-            'alerts' => [
-                [
-                    'id' => 'alert_1',
-                    'type' => 'info',
-                    'message' => 'System is running normally. No critical issues detected.',
-                    'icon' => 'Activity'
-                ]
-            ]
+            'alerts' => $alerts
         ]);
+    }
+
+    public function getAlertConfig()
+    {
+        return response()->json([
+            'error_spike_pct'       => (float) \App\Models\Setting::getValue('alert_error_spike_pct', 5.0),
+            'ban_spike_pct'         => (float) \App\Models\Setting::getValue('alert_ban_spike_pct', 8.0),
+            'spend_cap_usd'         => (float) \App\Models\Setting::getValue('alert_spend_cap_eur', 5000),
+            'unusual_geo_threshold' => (int) \App\Models\Setting::getValue('alert_unusual_geo_threshold', 3),
+            'notify_email'          => (bool) \App\Models\Setting::getValue('alert_notify_email', true),
+            'notify_webhook'        => (bool) \App\Models\Setting::getValue('alert_notify_webhook', false),
+            'webhook_url'           => \App\Models\Setting::getValue('alert_webhook_url', ''),
+        ]);
+    }
+
+    public function updateAlertConfig(Request $request)
+    {
+        $defaults = [
+            'error_spike_pct'       => 'alert_error_spike_pct',
+            'ban_spike_pct'         => 'alert_ban_spike_pct',
+            'spend_cap_usd'         => 'alert_spend_cap_eur',
+            'unusual_geo_threshold' => 'alert_unusual_geo_threshold',
+            'notify_email'          => 'alert_notify_email',
+            'notify_webhook'        => 'alert_notify_webhook',
+            'webhook_url'           => 'alert_webhook_url',
+        ];
+
+        foreach ($defaults as $inputKey => $settingKey) {
+            if ($request->has($inputKey)) {
+                \App\Models\Setting::updateOrCreate(
+                    ['key' => $settingKey],
+                    ['value' => $request->input($inputKey), 'type' => 'string']
+                );
+            }
+        }
+
+        return response()->json(['message' => 'Alert configuration updated']);
     }
 
     public function logs(Request $request)
