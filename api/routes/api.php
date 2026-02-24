@@ -227,6 +227,13 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/fraud/risk-scores',  [\App\Http\Controllers\FraudController::class, 'riskScores']);
     Route::get('/fraud/login-history', [\App\Http\Controllers\FraudController::class, 'loginHistory']);
     Route::put('/fraud/signals/{id}/resolve', [\App\Http\Controllers\FraudController::class, 'resolveSignal']);
+
+    // Admin SLA Monitoring
+    Route::get('/sla', [\App\Http\Controllers\SLAController::class, 'index']);
+    Route::get('/sla/configs', [\App\Http\Controllers\SLAController::class, 'getConfigs']);
+    Route::post('/sla/configs', [\App\Http\Controllers\SLAController::class, 'storeConfig']);
+    Route::get('/sla/credits', [\App\Http\Controllers\SLAController::class, 'getCredits']);
+    Route::post('/sla/credits/{id}/approve', [\App\Http\Controllers\SLAController::class, 'approveCredit']);
 });
 
 // Public test route removed from bottom, moved to top.
