@@ -85,18 +85,22 @@ class AuthController extends Controller
 
     private function recordLoginAttempt(Request $request, ?User $user, bool $success)
     {
-        if (!$user && $request->has('email')) {
-             $user = User::where('email', $request->email)->first();
-        }
+        try {
+            if (!$user && $request->has('email')) {
+                 $user = User::where('email', $request->email)->first();
+            }
 
-        if ($user) {
-            \App\Models\LoginHistory::create([
-                'user_id'    => $user->id,
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-                'success'    => $success,
-                // geo fields can be populated later with a service
-            ]);
+            if ($user) {
+                \App\Models\LoginHistory::create([
+                    'user_id'    => $user->id,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'success'    => $success,
+                    // geo fields can be populated later with a service
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Login logging failed: ' . $e->getMessage());
         }
     }
 
