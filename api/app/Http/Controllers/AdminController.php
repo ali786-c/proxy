@@ -136,7 +136,7 @@ class AdminController extends Controller
                 ->where('created_at', '>=', now()->subDay())
                 ->sum('amount'),
             
-            'bandwidth_30d_gb'     => 0.0,
+            'bandwidth_30d_gb'     => (float) UsageLog::where('date', '>=', now()->subDays(30)->toDateString())->sum('gb_used'),
             'uptime'               => 99.99,
             'error_rate'           => $currentErrorRate,
             
