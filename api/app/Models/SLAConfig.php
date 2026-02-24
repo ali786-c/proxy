@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class SLAConfig extends Model
 {
+    protected $table = 'sla_configs';
+
     protected $fillable = [
         'proxy_type',
         'guaranteed_uptime',

@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class SLACredit extends Model
 {
+    protected $table = 'sla_credits';
+
     protected $fillable = [
         'user_id',
         'proxy_type',
