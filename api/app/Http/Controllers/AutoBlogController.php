@@ -20,7 +20,7 @@ class AutoBlogController extends Controller
             'keywords' => AutoBlogKeyword::latest()->get(),
             'settings' => [
                 'gemini_api_key' => Setting::getValue('gemini_api_key', ''),
-                'gemini_model'   => Setting::getValue('gemini_model', 'gemini-1.5-flash'),
+                'gemini_model'   => Setting::getValue('gemini_model', 'gemini-2.5-flash'),
                 'auto_posting_enabled' => Setting::getValue('auto_blog_enabled', '0') === '1',
             ]
         ]);

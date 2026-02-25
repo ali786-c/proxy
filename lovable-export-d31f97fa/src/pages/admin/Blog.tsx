@@ -78,7 +78,7 @@ export default function AdminBlog() {
   useEffect(() => {
     if (autoBlogData.settings) {
       setLocalApiKey(autoBlogData.settings.gemini_api_key || "");
-      setLocalModel(autoBlogData.settings.gemini_model || "gemini-1.5-flash");
+      setLocalModel(autoBlogData.settings.gemini_model || "gemini-2.5-flash");
     }
   }, [autoBlogData.settings]);
 
