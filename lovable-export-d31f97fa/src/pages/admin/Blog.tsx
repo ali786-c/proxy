@@ -74,6 +74,29 @@ export default function AdminBlog() {
   const [localApiKey, setLocalApiKey] = useState("");
   const [localModel, setLocalModel] = useState("");
 
+  // AI Generation Progress State
+  const [progressStep, setProgressStep] = useState(0);
+  const steps = [
+    "Selecting the best keyword...",
+    "Contacting Gemini 2.5 Flash...",
+    "Writing high-quality content...",
+    "Formatting HTML & SEO optimizations...",
+    "Saving to database..."
+  ];
+
+  useEffect(() => {
+    let interval: any;
+    if (triggerAuto.isPending) {
+      setProgressStep(0);
+      interval = setInterval(() => {
+        setProgressStep(prev => (prev + 1) % steps.length);
+      }, 3000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [triggerAuto.isPending]);
+
   // Sync settings when data loads
   useEffect(() => {
     if (autoBlogData.settings) {
@@ -337,7 +360,7 @@ export default function AdminBlog() {
                     Push the button below to immediately generate and publish a professional blog post using your next available keyword.
                   </p>
                   <Button
-                    className="w-full h-12 gap-2 text-md font-bold"
+                    className="w-full h-12 gap-2 text-md font-bold transition-all"
                     variant="secondary"
                     disabled={triggerAuto.isPending || !autoBlogData.settings?.gemini_api_key}
                     onClick={() => {
@@ -349,6 +372,14 @@ export default function AdminBlog() {
                     {triggerAuto.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
                     Generate & Publish Now
                   </Button>
+
+                  {triggerAuto.isPending && (
+                    <div className="flex items-center justify-center gap-2 text-primary animate-pulse py-1">
+                      <Bot className="h-3 w-3" />
+                      <span className="text-[11px] font-medium italic">{steps[progressStep]}</span>
+                    </div>
+                  )}
+
                   {!autoBlogData.settings?.gemini_api_key && (
                     <p className="text-center text-xs text-destructive">Please configure the API key first.</p>
                   )}
