@@ -19,23 +19,31 @@ try {
     }
 
     $url = "https://generativelanguage.googleapis.com/v1/models/{$model}:generateContent?key={$apiKey}";
-    $listUrl = "https://generativelanguage.googleapis.com/v1/models?key={$apiKey}";
     
     echo "Testing Connection to: https://generativelanguage.googleapis.com/v1/models/{$model}...\n\n";
 
-    $response = Http::withoutVerifying()->timeout(30)->post($url, [
+    // REAL BLOG PROMPT TEST
+    $prompt = "Act as a technical writer. Write a blog post about 'Benefits of proxies' in JSON format with fields: title, excerpt, content.";
+
+    $response = Http::withoutVerifying()->timeout(60)->post($url, [
         'contents' => [
-            ['parts' => [['text' => 'Hello, reply with "OK" if you can hear me.']]]
+            ['parts' => [['text' => $prompt]]]
         ]
     ]);
 
     echo "Status: " . $response->status() . "\n";
-    echo "Body: " . $response->body() . "\n\n";
+    $rawText = $response->json()['candidates'][0]['content']['parts'][0]['text'] ?? 'NO TEXT';
+    echo "Raw Text Snippet: " . substr($rawText, 0, 200) . "...\n\n";
 
-    echo "--- Listing Available Models ---\n";
-    $listResponse = Http::withoutVerifying()->timeout(10)->get($listUrl);
-    echo "List Status: " . $listResponse->status() . "\n";
-    echo "List Body: " . $listResponse->body() . "\n";
+    if (preg_match('/\{.*\}/s', $rawText, $matches)) {
+        $data = json_decode($matches[0], true);
+        echo "JSON Parse: " . ($data ? "SUCCESS" : "FAILED (Error: " . json_last_error_msg() . ")") . "\n";
+        if ($data) {
+            echo "Fields found: " . implode(', ', array_keys($data)) . "\n";
+        }
+    } else {
+        echo "JSON Parse: FAILED (No JSON object found in response)\n";
+    }
 
 } catch (\Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
