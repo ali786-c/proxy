@@ -13,8 +13,8 @@ class GeminiService
 
     public function __construct()
     {
-        $this->apiKey = Setting::getValue('gemini_api_key');
-        $this->model = Setting::getValue('gemini_model', 'gemini-1.5-flash');
+        $this->apiKey = env('GEMINI_API_KEY');
+        $this->model = 'gemini-2.0-flash';
     }
 
     /**
@@ -23,14 +23,14 @@ class GeminiService
     public function generateBlogPost(string $keyword)
     {
         if (!$this->apiKey) {
-            throw new \Exception('Gemini API key is not configured.');
+            throw new \Exception('Gemini API key is not configured in .env');
         }
 
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key={$this->apiKey}";
+        $url = "https://generativelanguage.googleapis.com/v1/models/{$this->model}:generateContent?key={$this->apiKey}";
 
         $prompt = $this->buildPrompt($keyword);
 
-        $response = Http::post($url, [
+        $response = Http::withoutVerifying()->post($url, [
             'contents' => [
                 [
                     'parts' => [
@@ -40,10 +40,7 @@ class GeminiService
             ],
             'generationConfig' => [
                 'temperature' => 0.7,
-                'topK' => 40,
-                'topP' => 0.95,
-                'maxOutputTokens' => 4096,
-                'responseMimeType' => 'application/json',
+                'maxOutputTokens' => 2048,
             ]
         ]);
 
@@ -52,14 +49,13 @@ class GeminiService
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
-            throw new \Exception('Failed to generate content from Gemini AI.');
+            throw new \Exception('Failed to generate content from Gemini AI. Body: ' . $response->body());
         }
 
         $result = $response->json();
         
         try {
-            $textResponse = $result['candidates'][0]['content']['parts'][0]['text'];
-            return json_decode($textResponse, true);
+            return $result['candidates'][0]['content']['parts'][0]['text'];
         } catch (\Exception $e) {
             Log::error('Gemini Response Parsing Error', [
                 'error' => $e->getMessage(),
