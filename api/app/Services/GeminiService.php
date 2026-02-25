@@ -13,8 +13,8 @@ class GeminiService
 
     public function __construct()
     {
-        $this->apiKey = Setting::getValue('gemini_api_key') ?: env('GEMINI_API_KEY');
-        $this->model = Setting::getValue('gemini_model') ?: 'gemini-2.5-flash';
+        $this->apiKey = Setting::getValue('gemini_api_key') ?: config('services.gemini.key');
+        $this->model = Setting::getValue('gemini_model') ?: config('services.gemini.model', 'gemini-2.5-flash');
     }
 
     /**
@@ -23,7 +23,7 @@ class GeminiService
     public function generateBlogPost(string $keyword)
     {
         if (!$this->apiKey) {
-            throw new \Exception('Gemini API key is not configured in .env');
+            throw new \Exception('Gemini API key is not configured. Please check your .env (GEMINI_API_KEY) or saved settings.');
         }
 
         $url = "https://generativelanguage.googleapis.com/v1/models/{$this->model}:generateContent?key={$this->apiKey}";
