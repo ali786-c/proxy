@@ -130,8 +130,15 @@ class AutoBlogController extends Controller
                 'post' => $post
             ]);
 
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'AI Generation Failed: ' . $e->getMessage()], 500);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('AI Generation Trigger Failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'AI Generation Failed: ' . $e->getMessage(),
+                'debug' => $e->getTraceAsString()
+            ], 500);
         }
     }
 }
