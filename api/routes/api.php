@@ -195,6 +195,13 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/blog/{id}/publish', [\App\Http\Controllers\BlogController::class, 'publish']);
     Route::delete('/blog/{id}',   [\App\Http\Controllers\BlogController::class, 'destroy']);
 
+    // Admin Auto-Blog Management
+    Route::get('/blog/automation',            [\App\Http\Controllers\AutoBlogController::class, 'index']);
+    Route::post('/blog/automation/settings',  [\App\Http\Controllers\AutoBlogController::class, 'updateSettings']);
+    Route::post('/blog/automation/keywords',  [\App\Http\Controllers\AutoBlogController::class, 'storeKeyword']);
+    Route::delete('/blog/automation/keywords/{id}', [\App\Http\Controllers\AutoBlogController::class, 'destroyKeyword']);
+    Route::post('/blog/automation/trigger',   [\App\Http\Controllers\AutoBlogController::class, 'trigger']);
+
     // Admin Products Management
     Route::get('/products',          [\App\Http\Controllers\ProductController::class, 'adminIndex']);
     Route::post('/products',        [\App\Http\Controllers\ProductController::class, 'store']);

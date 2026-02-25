@@ -20,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'banned' => \App\Http\Middleware\CheckBanned::class,
         ]);
     })
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        $schedule->command('blog:generate-ai')->dailyAt('09:00');
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
