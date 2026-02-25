@@ -167,6 +167,10 @@ Route::post('/auth/password/reset', [\App\Http\Controllers\PasswordResetControll
 Route::post('/newsletters', function() {
     return response()->json(['message' => 'Successfully subscribed to newsletter.']);
 });
+ 
+// Public Blog Routes
+Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'publicIndex']);
+Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show']);
 
 // ─────────────────────────────────────────────
 // Admin Routes

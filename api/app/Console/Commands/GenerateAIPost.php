@@ -51,12 +51,16 @@ class GenerateAIPost extends Command
         try {
             $rawResponse = $gemini->generateBlogPost($keywordObj->keyword);
             
-            // Clean up potentially returned markdown code blocks and parse JSON
-            $cleanResponse = preg_replace('/^```json\s*|```$/m', '', $rawResponse);
-            $data = json_decode(trim($cleanResponse), true);
+            // Robustly extract JSON object from the response
+            if (preg_match('/\{.*\}/s', $rawResponse, $matches)) {
+                $data = json_decode($matches[0], true);
+            } else {
+                $data = null;
+            }
 
             if (!$data || !isset($data['title'], $data['content'], $data['excerpt'])) {
-                throw new \Exception('Invalid or missing JSON fields in AI response.');
+                $errorMsg = json_last_error_msg();
+                throw new \Exception("Invalid or missing JSON fields in AI response. JSON Error: {$errorMsg}. Raw snippet: " . substr($rawResponse, 0, 100));
             }
 
             $post = BlogPost::create([

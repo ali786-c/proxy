@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,18 @@ export default function AdminBlog() {
 
   const [newKeyword, setNewKeyword] = useState("");
   const [newCategory, setNewCategory] = useState("General");
+
+  // Gemini Settings Local State
+  const [localApiKey, setLocalApiKey] = useState("");
+  const [localModel, setLocalModel] = useState("");
+
+  // Sync settings when data loads
+  useEffect(() => {
+    if (autoBlogData.settings) {
+      setLocalApiKey(autoBlogData.settings.gemini_api_key || "");
+      setLocalModel(autoBlogData.settings.gemini_model || "gemini-1.5-flash");
+    }
+  }, [autoBlogData.settings]);
 
   const posts = rawPosts.map((p: any) => ({
     ...p,
@@ -264,8 +276,8 @@ export default function AdminBlog() {
                         <Input
                           type="password"
                           placeholder="AIza..."
-                          defaultValue={autoBlogData.settings?.gemini_api_key || ""}
-                          onBlur={(e) => updateAutoSettings.mutate({ gemini_api_key: e.target.value })}
+                          value={localApiKey}
+                          onChange={(e) => setLocalApiKey(e.target.value)}
                         />
                       </div>
                       <p className="text-[10px] text-muted-foreground">Get your key from Google AI Studio</p>
@@ -273,15 +285,32 @@ export default function AdminBlog() {
                     <div className="space-y-1.5">
                       <Label>Model Selection</Label>
                       <Select
-                        defaultValue={autoBlogData.settings?.gemini_model || "gemini-1.5-flash"}
-                        onValueChange={(v) => updateAutoSettings.mutate({ gemini_model: v })}
+                        value={localModel}
+                        onValueChange={setLocalModel}
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Fash & Verified)</SelectItem>
                           <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash (Fash & Cheap)</SelectItem>
                           <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro (High Quality)</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="pt-2">
+                      <Button
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={() => updateAutoSettings.mutate({
+                          gemini_api_key: localApiKey,
+                          gemini_model: localModel
+                        }, {
+                          onSuccess: () => toast({ title: "Settings Saved", description: "Gemini configuration updated successfully." })
+                        })}
+                        disabled={updateAutoSettings.isPending}
+                      >
+                        {updateAutoSettings.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Save Settings
+                      </Button>
                     </div>
                     <div className="flex items-center justify-between pt-2">
                       <div className="space-y-0.5">

@@ -13,8 +13,8 @@ class GeminiService
 
     public function __construct()
     {
-        $this->apiKey = env('GEMINI_API_KEY');
-        $this->model = 'gemini-2.0-flash';
+        $this->apiKey = Setting::getValue('gemini_api_key') ?: env('GEMINI_API_KEY');
+        $this->model = Setting::getValue('gemini_model') ?: 'gemini-2.5-flash';
     }
 
     /**
@@ -30,7 +30,7 @@ class GeminiService
 
         $prompt = $this->buildPrompt($keyword);
 
-        $response = Http::withoutVerifying()->post($url, [
+        $response = Http::withoutVerifying()->timeout(60)->post($url, [
             'contents' => [
                 [
                     'parts' => [
@@ -40,7 +40,7 @@ class GeminiService
             ],
             'generationConfig' => [
                 'temperature' => 0.7,
-                'maxOutputTokens' => 2048,
+                'maxOutputTokens' => 4096,
             ]
         ]);
 
@@ -55,7 +55,9 @@ class GeminiService
         $result = $response->json();
         
         try {
-            return $result['candidates'][0]['content']['parts'][0]['text'];
+            $text = $result['candidates'][0]['content']['parts'][0]['text'];
+            Log::info('Gemini Raw Text', ['text' => $text]);
+            return $text;
         } catch (\Exception $e) {
             Log::error('Gemini Response Parsing Error', [
                 'error' => $e->getMessage(),
