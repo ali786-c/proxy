@@ -1,0 +1,467 @@
+import { useState } from "react";
+import { SEOHead } from "@/components/seo/SEOHead";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Send, Clock, FileText, Search, Plus, Trash2, Edit2, Loader2, Globe, Mail, Settings, Rss, Eye, Sparkles, Save, Bot, Key, Zap
+} from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "@/hooks/use-toast";
+import {
+  usePublishBlogPost,
+  useAutoBlogStatus,
+  useUpdateAutoBlogSettings,
+  useAddAutoBlogKeyword,
+  useDeleteAutoBlogKeyword,
+  useTriggerAutoBlog,
+} from "@/hooks/use-backend";
+
+const STATUS_BADGE: Record<string, "default" | "secondary" | "outline"> = {
+  draft: "outline",
+  published: "default"
+};
+
+export default function AdminBlog() {
+  const [tab, setTab] = useState("posts");
+  const [postFilter, setPostFilter] = useState("all");
+  const [search, setSearch] = useState("");
+
+  // Dialog States
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<any>(null);
+
+  // Form States
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+
+  // ── API Hooks ──────────────────────────────────
+  const { data: rawPosts = [], isLoading: postsLoading } = useAdminBlogPosts();
+  const createPost = useCreateBlogPost();
+  const updatePost = useUpdateBlogPost();
+  const deletePost = useDeleteBlogPost();
+  const publishPost = usePublishBlogPost();
+
+  const { data: autoBlogData = { keywords: [], settings: {} }, isLoading: autoLoading } = useAutoBlogStatus();
+  const updateAutoSettings = useUpdateAutoBlogSettings();
+  const addKeyword = useAddAutoBlogKeyword();
+  const deleteKeyword = useDeleteAutoBlogKeyword();
+  const triggerAuto = useTriggerAutoBlog();
+
+  const [newKeyword, setNewKeyword] = useState("");
+  const [newCategory, setNewCategory] = useState("General");
+
+  const posts = rawPosts.map((p: any) => ({
+    ...p,
+    status: p.is_draft ? "draft" : "published"
+  }));
+
+  // ── Actions ─────────────────────────────────────
+  const handleCreate = () => {
+    createPost.mutate({ title, content, image_url: imageUrl }, {
+      onSuccess: () => {
+        setIsCreateOpen(false);
+        resetForm();
+        toast({ title: "Draft created", description: "Your article has been saved as a draft." });
+      }
+    });
+  };
+
+  const handleUpdate = () => {
+    updatePost.mutate({ id: editingPost.id, data: { title, content, image_url: imageUrl } }, {
+      onSuccess: () => {
+        setIsEditOpen(false);
+        resetForm();
+        toast({ title: "Post updated" });
+      }
+    });
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm("Are you sure you want to delete this post?")) {
+      deletePost.mutate(id, {
+        onSuccess: () => toast({ title: "Post deleted" })
+      });
+    }
+  };
+
+  const handlePublishToggle = (id: number, currentDraft: boolean) => {
+    publishPost.mutate({ id, is_draft: !currentDraft }, {
+      onSuccess: () => toast({
+        title: currentDraft ? "Article Published" : "Moved to Drafts",
+        description: currentDraft ? "The article is now live on the blog." : "The article has been hidden."
+      })
+    });
+  };
+
+  const openEdit = (post: any) => {
+    setEditingPost(post);
+    setTitle(post.title);
+    setContent(post.content);
+    setImageUrl(post.image_url || "");
+    setIsEditOpen(true);
+  };
+
+  const resetForm = () => {
+    setTitle("");
+    setContent("");
+    setImageUrl("");
+    setEditingPost(null);
+  };
+
+  const filteredPosts = posts.filter((p: any) => {
+    if (postFilter !== "all" && p.status !== postFilter) return false;
+    if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const draftCount = posts.filter((p: any) => p.status === "draft").length;
+  const publishedCount = posts.filter((p: any) => p.status === "published").length;
+
+  return (
+    <>
+      <SEOHead title="Admin — Blog Management" noindex />
+
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Blog Management</h1>
+            <p className="text-sm text-muted-foreground">Manage articles, news, and updates for your users.</p>
+          </div>
+          <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> New Article
+          </Button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid gap-4 sm:grid-cols-4">
+          <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><div className="rounded-lg bg-primary/10 p-2.5"><FileText className="h-5 w-5 text-primary" /></div><div><p className="text-2xl font-bold">{posts.length}</p><p className="text-xs text-muted-foreground">Total Posts</p></div></div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><div className="rounded-lg bg-primary/10 p-2.5"><Clock className="h-5 w-5 text-primary" /></div><div><p className="text-2xl font-bold">{draftCount}</p><p className="text-xs text-muted-foreground">Drafts</p></div></div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><div className="rounded-lg bg-primary/10 p-2.5"><Send className="h-5 w-5 text-primary" /></div><div><p className="text-2xl font-bold">{publishedCount}</p><p className="text-xs text-muted-foreground">Published</p></div></div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><div className="rounded-lg bg-primary/10 p-2.5"><Eye className="h-5 w-5 text-primary" /></div><div><p className="text-2xl font-bold">—</p><p className="text-xs text-muted-foreground">Total Views</p></div></div></CardContent></Card>
+        </div>
+
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList>
+            <TabsTrigger value="posts" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> Articles</TabsTrigger>
+            <TabsTrigger value="automation" className="gap-1.5"><Bot className="h-3.5 w-3.5" /> Automation</TabsTrigger>
+            <TabsTrigger value="channels" className="gap-1.5 disabled" disabled><Settings className="h-3.5 w-3.5" /> Channels (Coming Soon)</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="posts" className="mt-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input placeholder="Search posts…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              </div>
+              <Select value={postFilter} onValueChange={setPostFilter}>
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="draft">Drafts</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Author</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPosts.map((post: any) => (
+                      <TableRow key={post.id} className="group">
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{post.title}</p>
+                            <p className="text-xs text-muted-foreground truncate max-w-[300px]">{post.slug}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell><span className="text-sm font-medium">{post.author?.name || "System"}</span></TableCell>
+                        <TableCell>
+                          <Badge variant={STATUS_BADGE[post.status] ?? "outline"} className="text-[10px] uppercase">
+                            {post.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(post.published_at || post.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => openEdit(post)} className="h-8 w-8">
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={post.is_draft ? "default" : "outline"}
+                              onClick={() => handlePublishToggle(post.id, post.is_draft)}
+                              disabled={publishPost.isPending}
+                              className="h-8 gap-1"
+                            >
+                              {publishPost.isPending && publishPost.variables?.id === post.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : post.is_draft ? (
+                                <><Globe className="h-3 w-3" /> Publish</>
+                              ) : (
+                                <><Clock className="h-3 w-3" /> Unpublish</>
+                              )}
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleDelete(post.id)} className="h-8 w-8 text-destructive hover:text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredPosts.length === 0 && (
+                      <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">{postsLoading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : "No posts found."}</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="automation" className="mt-4 space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* API Configuration */}
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex items-center gap-2 font-semibold text-lg">
+                    <Key className="h-5 w-5 text-primary" />
+                    Gemini AI Configuration
+                  </div>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label>Google Gemini API Key</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          placeholder="AIza..."
+                          defaultValue={autoBlogData.settings?.gemini_api_key || ""}
+                          onBlur={(e) => updateAutoSettings.mutate({ gemini_api_key: e.target.value })}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Get your key from Google AI Studio</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Model Selection</Label>
+                      <Select
+                        defaultValue={autoBlogData.settings?.gemini_model || "gemini-1.5-flash"}
+                        onValueChange={(v) => updateAutoSettings.mutate({ gemini_model: v })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash (Fash & Cheap)</SelectItem>
+                          <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro (High Quality)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="space-y-0.5">
+                        <Label>Daily Auto-Posting</Label>
+                        <p className="text-xs text-muted-foreground">Automatically post 1 article every day</p>
+                      </div>
+                      <Switch
+                        checked={autoBlogData.settings?.auto_posting_enabled}
+                        onCheckedChange={(checked) => updateAutoSettings.mutate({ auto_blog_enabled: checked })}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Manual Trigger */}
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex items-center gap-2 font-semibold text-lg">
+                    <Zap className="h-5 w-5 text-yellow-500" />
+                    Instant Content Generation
+                  </div>
+                  <p className="text-sm text-muted-foreground italic">
+                    Push the button below to immediately generate and publish a professional blog post using your next available keyword.
+                  </p>
+                  <Button
+                    className="w-full h-12 gap-2 text-md font-bold"
+                    variant="secondary"
+                    disabled={triggerAuto.isPending || !autoBlogData.settings?.gemini_api_key}
+                    onClick={() => {
+                      triggerAuto.mutate({}, {
+                        onSuccess: (data: any) => toast({ title: "Success!", description: data.message })
+                      });
+                    }}
+                  >
+                    {triggerAuto.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    Generate & Publish Now
+                  </Button>
+                  {!autoBlogData.settings?.gemini_api_key && (
+                    <p className="text-center text-xs text-destructive">Please configure the API key first.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Keyword Management */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2 font-semibold text-lg">
+                    <Search className="h-5 w-5 text-primary" />
+                    Target Keywords & Topics
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. Benefits of Residential Proxies"
+                      className="w-64"
+                      value={newKeyword}
+                      onChange={(e) => setNewKeyword(e.target.value)}
+                    />
+                    <Button
+                      onClick={() => {
+                        if (!newKeyword) return;
+                        addKeyword.mutate({ keyword: newKeyword, category: newCategory }, {
+                          onSuccess: () => setNewKeyword("")
+                        });
+                      }}
+                      disabled={addKeyword.isPending || !newKeyword}
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Topic / Keyword</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Last Used</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {autoBlogData.keywords?.map((kw: any) => (
+                        <TableRow key={kw.id}>
+                          <TableCell className="font-medium">{kw.keyword}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px]">{kw.category || "General"}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {kw.last_used_at ? new Date(kw.last_used_at).toLocaleDateString() : "Never"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => deleteKeyword.mutate(kw.id)}
+                              disabled={deleteKeyword.isPending}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {(!autoBlogData.keywords || autoBlogData.keywords.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                            No keywords added yet. Add some to start auto-blogging.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Create Dialog */}
+        <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) resetForm(); }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Create New Article</DialogTitle>
+              <DialogDescription>Draft your post. You can publish it once it's saved.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Article headline..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Hero Image URL</Label>
+                <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Content (HTML/Text)</Label>
+                <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write your article content here..." className="min-h-[250px]" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreate} disabled={createPost.isPending || !title || !content}>
+                {createPost.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Draft
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditOpen} onOpenChange={(open) => { setIsEditOpen(open); if (!open) resetForm(); }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Article</DialogTitle>
+              <DialogDescription>Update the content of your post.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Article headline..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Hero Image URL</Label>
+                <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Content (HTML/Text)</Label>
+                <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write your article content here..." className="min-h-[250px]" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+              <Button onClick={handleUpdate} disabled={updatePost.isPending || !title || !content}>
+                {updatePost.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Update Post
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </>
+  );
+}

@@ -4,7 +4,7 @@ CHANGELOG.md
 
 # ── React source (only push compiled dist output) ──
 saas/
-lovable-export-d31f97fa/
+# lovable-export-d31f97fa/
 
 # ── Laravel (api/) ──
 api/.env
