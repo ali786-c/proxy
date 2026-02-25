@@ -12,13 +12,27 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('blog_posts', function (Blueprint $table) {
-            $table->text('excerpt')->nullable()->after('slug');
-            $table->string('category')->nullable()->after('excerpt');
-            $table->json('tags')->nullable()->after('category');
-            $table->integer('reading_time_min')->nullable()->after('tags');
-            $table->string('meta_title')->nullable()->after('is_draft');
-            $table->text('meta_description')->nullable()->after('meta_title');
-            $table->string('meta_keywords')->nullable()->after('meta_description');
+            if (!Schema::hasColumn('blog_posts', 'excerpt')) {
+                $table->text('excerpt')->nullable()->after('slug');
+            }
+            if (!Schema::hasColumn('blog_posts', 'category')) {
+                $table->string('category')->nullable()->after('excerpt');
+            }
+            if (!Schema::hasColumn('blog_posts', 'tags')) {
+                $table->json('tags')->nullable()->after('category');
+            }
+            if (!Schema::hasColumn('blog_posts', 'reading_time_min')) {
+                $table->integer('reading_time_min')->nullable()->after('tags');
+            }
+            if (!Schema::hasColumn('blog_posts', 'meta_title')) {
+                $table->string('meta_title')->nullable()->after('is_draft');
+            }
+            if (!Schema::hasColumn('blog_posts', 'meta_description')) {
+                $table->text('meta_description')->nullable()->after('meta_title');
+            }
+            if (!Schema::hasColumn('blog_posts', 'meta_keywords')) {
+                $table->string('meta_keywords')->nullable()->after('meta_description');
+            }
         });
     }
 
