@@ -19,6 +19,7 @@ try {
     }
 
     $url = "https://generativelanguage.googleapis.com/v1/models/{$model}:generateContent?key={$apiKey}";
+    $listUrl = "https://generativelanguage.googleapis.com/v1/models?key={$apiKey}";
     
     echo "Testing Connection to: https://generativelanguage.googleapis.com/v1/models/{$model}...\n\n";
 
@@ -29,7 +30,12 @@ try {
     ]);
 
     echo "Status: " . $response->status() . "\n";
-    echo "Body: " . $response->body() . "\n";
+    echo "Body: " . $response->body() . "\n\n";
+
+    echo "--- Listing Available Models ---\n";
+    $listResponse = Http::withoutVerifying()->timeout(10)->get($listUrl);
+    echo "List Status: " . $listResponse->status() . "\n";
+    echo "List Body: " . $listResponse->body() . "\n";
 
 } catch (\Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
