@@ -32,6 +32,9 @@ class SettingsController extends Controller
         'gateway_stripe_enabled',
         'gateway_paypal_enabled',
         'gateway_crypto_enabled',
+        'cryptomus_merchant_id',
+        'cryptomus_api_key',
+        'cryptomus_webhook_secret',
     ];
 
     /**
@@ -75,6 +78,9 @@ class SettingsController extends Controller
             'stripe_publishable_key' => 'STRIPE_KEY',
             'stripe_secret_key'      => 'STRIPE_SECRET',
             'stripe_webhook_secret'  => 'STRIPE_WEBHOOK_SECRET',
+            'cryptomus_merchant_id'  => 'CRYPTOMUS_MERCHANT_ID',
+            'cryptomus_api_key'      => 'CRYPTOMUS_API_KEY',
+            'cryptomus_webhook_secret' => 'CRYPTOMUS_WEBHOOK_SECRET',
         ];
 
         if (!isset($envMap[$key])) return;

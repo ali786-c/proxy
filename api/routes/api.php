@@ -131,6 +131,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::post('/billing/product-checkout', [\App\Http\Controllers\BillingController::class, 'createProductCheckout']);
     Route::post('/billing/submit-crypto', [\App\Http\Controllers\BillingController::class, 'submitCrypto']);
     Route::post('/billing/setup-intent', [\App\Http\Controllers\BillingController::class, 'createSetupIntent']);
+    Route::get('/billing/gateways', [\App\Http\Controllers\BillingController::class, 'publicGatewayStatus']);
     Route::get('/invoices',          [\App\Http\Controllers\BillingController::class, 'invoices']);
 
     // IP Allowlist
@@ -163,6 +164,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 // Public Routes (no auth)
 // ─────────────────────────────────────────────
 Route::post('/webhook/stripe', [\App\Http\Controllers\BillingController::class, 'handleWebhook']);
+Route::post('/webhook/cryptomus', [\App\Http\Controllers\BillingController::class, 'handleCryptomusWebhook']);
 Route::get('/currencies', [\App\Http\Controllers\CurrencyController::class, 'index']);
 Route::get('/products', [\App\Http\Controllers\ProductController::class, 'index']);
 Route::post('/auth/password/email', [\App\Http\Controllers\PasswordResetController::class, 'sendResetLink']);

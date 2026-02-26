@@ -11,10 +11,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Download, Loader2, CreditCard } from "lucide-react";
+import { Copy, Download, Loader2, CreditCard, Wallet, Bitcoin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useProducts, useGenerateProxy, useProxySettings } from "@/hooks/use-backend";
 import { clientApi } from "@/lib/api/dashboard";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
 
 const TYPE_MAP: Record<string, string> = {
   rp: "residential",
@@ -69,6 +77,8 @@ export default function Proxies() {
   const [error, setError] = useState<string | null>(null);
   const [proxies, setProxies] = useState<any[]>([]);
   const [directPurchaseInfo, setDirectPurchaseInfo] = useState<{ productId: number; amount: number } | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const { gateways } = usePaymentConfig();
 
   const handleGenerate = useCallback(async () => {
     setError(null);
@@ -104,21 +114,32 @@ export default function Proxies() {
     }
   }, [product, quantity, country, sessionType, generateProxy]);
 
-  const handleDirectPurchase = async () => {
+  const handleDirectPurchase = async (method: "stripe" | "cryptomus") => {
     if (!directPurchaseInfo) return;
     setLoading(true);
     try {
-      const { url } = await clientApi.createProductCheckout(
-        directPurchaseInfo.productId.toString(),
-        quantity,
-        country || undefined,
-        sessionType
-      );
-      window.location.href = url;
+      if (method === "cryptomus") {
+        const { url } = await clientApi.createCryptomusProductCheckout(
+          directPurchaseInfo.productId.toString(),
+          quantity,
+          country || undefined,
+          sessionType
+        );
+        window.location.href = url;
+      } else {
+        const { url } = await clientApi.createProductCheckout(
+          directPurchaseInfo.productId.toString(),
+          quantity,
+          country || undefined,
+          sessionType
+        );
+        window.location.href = url;
+      }
     } catch (err: any) {
       toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
+      setShowPaymentModal(false);
     }
   };
 
@@ -240,7 +261,7 @@ export default function Proxies() {
               </Button>
 
               {directPurchaseInfo && (
-                <Button variant="secondary" onClick={handleDirectPurchase} disabled={loading} className="gap-2">
+                <Button variant="secondary" onClick={() => setShowPaymentModal(true)} disabled={loading} className="gap-2">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
                   Pay €{directPurchaseInfo.amount.toFixed(2)} & Generate
                 </Button>
@@ -338,6 +359,60 @@ export default function Proxies() {
           </Tabs>
         )}
       </div>
+
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Payment Method</DialogTitle>
+            <DialogDescription>
+              Choose how you want to pay for these proxies.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {gateways.stripe && (
+              <Button
+                variant="outline"
+                className="flex items-center justify-between p-6 h-auto"
+                onClick={() => handleDirectPurchase("stripe")}
+                disabled={loading}
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <CreditCard className="h-6 w-6 text-primary" />
+                  <div>
+                    <div className="font-semibold">Credit/Debit Card</div>
+                    <div className="text-xs text-muted-foreground">Secure via Stripe</div>
+                  </div>
+                </div>
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">+VAT</Badge>
+              </Button>
+            )}
+
+            {gateways.cryptomus && (
+              <Button
+                variant="outline"
+                className="flex items-center justify-between p-6 h-auto"
+                onClick={() => handleDirectPurchase("cryptomus")}
+                disabled={loading}
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <Bitcoin className="h-6 w-6 text-primary" />
+                  <div>
+                    <div className="font-semibold">Cryptocurrency</div>
+                    <div className="text-xs text-muted-foreground">Automated via Cryptomus</div>
+                  </div>
+                </div>
+                <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-200">VAT-FREE</Badge>
+              </Button>
+            )}
+
+            {!gateways.stripe && !gateways.cryptomus && (
+              <p className="text-center text-sm text-muted-foreground italic">
+                No payment methods available. Please contact support.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

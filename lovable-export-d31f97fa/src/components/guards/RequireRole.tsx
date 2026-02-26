@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
-import { useAuth, type UserRole } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { type UserRole } from "@/lib/api/auth";
 
 export function RequireRole({ role, children }: { role: UserRole; children: React.ReactNode }) {
   const { user } = useAuth();
@@ -8,7 +9,10 @@ export function RequireRole({ role, children }: { role: UserRole; children: Reac
     return <Navigate to="/login" replace />;
   }
 
+  console.log(`[Security Guard] Checking access to ${role} required route. Current user role: ${user?.role}`);
+
   if (user.role !== role) {
+    console.warn(`[Security Guard] Access denied! User role ${user.role} is not ${role}. Redirecting...`);
     const fallback = user.role === "admin" ? "/admin" : "/app";
     return <Navigate to={fallback} replace />;
   }

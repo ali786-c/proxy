@@ -1,9 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { clientApi } from "@/lib/api/dashboard";
 
 export interface PaymentGatewayState {
   stripe: boolean;
   paypal: boolean;
   crypto: boolean;
+  cryptomus: boolean;
 }
 
 interface PaymentConfigContextValue {
@@ -11,24 +13,46 @@ interface PaymentConfigContextValue {
   toggleGateway: (id: keyof PaymentGatewayState) => void;
   autoTopUpEnabled: boolean;
   setAutoTopUpEnabled: (v: boolean) => void;
+  loading: boolean;
 }
 
 const PaymentConfigContext = createContext<PaymentConfigContextValue | null>(null);
 
 export function PaymentConfigProvider({ children }: { children: ReactNode }) {
   const [gateways, setGateways] = useState<PaymentGatewayState>({
-    stripe: true,
+    stripe: false,
     paypal: false,
     crypto: false,
+    cryptomus: false,
   });
   const [autoTopUpEnabled, setAutoTopUpEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const config = await clientApi.getGateways();
+        setGateways({
+          stripe: config.stripe,
+          paypal: config.paypal,
+          crypto: false, // Legacy
+          cryptomus: config.cryptomus
+        });
+      } catch (err) {
+        console.error("Failed to load payment config", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadConfig();
+  }, []);
 
   const toggleGateway = (id: keyof PaymentGatewayState) => {
     setGateways((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
-    <PaymentConfigContext.Provider value={{ gateways, toggleGateway, autoTopUpEnabled, setAutoTopUpEnabled }}>
+    <PaymentConfigContext.Provider value={{ gateways, toggleGateway, autoTopUpEnabled, setAutoTopUpEnabled, loading }}>
       {children}
     </PaymentConfigContext.Provider>
   );

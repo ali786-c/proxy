@@ -25,15 +25,8 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = 
   failed: "destructive",
 };
 
-const CRYPTO_WALLETS = [
-  { id: "btc", name: "Bitcoin (BTC)", icon: "₿", placeholder: "BTC wallet address — coming soon" },
-  { id: "ltc", name: "Litecoin (LTC)", icon: "Ł", placeholder: "LTC wallet address — coming soon" },
-  { id: "sol", name: "Solana (SOL)", icon: "◎", placeholder: "SOL wallet address — coming soon" },
-  { id: "trx", name: "TRON (TRX)", icon: "⧫", placeholder: "TRX wallet address — coming soon" },
-  { id: "bnb", name: "Binance (BNB)", icon: "♦", placeholder: "BNB wallet address — coming soon" },
-];
 
-type PaymentMethod = "stripe" | "paypal" | "crypto";
+type PaymentMethod = "stripe" | "paypal" | "cryptomus";
 
 export default function Billing() {
   const [activeProduct] = useState("residential");
@@ -57,7 +50,7 @@ export default function Billing() {
   });
 
   const numAmount = parseFloat(amount) || 0;
-  const isCrypto = selectedMethod === "crypto";
+  const isCrypto = selectedMethod === "cryptomus";
   const vatAmount = isCrypto ? 0 : numAmount * VAT_RATE;
   const totalAmount = numAmount + vatAmount;
   const belowMinimum = numAmount < MIN_PURCHASE_EUR;
@@ -66,30 +59,6 @@ export default function Billing() {
     toast({ title: "Product Selected", description: `Switching to ${planId}.` });
   };
 
-  const [cryptoCurrency, setCryptoCurrency] = useState("");
-  const [cryptoTxid, setCryptoTxid] = useState("");
-
-  const handleCryptoSubmit = async () => {
-    if (!cryptoCurrency || !cryptoTxid || !amount) {
-      toast({ title: "Missing information", description: "Please provide currency, amount, and TXID.", variant: "destructive" });
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await clientApi.submitCrypto({
-        currency: cryptoCurrency,
-        amount: parseFloat(amount),
-        txid: cryptoTxid,
-      });
-      toast({ title: "Submitted", description: "Your transaction has been submitted for review." });
-      setCryptoTxid("");
-      setSelectedMethod(null);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleAutoTopUp = async (enabled: boolean) => {
     setClientAutoTopUp(enabled);
@@ -116,15 +85,20 @@ export default function Billing() {
       return;
     }
 
-    if (isCrypto) {
-      // Logic handled by the Crypto form
-      return;
-    }
-
-    if (selectedMethod === "stripe") {
+    if (selectedMethod === "cryptomus") {
       setIsSubmitting(true);
       try {
-        const { url } = await clientApi.createCheckout(activeProduct, parseFloat(amount));
+        const { url } = await clientApi.createCryptomusCheckout(numAmount);
+        window.location.href = url;
+      } catch (err: any) {
+        toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else if (selectedMethod === "stripe") {
+      setIsSubmitting(true);
+      try {
+        const { url } = await clientApi.createCheckout(activeProduct, numAmount);
         window.location.href = url;
       } catch (err: any) {
         toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
@@ -144,10 +118,10 @@ export default function Billing() {
   const PAYMENT_METHODS = [
     { id: "stripe" as PaymentMethod, name: "Card (Stripe)", subtitle: "Credit/Debit Card", icon: CreditCard, vatLabel: "+22% VAT" },
     { id: "paypal" as PaymentMethod, name: "PayPal", subtitle: "PayPal Balance", icon: Wallet, vatLabel: "+22% VAT" },
-    { id: "crypto" as PaymentMethod, name: "Crypto", subtitle: "BTC, LTC, SOL, TRX, BNB", icon: Bitcoin, vatLabel: "No VAT" },
+    { id: "cryptomus" as PaymentMethod, name: "Crypto", subtitle: "Automated via Cryptomus", icon: Bitcoin, vatLabel: "No VAT" },
   ];
 
-  const anyGatewayEnabled = gateways.stripe || gateways.paypal || gateways.crypto;
+  const anyGatewayEnabled = gateways.stripe || gateways.paypal || gateways.cryptomus;
 
   return (
     <>
@@ -257,57 +231,11 @@ export default function Billing() {
                 </div>
                 <Button className="w-full mt-2" onClick={handleCheckout} disabled={belowMinimum || isSubmitting}>
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {isCrypto ? "Show Wallet Addresses" : `Pay €${totalAmount.toFixed(2)}`}
+                  Pay €{totalAmount.toFixed(2)}
                 </Button>
               </div>
             )}
 
-            {/* Crypto wallet addresses and submission */}
-            {selectedMethod === "crypto" && (
-              <Card className="border-dashed">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Bitcoin className="h-4 w-4" /> Crypto Payment — Send Exact Amount
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    No VAT on crypto payments. Send the exact EUR-equivalent in crypto. Submitting your TXID allows an admin to verify and credit your balance.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {CRYPTO_WALLETS.map((w) => (
-                    <div key={w.id} className="flex items-center gap-3 rounded-md border p-3">
-                      <span className="text-lg w-6 text-center">{w.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold">{w.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{w.placeholder}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-40" disabled>
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-
-                  <Separator />
-
-                  <div className="space-y-3 pt-2">
-                    <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Submit Transaction</h5>
-                    <div className="grid gap-3">
-                      <div className="space-y-1">
-                        <Label htmlFor="crypto-curr" className="text-[10px]">Currency Used</Label>
-                        <Input id="crypto-curr" size={1} className="h-8 text-xs" placeholder="e.g. BTC, SOL" value={cryptoCurrency} onChange={(e) => setCryptoCurrency(e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="crypto-txid" className="text-[10px]">Transaction ID (TXID)</Label>
-                        <Input id="crypto-txid" className="h-8 text-xs" placeholder="Paste TXID here" value={cryptoTxid} onChange={(e) => setCryptoTxid(e.target.value)} />
-                      </div>
-                    </div>
-                    <Button className="w-full h-9 text-xs" onClick={handleCryptoSubmit} disabled={isSubmitting || !cryptoTxid}>
-                      {isSubmitting ? "Submitting..." : "Submit for Verification"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </CardContent>
         </Card>
 
@@ -379,24 +307,49 @@ export default function Billing() {
                     >
                       {isCurrent ? "Active Product" : "Select Product"}
                     </Button>
-                    {!isCurrent && gateways.stripe && (
-                      <Button
-                        variant="secondary"
-                        className="w-full gap-2"
-                        onClick={async () => {
-                          setIsSubmitting(true);
-                          try {
-                            const { url } = await clientApi.createProductCheckout(plan.id, 1);
-                            window.location.href = url;
-                          } catch (err: any) {
-                            toast({ title: "Purchase Error", description: err.message, variant: "destructive" });
-                          } finally {
-                            setIsSubmitting(false);
-                          }
-                        }}
-                      >
-                        <CreditCard className="h-4 w-4" /> Buy Now
-                      </Button>
+                    {!isCurrent && (
+                      <div className="flex flex-col gap-2">
+                        {gateways.stripe && (
+                          <Button
+                            variant="secondary"
+                            className="w-full gap-2"
+                            disabled={isSubmitting}
+                            onClick={async () => {
+                              setIsSubmitting(true);
+                              try {
+                                const { url } = await clientApi.createProductCheckout(plan.id, 1);
+                                window.location.href = url;
+                              } catch (err: any) {
+                                toast({ title: "Purchase Error", description: err.message, variant: "destructive" });
+                              } finally {
+                                setIsSubmitting(false);
+                              }
+                            }}
+                          >
+                            <CreditCard className="h-4 w-4" /> Buy with Card
+                          </Button>
+                        )}
+                        {gateways.cryptomus && (
+                          <Button
+                            variant="outline"
+                            className="w-full gap-2 border-primary/20 hover:border-primary/50"
+                            disabled={isSubmitting}
+                            onClick={async () => {
+                              setIsSubmitting(true);
+                              try {
+                                const { url } = await clientApi.createCryptomusProductCheckout(plan.id, 1);
+                                window.location.href = url;
+                              } catch (err: any) {
+                                toast({ title: "Purchase Error", description: err.message, variant: "destructive" });
+                              } finally {
+                                setIsSubmitting(false);
+                              }
+                            }}
+                          >
+                            <Bitcoin className="h-4 w-4 text-orange-500" /> Buy with Crypto
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </CardContent>

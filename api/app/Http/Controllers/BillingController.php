@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Log;
 use Stripe\Stripe;
 use Stripe\Checkout\Session;
 use Stripe\Webhook;
+use Illuminate\Support\Facades\Http;
+use App\Helpers\CryptomusHelper;
 
 class BillingController extends Controller
 {
@@ -108,6 +110,257 @@ class BillingController extends Controller
         $session = Session::create($sessionData, ["stripe_version" => "2024-04-10"]);
 
         return response()->json(['url' => $session->url]);
+    }
+
+    public function createCryptomusCheckout(Request $request)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:1',
+        ]);
+
+        $merchantId = Setting::getValue('cryptomus_merchant_id');
+        $apiKey = Setting::getValue('cryptomus_api_key');
+
+        if (!$merchantId || !$apiKey) {
+            return response()->json(['error' => 'Cryptomus is not configured.'], 400);
+        }
+
+        $orderId = 'TOPUP-' . time() . '-' . $request->user()->id;
+        
+        $data = [
+            'amount' => (string) $request->amount,
+            'currency' => 'EUR', // Primary app currency
+            'order_id' => $orderId,
+            'url_return' => url('/') . '/app/billing?success=true&gateway=cryptomus',
+            'url_callback' => url('/') . '/api/webhook/cryptomus',
+            'additional_data' => json_encode([
+                'user_id' => $request->user()->id,
+                'type' => 'topup',
+                'amount' => $request->amount,
+            ]),
+        ];
+
+        $sign = CryptomusHelper::generateSignature($data, $apiKey);
+
+        $response = Http::withHeaders([
+            'merchant' => $merchantId,
+            'sign' => $sign,
+        ])->post('https://api.cryptomus.com/v1/payment', $data);
+
+        if ($response->successful()) {
+            return response()->json(['url' => $response->json('result.url')]);
+        }
+
+        Log::error('Cryptomus API Error: ' . $response->body());
+        return response()->json(['error' => 'Could not create crypto payment.'], 500);
+    }
+
+    public function createCryptomusProductCheckout(Request $request)
+    {
+        $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'quantity' => 'required|integer|min:1',
+        ]);
+
+        $product = \App\Models\Product::findOrFail($request->product_id);
+        $totalAmount = $product->price * $request->quantity; // No VAT on crypto as per UI instructions
+
+        $merchantId = Setting::getValue('cryptomus_merchant_id');
+        $apiKey = Setting::getValue('cryptomus_api_key');
+
+        if (!$merchantId || !$apiKey) {
+            return response()->json(['error' => 'Cryptomus is not configured.'], 400);
+        }
+
+        $orderId = 'PROD-' . time() . '-' . $request->user()->id;
+
+        $data = [
+            'amount' => (string) $totalAmount,
+            'currency' => 'EUR',
+            'order_id' => $orderId,
+            'url_return' => url('/') . '/app/billing?success=true&direct=true&gateway=cryptomus',
+            'url_callback' => url('/') . '/api/webhook/cryptomus',
+            'additional_data' => json_encode([
+                'user_id' => $request->user()->id,
+                'type' => 'direct_purchase',
+                'product_id' => $product->id,
+                'quantity' => $request->quantity,
+                'country' => $request->country ?? 'US',
+                'session_type' => $request->session_type ?? 'rotating',
+                'amount' => $totalAmount,
+            ]),
+        ];
+
+        $sign = CryptomusHelper::generateSignature($data, $apiKey);
+
+        $response = Http::withHeaders([
+            'merchant' => $merchantId,
+            'sign' => $sign,
+        ])->post('https://api.cryptomus.com/v1/payment', $data);
+
+        if ($response->successful()) {
+            return response()->json(['url' => $response->json('result.url')]);
+        }
+
+        Log::error('Cryptomus API Error: ' . $response->body());
+        return response()->json(['error' => 'Could not create crypto payment.'], 500);
+    }
+
+    public function handleCryptomusWebhook(Request $request)
+    {
+        $payload = $request->getContent();
+        $signHeader = $request->header('sign');
+        $apiKey = Setting::getValue('cryptomus_webhook_secret') ?: Setting::getValue('cryptomus_api_key');
+
+        if (!$signHeader || !$apiKey) {
+            Log::error('Cryptomus Webhook Error: Missing sign header or API key.');
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        if (!CryptomusHelper::verifySignature($payload, $signHeader, $apiKey)) {
+            Log::error('Cryptomus Webhook Error: Signature mismatch.');
+            return response()->json(['error' => 'Invalid signature'], 400);
+        }
+
+        $data = $request->all();
+        $status = $data['status'] ?? 'unknown';
+
+        // Only process successful payments
+        if (!in_array($status, ['paid', 'paid_over', 'completed'])) {
+            return response()->json(['message' => 'Payment status ignored: ' . $status]);
+        }
+
+        $uuid = $data['uuid'] ?? null;
+        if (!$uuid || WebhookLog::where('event_id', $uuid)->exists()) {
+            return response()->json(['message' => 'Already processed or invalid UUID']);
+        }
+
+        $metadata = isset($data['additional_data']) ? json_decode($data['additional_data'], true) : null;
+        if (!$metadata) {
+            // Fallback to order_id parsing if metadata missing
+            $orderId = $data['order_id'] ?? '';
+            // TOPUP-12345678-USERID
+            $parts = explode('-', $orderId);
+            $metadata = [
+                'user_id' => end($parts),
+                'type' => str_starts_with($orderId, 'PROD-') ? 'direct_purchase' : 'topup',
+                'amount' => $data['amount'] ?? 0,
+            ];
+        }
+
+        $this->fulfillCryptomusPayment($data, $uuid, $metadata);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    protected function fulfillCryptomusPayment($data, $uuid, $metadata)
+    {
+        $userId = $metadata['user_id'] ?? null;
+        $type   = $metadata['type'] ?? 'topup';
+        $amount = (float) ($metadata['amount'] ?? ($data['amount'] ?? 0));
+
+        if (!$userId) {
+            Log::error("Cryptomus Webhook Error: No user_id in metadata for UUID {$uuid}");
+            return;
+        }
+
+        DB::transaction(function () use ($userId, $amount, $uuid, $type, $metadata, $data) {
+            $user = User::lockForUpdate()->find($userId);
+            if (!$user) return;
+
+            if ($type === 'direct_purchase') {
+                // Logic identical to Stripe direct fulfillment
+                $productId = $metadata['product_id'] ?? null;
+                $quantity  = (int) ($metadata['quantity'] ?? 1);
+                $country   = $metadata['country'] ?? 'US';
+                $sessionType = $metadata['session_type'] ?? 'rotating';
+
+                $product = \App\Models\Product::find($productId);
+                $fulfilled = false;
+
+                if ($product) {
+                    $evomi = app(\App\Services\EvomiService::class);
+                    $subuserResult = $evomi->ensureSubuser($user);
+                    
+                    if ($subuserResult['success']) {
+                        $userKeys = $user->fresh()->evomi_keys ?? [];
+                        $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
+                        
+                        if ($proxyKey) {
+                            try {
+                                $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
+                                $order = \App\Models\Order::create([
+                                    'user_id'    => $user->id,
+                                    'product_id' => $product->id,
+                                    'status'     => 'active',
+                                    'expires_at' => now()->addDays(30),
+                                ]);
+
+                                $portMap = ['rp' => 1000, 'mp' => 3000, 'isp' => 3000, 'dc' => 2000];
+                                $hostMap = ['rp' => 'rp.evomi.com', 'mp' => 'mp.evomi.com', 'dc' => 'dcp.evomi.com', 'isp' => 'isp.evomi.com'];
+                                $port = $portMap[$product->type] ?? 1000;
+                                $host = $hostMap[$product->type] ?? 'gate.evomi.com';
+
+                                for ($i = 0; $i < $quantity; $i++) {
+                                    \App\Models\Proxy::create([
+                                        'order_id' => $order->id,
+                                        'host'     => $host,
+                                        'port'     => $port,
+                                        'username' => $user->evomi_username,
+                                        'password' => "{$proxyKey}_country-{$country}_session-{$sessionType}",
+                                        'country'  => $country,
+                                    ]);
+                                }
+                                $fulfilled = true;
+                            } catch (\Exception $e) { Log::error("Cryptomus Fulfillment Proxy Error: " . $e->getMessage()); }
+                        }
+                    }
+                }
+
+                if (!$fulfilled) {
+                    $user->increment('balance', $amount);
+                    WalletTransaction::create([
+                        'user_id' => $user->id,
+                        'type' => 'credit',
+                        'amount' => $amount,
+                        'reference' => "CRYPTO-{$uuid}",
+                        'description' => "Cryptomus Buy Fallback: Product #{$productId} (Refunded to wallet)",
+                    ]);
+                } else {
+                    WalletTransaction::create([
+                        'user_id' => $user->id,
+                        'type' => 'credit',
+                        'amount' => $amount,
+                        'reference' => "CRYPTO-{$uuid}",
+                        'description' => "Cryptomus Direct Buy: {$quantity}x Product #{$productId}",
+                    ]);
+                }
+            } else {
+                // Regular Top-up
+                $user->increment('balance', $amount);
+                WalletTransaction::create([
+                    'user_id' => $user->id,
+                    'type' => 'credit',
+                    'amount' => $amount,
+                    'reference' => "CRYPTO-{$uuid}",
+                    'description' => 'Cryptomus Wallet Top-up',
+                ]);
+            }
+
+            // Mark formal invoice
+            \App\Models\Invoice::create([
+                'user_id' => $user->id,
+                'amount' => $amount,
+                'currency' => $data['currency'] ?? 'EUR',
+                'status' => 'paid',
+                'description' => 'Cryptomus Crypto Payment',
+            ]);
+
+            WebhookLog::create([
+                'provider' => 'cryptomus',
+                'event_id' => $uuid,
+            ]);
+        });
     }
 
     public function handleWebhook(Request $request)
@@ -520,13 +773,22 @@ class BillingController extends Controller
                     'last_sync' => now()->toIso8601String(),
                 ],
                 [
-                    'id' => 'crypto',
-                    'name' => 'Crypto',
-                    'status' => Setting::getValue('crypto_wallet_address') ? 'connected' : 'not_configured',
-                    'webhook_health' => 'unknown',
+                    'id' => 'cryptomus',
+                    'name' => 'Cryptomus',
+                    'status' => Setting::getValue('cryptomus_merchant_id') ? 'connected' : 'not_configured',
+                    'webhook_health' => Setting::getValue('cryptomus_webhook_secret') ? 'good' : 'missing',
                     'last_sync' => now()->toIso8601String(),
                 ]
             ]
+        ]);
+    }
+
+    public function publicGatewayStatus()
+    {
+        return response()->json([
+            'stripe' => !empty(Setting::getValue('stripe_publishable_key')),
+            'paypal' => !empty(Setting::getValue('paypal_client_id')),
+            'cryptomus' => !empty(Setting::getValue('cryptomus_merchant_id')),
         ]);
     }
     public function checkAndTriggerAutoTopUp($user)

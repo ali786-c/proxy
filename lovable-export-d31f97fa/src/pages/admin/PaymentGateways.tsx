@@ -15,7 +15,7 @@ import { z } from "zod";
 import { useAdminPaymentGateways } from "@/hooks/use-backend";
 
 interface GatewayConfig {
-  id: "stripe" | "paypal" | "crypto";
+  id: "stripe" | "paypal" | "crypto" | "cryptomus";
   name: string;
   icon: typeof CreditCard;
   fields: { key: string; label: string; placeholder: string; value: string; secret?: boolean }[];
@@ -43,13 +43,13 @@ const GATEWAY_TEMPLATES: GatewayConfig[] = [
     ],
   },
   {
-    id: "crypto",
-    name: "Crypto (USDT/BTC/ETH)",
+    id: "cryptomus",
+    name: "Cryptomus (Automated Crypto)",
     icon: Bitcoin,
     fields: [
-      { key: "crypto_wallet_address", label: "Wallet Address", placeholder: "0x...", value: "" },
-      { key: "crypto_provider", label: "Provider (e.g. NOWPayments)", placeholder: "nowpayments", value: "" },
-      { key: "crypto_api_key", label: "API Key", placeholder: "Your API key", value: "" },
+      { key: "cryptomus_merchant_id", label: "Merchant ID", placeholder: "UUID-...", value: "" },
+      { key: "cryptomus_api_key", label: "Payment/API Key", placeholder: "Your API key", value: "", secret: true },
+      { key: "cryptomus_webhook_secret", label: "Webhook/Sign Key", placeholder: "Your webhook key", value: "", secret: true },
     ],
   },
 ];

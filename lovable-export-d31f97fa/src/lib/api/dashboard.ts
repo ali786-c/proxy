@@ -159,8 +159,17 @@ export const clientApi = {
   getInvoices: () => api.get("/invoices", z.array(InvoiceSchema)),
   createCheckout: (productId: string, amount: number) =>
     api.post("/billing/checkout", z.object({ url: z.string() }), { product_id: productId, amount }),
+  createCryptomusCheckout: (amount: number) =>
+    api.post("/billing/cryptomus-checkout", z.object({ url: z.string() }), { amount }),
   createProductCheckout: (productId: string, quantity: number, country?: string, session_type?: string) =>
     api.post("/billing/product-checkout", z.object({ url: z.string() }), {
+      product_id: productId,
+      quantity,
+      country,
+      session_type
+    }),
+  createCryptomusProductCheckout: (productId: string, quantity: number, country?: string, session_type?: string) =>
+    api.post("/billing/cryptomus-product-checkout", z.object({ url: z.string() }), {
       product_id: productId,
       quantity,
       country,
@@ -170,6 +179,12 @@ export const clientApi = {
     api.post("/billing/submit-crypto", MessageSchema, data),
   createSetupIntent: () =>
     api.post("/billing/setup-intent", z.object({ client_secret: z.string() }), {}),
+  getGateways: () =>
+    api.get("/billing/gateways", z.object({
+      stripe: z.boolean(),
+      paypal: z.boolean(),
+      cryptomus: z.boolean()
+    })),
 
   // Proxy settings (geo-metadata)
   getProxySettings: () => api.get("/proxies/settings", z.any()),
