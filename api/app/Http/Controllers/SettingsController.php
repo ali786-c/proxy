@@ -8,11 +8,30 @@ use Illuminate\Http\Request;
 class SettingsController extends Controller
 {
     /**
+     * List of settings allowed to be managed via general settings.
+     */
+    protected $allowedKeys = [
+        'site_name',
+        'support_email',
+        'maintenance_mode',
+        'smtp_host',
+        'smtp_port',
+        'smtp_user',
+        'smtp_pass',
+        'admin_2fa_required',
+        'rate_limiting_enabled'
+    ];
+
+    /**
      * GET /admin/settings - Get all settings
      */
     public function index()
     {
-        return response()->json(Setting::all()->pluck('value', 'key'));
+        return response()->json(
+            Setting::whereIn('key', $this->allowedKeys)
+                ->get()
+                ->pluck('value', 'key')
+        );
     }
 
     /**
@@ -20,7 +39,7 @@ class SettingsController extends Controller
      */
     public function update(Request $request)
     {
-        $settings = $request->all();
+        $settings = $request->only($this->allowedKeys);
 
         foreach ($settings as $key => $value) {
             Setting::updateOrCreate(
@@ -29,6 +48,6 @@ class SettingsController extends Controller
             );
         }
 
-        return response()->json(['message' => 'Settings updated successfully']);
+        return response()->json(['message' => 'General settings updated successfully']);
     }
 }

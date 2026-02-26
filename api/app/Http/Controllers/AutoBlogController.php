@@ -16,10 +16,14 @@ class AutoBlogController extends Controller
      */
     public function index()
     {
+        $dbApiKey = Setting::getValue('gemini_api_key') ?? '';
+        // Only use DB key if it looks valid (Gemini keys usually start with AIza)
+        $apiKey = (str_starts_with($dbApiKey, 'AIza')) ? $dbApiKey : config('services.gemini.key', '');
+
         return response()->json([
             'keywords' => AutoBlogKeyword::latest()->get(),
             'settings' => [
-                'gemini_api_key' => Setting::getValue('gemini_api_key') ?: config('services.gemini.key', ''),
+                'gemini_api_key' => $apiKey,
                 'gemini_model'   => Setting::getValue('gemini_model') ?: config('services.gemini.model', 'gemini-2.5-flash'),
                 'auto_posting_enabled' => Setting::getValue('auto_blog_enabled', '0') === '1',
             ]

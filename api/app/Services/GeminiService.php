@@ -13,7 +13,10 @@ class GeminiService
 
     public function __construct()
     {
-        $this->apiKey = Setting::getValue('gemini_api_key') ?: config('services.gemini.key');
+        $dbApiKey = Setting::getValue('gemini_api_key') ?? '';
+        // Only use DB key if it looks valid (Gemini keys usually start with AIza)
+        $this->apiKey = (str_starts_with($dbApiKey, 'AIza')) ? $dbApiKey : config('services.gemini.key');
+        
         $this->model = Setting::getValue('gemini_model') ?: config('services.gemini.model', 'gemini-2.5-flash');
     }
 

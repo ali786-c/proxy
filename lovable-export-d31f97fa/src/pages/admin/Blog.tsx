@@ -362,7 +362,7 @@ export default function AdminBlog() {
                   <Button
                     className="w-full h-12 gap-2 text-md font-bold transition-all"
                     variant="secondary"
-                    disabled={triggerAuto.isPending || !autoBlogData.settings?.gemini_api_key}
+                    disabled={triggerAuto.isPending || !autoBlogData.settings?.gemini_api_key || !autoBlogData.settings?.gemini_api_key.startsWith('AIza')}
                     onClick={() => {
                       triggerAuto.mutate({}, {
                         onSuccess: (data: any) => toast({ title: "Success!", description: data.message })
@@ -380,8 +380,8 @@ export default function AdminBlog() {
                     </div>
                   )}
 
-                  {!autoBlogData.settings?.gemini_api_key && (
-                    <p className="text-center text-xs text-destructive">Please configure the API key first.</p>
+                  {(!autoBlogData.settings?.gemini_api_key || !autoBlogData.settings?.gemini_api_key.startsWith('AIza')) && (
+                    <p className="text-center text-xs text-destructive">Please configure a valid API key first (starts with AIza).</p>
                   )}
                 </CardContent>
               </Card>

@@ -40,7 +40,27 @@ export default function AdminSettings() {
   };
 
   const handleSave = () => {
-    mutation.mutate(form);
+    // Only send fields that are actually displayed on this page
+    const allowedKeys = [
+      'site_name',
+      'support_email',
+      'maintenance_mode',
+      'smtp_host',
+      'smtp_port',
+      'smtp_user',
+      'smtp_pass',
+      'admin_2fa_required',
+      'rate_limiting_enabled'
+    ];
+
+    const dataToSave: Record<string, any> = {};
+    allowedKeys.forEach(key => {
+      if (form[key] !== undefined) {
+        dataToSave[key] = form[key];
+      }
+    });
+
+    mutation.mutate(dataToSave);
   };
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading settings...</div>;
