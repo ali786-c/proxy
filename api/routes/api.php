@@ -128,6 +128,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 
     // Billing Routes
     Route::post('/billing/checkout', [\App\Http\Controllers\BillingController::class, 'createCheckout']);
+    Route::post('/billing/product-checkout', [\App\Http\Controllers\BillingController::class, 'createProductCheckout']);
     Route::post('/billing/submit-crypto', [\App\Http\Controllers\BillingController::class, 'submitCrypto']);
     Route::post('/billing/setup-intent', [\App\Http\Controllers\BillingController::class, 'createSetupIntent']);
     Route::get('/invoices',          [\App\Http\Controllers\BillingController::class, 'invoices']);

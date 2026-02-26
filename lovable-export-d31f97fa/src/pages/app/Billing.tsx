@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Check, CreditCard, Wallet, Bitcoin, RefreshCw, Euro, Copy, AlertCircle, Info, Loader2 } from "lucide-react";
+import { Check, CreditCard, Wallet, Bitcoin, RefreshCw, Euro, Copy, AlertCircle, Info, Loader2, Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
 import { clientApi, type Invoice, type Plan } from "@/lib/api/dashboard";
@@ -176,6 +176,19 @@ export default function Billing() {
                   step="1"
                   placeholder={`Min €${MIN_PURCHASE_EUR}`}
                 />
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {["10", "25", "50", "100"].map((preset) => (
+                    <Button
+                      key={preset}
+                      variant="outline"
+                      size="sm"
+                      className={`text-xs h-7 px-3 ${amount === preset ? "border-primary bg-primary/5 text-primary" : ""}`}
+                      onClick={() => setAmount(preset)}
+                    >
+                      €{preset}
+                    </Button>
+                  ))}
+                </div>
                 {belowMinimum && numAmount > 0 && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" /> Minimum purchase is €{MIN_PURCHASE_EUR}
@@ -357,14 +370,35 @@ export default function Billing() {
                       </li>
                     ))}
                   </ul>
-                  <Button
-                    variant={isCurrent ? "outline" : "default"}
-                    className="w-full"
-                    disabled={isCurrent}
-                    onClick={() => selectPlan(plan.id)}
-                  >
-                    {isCurrent ? "Active Product" : "Switch Product"}
-                  </Button>
+                  <div className="grid gap-2">
+                    <Button
+                      variant={isCurrent ? "outline" : "default"}
+                      className="w-full"
+                      disabled={isCurrent}
+                      onClick={() => selectPlan(plan.id)}
+                    >
+                      {isCurrent ? "Active Product" : "Select Product"}
+                    </Button>
+                    {!isCurrent && gateways.stripe && (
+                      <Button
+                        variant="secondary"
+                        className="w-full gap-2"
+                        onClick={async () => {
+                          setIsSubmitting(true);
+                          try {
+                            const { url } = await clientApi.createProductCheckout(plan.id, 1);
+                            window.location.href = url;
+                          } catch (err: any) {
+                            toast({ title: "Purchase Error", description: err.message, variant: "destructive" });
+                          } finally {
+                            setIsSubmitting(false);
+                          }
+                        }}
+                      >
+                        <CreditCard className="h-4 w-4" /> Buy Now
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -394,8 +428,15 @@ export default function Billing() {
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[inv.status] ?? "secondary"}>{inv.status}</Badge>
                     </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {new Date(inv.created_at).toLocaleDateString()}
+                    <TableCell className="text-right text-sm text-muted-foreground space-x-2">
+                      <span>{new Date(inv.created_at).toLocaleDateString()}</span>
+                      {inv.pdf_url && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7" asChild title="Download PDF">
+                          <a href={inv.pdf_url} target="_blank" rel="noopener noreferrer">
+                            <Download className="h-3.5 w-3.5" />
+                          </a>
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

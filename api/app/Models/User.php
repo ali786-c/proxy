@@ -64,4 +64,5 @@ class User extends Authenticatable
     public function wallet_transactions() { return $this->hasMany(WalletTransaction::class); }
     public function support_tickets() { return $this->hasMany(SupportTicket::class); }
     public function referrals() { return $this->hasMany(Referral::class, 'referrer_id'); }
+    public function invoices() { return $this->hasMany(Invoice::class); }
 }

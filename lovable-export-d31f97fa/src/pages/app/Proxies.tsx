@@ -11,9 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Download, Loader2 } from "lucide-react";
+import { Copy, Download, Loader2, CreditCard } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useProducts, useGenerateProxy, useProxySettings } from "@/hooks/use-backend";
+import { clientApi } from "@/lib/api/dashboard";
 
 const TYPE_MAP: Record<string, string> = {
   rp: "residential",
@@ -67,9 +68,11 @@ export default function Proxies() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [proxies, setProxies] = useState<any[]>([]);
+  const [directPurchaseInfo, setDirectPurchaseInfo] = useState<{ productId: number; amount: number } | null>(null);
 
   const handleGenerate = useCallback(async () => {
     setError(null);
+    setDirectPurchaseInfo(null);
     if (!product) {
       setError("Please select a product.");
       return;
@@ -87,11 +90,37 @@ export default function Proxies() {
       setProxies(result.proxies || []);
       toast({ title: "Proxies Generated", description: `${result.proxies?.length || 0} proxies ready.` });
     } catch (err: any) {
-      setError(err.message || "Failed to generate proxies.");
+      if (err.status === 402 && err.body?.can_direct_purchase) {
+        setDirectPurchaseInfo({
+          productId: err.body.product_id,
+          amount: err.body.total_cost,
+        });
+        setError(`Insufficient balance. You need €${err.body.total_cost.toFixed(2)} to generate these proxies.`);
+      } else {
+        setError(err.message || "Failed to generate proxies.");
+      }
     } finally {
       setLoading(false);
     }
   }, [product, quantity, country, sessionType, generateProxy]);
+
+  const handleDirectPurchase = async () => {
+    if (!directPurchaseInfo) return;
+    setLoading(true);
+    try {
+      const { url } = await clientApi.createProductCheckout(
+        directPurchaseInfo.productId.toString(),
+        quantity,
+        country || undefined,
+        sessionType
+      );
+      window.location.href = url;
+    } catch (err: any) {
+      toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const copyAll = useCallback(() => {
     const text = proxies.map(formatProxyLine).join("\n");
@@ -204,10 +233,19 @@ export default function Proxies() {
               </div>
             </div>
 
-            <Button onClick={handleGenerate} disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {loading ? "Generating…" : "Generate Proxies"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleGenerate} disabled={loading}>
+                {loading && !directPurchaseInfo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {loading && !directPurchaseInfo ? "Generating…" : "Generate Proxies"}
+              </Button>
+
+              {directPurchaseInfo && (
+                <Button variant="secondary" onClick={handleDirectPurchase} disabled={loading} className="gap-2">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                  Pay €{directPurchaseInfo.amount.toFixed(2)} & Generate
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 

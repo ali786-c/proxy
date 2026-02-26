@@ -105,6 +105,7 @@ export const InvoiceSchema = z.object({
   status: z.enum(["paid", "pending", "failed"]),
   period: z.string(),
   created_at: z.string(),
+  pdf_url: z.string().nullable().optional(),
 });
 export type Invoice = z.infer<typeof InvoiceSchema>;
 
@@ -158,6 +159,13 @@ export const clientApi = {
   getInvoices: () => api.get("/invoices", z.array(InvoiceSchema)),
   createCheckout: (productId: string, amount: number) =>
     api.post("/billing/checkout", z.object({ url: z.string() }), { product_id: productId, amount }),
+  createProductCheckout: (productId: string, quantity: number, country?: string, session_type?: string) =>
+    api.post("/billing/product-checkout", z.object({ url: z.string() }), {
+      product_id: productId,
+      quantity,
+      country,
+      session_type
+    }),
   submitCrypto: (data: { currency: string; amount: number; txid: string }) =>
     api.post("/billing/submit-crypto", MessageSchema, data),
   createSetupIntent: () =>
