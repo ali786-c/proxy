@@ -18,7 +18,7 @@ interface GatewayConfig {
   id: "stripe" | "paypal" | "crypto";
   name: string;
   icon: typeof CreditCard;
-  fields: { key: string; label: string; placeholder: string; value: string }[];
+  fields: { key: string; label: string; placeholder: string; value: string; secret?: boolean }[];
 }
 
 const GATEWAY_TEMPLATES: GatewayConfig[] = [
@@ -27,9 +27,9 @@ const GATEWAY_TEMPLATES: GatewayConfig[] = [
     name: "Stripe",
     icon: CreditCard,
     fields: [
-      { key: "stripe_publishable_key", label: "Publishable Key", placeholder: "pk_live_...", value: "" },
-      { key: "stripe_secret_key", label: "Secret Key", placeholder: "sk_live_...", value: "" },
-      { key: "stripe_webhook_secret", label: "Webhook Secret", placeholder: "whsec_...", value: "" },
+      { key: "stripe_publishable_key", label: "Publishable Key", placeholder: "pk_live_...", value: "", secret: false },
+      { key: "stripe_secret_key", label: "Secret Key", placeholder: "sk_live_...", value: "", secret: true },
+      { key: "stripe_webhook_secret", label: "Webhook Secret", placeholder: "whsec_...", value: "", secret: true },
     ],
   },
   {
@@ -77,14 +77,17 @@ export default function PaymentGateways() {
     onError: () => toast({ title: "Save Failed", description: "Could not save settings to backend.", variant: "destructive" }),
   });
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
-    if (settings) {
+    if (settings && Object.keys(settings).length > 0 && !isInitialized) {
       setLocalGateways(prev => prev.map(gw => ({
         ...gw,
         fields: gw.fields.map(f => ({ ...f, value: settings[f.key] || "" }))
       })));
+      setIsInitialized(true);
     }
-  }, [settings]);
+  }, [settings, isInitialized]);
 
   const updateField = (gatewayId: string, fieldKey: string, value: string) => {
     setLocalGateways((prev) =>
@@ -182,19 +185,22 @@ export default function PaymentGateways() {
                         <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{field.label}</Label>
                         <div className="relative">
                           <Input
-                            type={showSecrets[`${gw.id}-${field.key}`] ? "text" : "password"}
+                            type={field.secret ? (showSecrets[`${gw.id}-${field.key}`] ? "text" : "password") : "text"}
                             placeholder={field.placeholder}
                             value={field.value}
                             onChange={(e) => updateField(gw.id, field.key, e.target.value)}
                             className="bg-muted/30 focus-visible:ring-primary/20"
+                            autoComplete="new-password"
                           />
-                          <button
-                            type="button"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            onClick={() => setShowSecrets((s) => ({ ...s, [`${gw.id}-${field.key}`]: !s[`${gw.id}-${field.key}`] }))}
-                          >
-                            {showSecrets[`${gw.id}-${field.key}`] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
+                          {field.secret && (
+                            <button
+                              type="button"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              onClick={() => setShowSecrets((s) => ({ ...s, [`${gw.id}-${field.key}`]: !s[`${gw.id}-${field.key}`] }))}
+                            >
+                              {showSecrets[`${gw.id}-${field.key}`] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

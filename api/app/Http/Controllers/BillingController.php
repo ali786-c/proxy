@@ -113,6 +113,7 @@ class BillingController extends Controller
         $payload = $request->getContent();
         $sigHeader = $request->header('Stripe-Signature');
         $endpointSecret = Setting::getValue('stripe_webhook_secret') ?: config('services.stripe.webhook_secret');
+        Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
 
         try {
             $event = Webhook::constructEvent($payload, $sigHeader, $endpointSecret);
