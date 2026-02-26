@@ -298,6 +298,8 @@ export default function AdminBlog() {
                       <div className="flex gap-2">
                         <Input
                           type="password"
+                          name="gemini_api_key_field"
+                          autoComplete="new-password"
                           placeholder="AIza..."
                           value={localApiKey}
                           onChange={(e) => setLocalApiKey(e.target.value)}

@@ -17,8 +17,8 @@ class AutoBlogController extends Controller
     public function index()
     {
         $dbApiKey = Setting::getValue('gemini_api_key') ?? '';
-        // Only use DB key if it looks valid (Gemini keys usually start with AIza)
-        $apiKey = (str_starts_with($dbApiKey, 'AIza')) ? $dbApiKey : config('services.gemini.key', '');
+        // A valid Gemini key is typically 39 chars. We use 15 as a safe minimum.
+        $apiKey = (strlen($dbApiKey) > 15 && str_starts_with($dbApiKey, 'AIza')) ? $dbApiKey : config('services.gemini.key', '');
 
         return response()->json([
             'keywords' => AutoBlogKeyword::latest()->get(),
@@ -113,7 +113,12 @@ class AutoBlogController extends Controller
             }
 
             if (!$data || !isset($data['title'], $data['content'], $data['excerpt'])) {
-                throw new \Exception('Invalid or missing JSON fields in AI response.');
+                \Illuminate\Support\Facades\Log::warning('AI Response Parsing Failed', [
+                    'raw_response' => $rawResponse,
+                    'regex_matches' => $matches ?? null,
+                    'json_error' => json_last_error_msg()
+                ]);
+                throw new \Exception('Invalid or missing JSON fields in AI response. See logs for raw response.');
             }
 
             $post = BlogPost::create([
