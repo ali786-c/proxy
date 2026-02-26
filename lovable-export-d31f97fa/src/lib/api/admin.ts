@@ -114,4 +114,7 @@ export const adminApi = {
   getAlertConfig: () => api.get("/admin/alerts", AlertConfigSchema),
   updateAlertConfig: (body: Partial<AlertConfig>) =>
     api.patch("/admin/alerts", AlertConfigSchema, body),
+  getPendingCrypto: () => api.get("/admin/crypto/pending", z.array(z.any())),
+  approveCrypto: (id: number, status: "approved" | "rejected", note?: string) =>
+    api.post(`/admin/crypto/${id}/approve`, MessageSchema, { status, admin_note: note }),
 };

@@ -167,7 +167,10 @@ export default function PaymentGateways() {
                       <Switch
                         id={`toggle-${gw.id}`}
                         checked={isEnabled}
-                        onCheckedChange={() => toggleGateway(gw.id)}
+                        onCheckedChange={() => {
+                          toggleGateway(gw.id);
+                          saveMutation.mutate({ [`gateway_${gw.id}_enabled`]: isEnabled ? "0" : "1" });
+                        }}
                       />
                     </div>
                   </div>

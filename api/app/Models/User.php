@@ -28,6 +28,9 @@ class User extends Authenticatable
         'evomi_username',
         'evomi_subuser_id',
         'evomi_keys',
+        'stripe_customer_id',
+        'default_payment_method',
+        'auto_topup_settings',
     ];
 
     /**
@@ -52,6 +55,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'balance' => 'float',
             'evomi_keys' => 'array',
+            'auto_topup_settings' => 'array',
         ];
     }
 

@@ -147,6 +147,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { title: "Payment Gateways", url: "/admin/payment-gateways", icon: Wallet },
       { title: "Top-Up Settings", url: "/admin/topup-settings", icon: Gauge },
+      { title: "Manual Payments", url: "/admin/manual-payments", icon: DollarSign },
       { title: "Coupons", url: "/admin/coupons", icon: Gift },
     ],
   },
@@ -212,11 +213,10 @@ function CollapsibleSection({ section }: { section: NavSection }) {
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1">{item.title}</span>
                     {item.badge && (
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
-                        item.badge === "New" ? "bg-primary text-primary-foreground" 
-                        : item.badge === "Beta" ? "bg-warning text-warning-foreground" 
-                        : "bg-muted text-muted-foreground"
-                      }`}>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none ${item.badge === "New" ? "bg-primary text-primary-foreground"
+                          : item.badge === "Beta" ? "bg-warning text-warning-foreground"
+                            : "bg-muted text-muted-foreground"
+                        }`}>
                         {item.badge}
                       </span>
                     )}

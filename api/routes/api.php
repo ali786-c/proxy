@@ -128,6 +128,8 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 
     // Billing Routes
     Route::post('/billing/checkout', [\App\Http\Controllers\BillingController::class, 'createCheckout']);
+    Route::post('/billing/submit-crypto', [\App\Http\Controllers\BillingController::class, 'submitCrypto']);
+    Route::post('/billing/setup-intent', [\App\Http\Controllers\BillingController::class, 'createSetupIntent']);
     Route::get('/invoices',          [\App\Http\Controllers\BillingController::class, 'invoices']);
 
     // IP Allowlist
@@ -185,14 +187,19 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/logs',           [\App\Http\Controllers\AdminController::class, 'logs']);
     Route::get('/invoices',       [\App\Http\Controllers\BillingController::class, 'adminInvoices']);
     Route::get('/payment-gateways', [\App\Http\Controllers\BillingController::class, 'gatewayStatus']);
+    
+    // Admin crypto management
+    Route::get('/crypto/pending', [\App\Http\Controllers\BillingController::class, 'adminPendingCrypto']);
+    Route::post('/crypto/{id}/approve', [\App\Http\Controllers\BillingController::class, 'adminApproveCrypto']);
     Route::get('/settings',       [\App\Http\Controllers\SettingsController::class, 'index']);
     Route::post('/settings',      [\App\Http\Controllers\SettingsController::class, 'update']);
     Route::get('/alerts/config',  [\App\Http\Controllers\AdminController::class, 'getAlertConfig']);
     Route::patch('/alerts/config', [\App\Http\Controllers\AdminController::class, 'updateAlertConfig']);
 
     // Blog
-    Route::get('/orders', [\App\Http\Controllers\OrderController::class, 'index']);
-    Route::post('/orders', [\App\Http\Controllers\OrderController::class, 'store']);
+    // Orders (Handled by ProxyController now, or redundant)
+    // Route::get('/orders', [\App\Http\Controllers\OrderController::class, 'index']);
+    // Route::post('/orders', [\App\Http\Controllers\OrderController::class, 'store']);
     Route::get('/blog',           [\App\Http\Controllers\BlogController::class, 'index']);
     Route::post('/blog',          [\App\Http\Controllers\BlogController::class, 'store']);
     Route::put('/blog/{id}',      [\App\Http\Controllers\BlogController::class, 'update']);

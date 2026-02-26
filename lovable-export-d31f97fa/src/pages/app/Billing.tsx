@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Check, CreditCard, Wallet, Bitcoin, RefreshCw, Euro, Copy, AlertCircle, Info } from "lucide-react";
+import { Check, CreditCard, Wallet, Bitcoin, RefreshCw, Euro, Copy, AlertCircle, Info, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
 import { clientApi, type Invoice, type Plan } from "@/lib/api/dashboard";
@@ -66,6 +66,46 @@ export default function Billing() {
     toast({ title: "Product Selected", description: `Switching to ${planId}.` });
   };
 
+  const [cryptoCurrency, setCryptoCurrency] = useState("");
+  const [cryptoTxid, setCryptoTxid] = useState("");
+
+  const handleCryptoSubmit = async () => {
+    if (!cryptoCurrency || !cryptoTxid || !amount) {
+      toast({ title: "Missing information", description: "Please provide currency, amount, and TXID.", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await clientApi.submitCrypto({
+        currency: cryptoCurrency,
+        amount: parseFloat(amount),
+        txid: cryptoTxid,
+      });
+      toast({ title: "Submitted", description: "Your transaction has been submitted for review." });
+      setCryptoTxid("");
+      setSelectedMethod(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAutoTopUp = async (enabled: boolean) => {
+    setClientAutoTopUp(enabled);
+    if (enabled) {
+      try {
+        const { client_secret } = await clientApi.createSetupIntent();
+        // Here we would normally use Stripe Element to confirm SetupIntent
+        // For now, we'll just show the toast
+        toast({ title: "Card setup started", description: "Please follow the instructions to save your card for auto top-up." });
+      } catch (err: any) {
+        toast({ title: "Setup Error", description: err.message, variant: "destructive" });
+        setClientAutoTopUp(false);
+      }
+    }
+  };
+
   const handleCheckout = async () => {
     if (belowMinimum) {
       toast({ title: "Minimum not met", description: `Minimum purchase is €${MIN_PURCHASE_EUR}.`, variant: "destructive" });
@@ -77,14 +117,14 @@ export default function Billing() {
     }
 
     if (isCrypto) {
-      toast({ title: "Crypto Payment", description: "Send the exact amount to the wallet address shown below. Your balance will be credited once confirmed." });
+      // Logic handled by the Crypto form
       return;
     }
 
     if (selectedMethod === "stripe") {
       setIsSubmitting(true);
       try {
-        const { url } = await clientApi.createCheckout(activeProduct, coupon || undefined);
+        const { url } = await clientApi.createCheckout(activeProduct, parseFloat(amount));
         window.location.href = url;
       } catch (err: any) {
         toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
@@ -209,7 +249,7 @@ export default function Billing() {
               </div>
             )}
 
-            {/* Crypto wallet addresses */}
+            {/* Crypto wallet addresses and submission */}
             {selectedMethod === "crypto" && (
               <Card className="border-dashed">
                 <CardHeader className="pb-2">
@@ -217,10 +257,10 @@ export default function Billing() {
                     <Bitcoin className="h-4 w-4" /> Crypto Payment — Send Exact Amount
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    No VAT on crypto payments. Send the exact EUR-equivalent in crypto. Balance credited after 1 confirmation.
+                    No VAT on crypto payments. Send the exact EUR-equivalent in crypto. Submitting your TXID allows an admin to verify and credit your balance.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                   {CRYPTO_WALLETS.map((w) => (
                     <div key={w.id} className="flex items-center gap-3 rounded-md border p-3">
                       <span className="text-lg w-6 text-center">{w.icon}</span>
@@ -233,9 +273,25 @@ export default function Billing() {
                       </Button>
                     </div>
                   ))}
-                  <p className="text-[11px] text-muted-foreground text-center">
-                    Wallet addresses will be configured by the administrator. Contact support for manual crypto payments.
-                  </p>
+
+                  <Separator />
+
+                  <div className="space-y-3 pt-2">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Submit Transaction</h5>
+                    <div className="grid gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="crypto-curr" className="text-[10px]">Currency Used</Label>
+                        <Input id="crypto-curr" size={1} className="h-8 text-xs" placeholder="e.g. BTC, SOL" value={cryptoCurrency} onChange={(e) => setCryptoCurrency(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="crypto-txid" className="text-[10px]">Transaction ID (TXID)</Label>
+                        <Input id="crypto-txid" className="h-8 text-xs" placeholder="Paste TXID here" value={cryptoTxid} onChange={(e) => setCryptoTxid(e.target.value)} />
+                      </div>
+                    </div>
+                    <Button className="w-full h-9 text-xs" onClick={handleCryptoSubmit} disabled={isSubmitting || !cryptoTxid}>
+                      {isSubmitting ? "Submitting..." : "Submit for Verification"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -256,7 +312,7 @@ export default function Billing() {
                   <p className="text-sm font-medium">Enable Auto Top-Up</p>
                   <p className="text-xs text-muted-foreground">Automatically add balance when it drops below the threshold</p>
                 </div>
-                <Switch checked={clientAutoTopUp} onCheckedChange={setClientAutoTopUp} />
+                <Switch checked={clientAutoTopUp} onCheckedChange={handleAutoTopUp} />
               </div>
               {clientAutoTopUp && (
                 <div className="grid gap-4 sm:grid-cols-2">

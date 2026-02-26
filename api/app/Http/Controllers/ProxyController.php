@@ -120,6 +120,9 @@ class ProxyController extends Controller
                     $proxies[] = $proxy;
                 }
 
+                // Trigger auto top-up check if enabled
+                app(\App\Http\Controllers\BillingController::class)->checkAndTriggerAutoTopUp($user);
+
                 return response()->json([
                     'message' => 'Proxies generated successfully.',
                     'proxies' => collect($proxies)->map(fn($p) => [

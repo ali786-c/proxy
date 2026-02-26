@@ -156,8 +156,12 @@ export const clientApi = {
   // Billing
   getPlans: () => api.get("/products", z.array(PlanSchema)),
   getInvoices: () => api.get("/invoices", z.array(InvoiceSchema)),
-  createCheckout: (productId: string, coupon?: string) =>
-    api.post("/billing/checkout", z.object({ url: z.string() }), { product_id: productId, coupon_code: coupon }),
+  createCheckout: (productId: string, amount: number) =>
+    api.post("/billing/checkout", z.object({ url: z.string() }), { product_id: productId, amount }),
+  submitCrypto: (data: { currency: string; amount: number; txid: string }) =>
+    api.post("/billing/submit-crypto", MessageSchema, data),
+  createSetupIntent: () =>
+    api.post("/billing/setup-intent", z.object({ client_secret: z.string() }), {}),
 
   // Proxy settings (geo-metadata)
   getProxySettings: () => api.get("/proxies/settings", z.any()),
