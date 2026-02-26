@@ -80,7 +80,8 @@ export default function PaymentGateways() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (settings && Object.keys(settings).length > 0 && !isInitialized) {
+    // Only sync once when settings are initially loaded and not already initialized
+    if (Object.keys(settings).length > 0 && !isInitialized) {
       setLocalGateways(prev => prev.map(gw => ({
         ...gw,
         fields: gw.fields.map(f => ({ ...f, value: settings[f.key] || "" }))
@@ -185,12 +186,16 @@ export default function PaymentGateways() {
                         <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{field.label}</Label>
                         <div className="relative">
                           <Input
+                            id={`${gw.id}-${field.key}`}
+                            name={`${gw.id}-${field.key}`}
                             type={field.secret ? (showSecrets[`${gw.id}-${field.key}`] ? "text" : "password") : "text"}
                             placeholder={field.placeholder}
                             value={field.value}
                             onChange={(e) => updateField(gw.id, field.key, e.target.value)}
                             className="bg-muted/30 focus-visible:ring-primary/20"
-                            autoComplete="new-password"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                           />
                           {field.secret && (
                             <button

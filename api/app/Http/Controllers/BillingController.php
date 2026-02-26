@@ -26,6 +26,7 @@ class BillingController extends Controller
         $totalAmount = ($product->price * $request->quantity) * 1.22; // Including 22% VAT for Stripe
 
         Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
+        Stripe::setApiVersion('2024-04-10');
 
         $sessionData = [
             'automatic_payment_methods' => ['enabled' => true],
@@ -71,6 +72,7 @@ class BillingController extends Controller
         ]);
 
         Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
+        Stripe::setApiVersion('2024-04-10');
 
         $sessionData = [
             'automatic_payment_methods' => [
@@ -114,6 +116,7 @@ class BillingController extends Controller
         $sigHeader = $request->header('Stripe-Signature');
         $endpointSecret = Setting::getValue('stripe_webhook_secret') ?: config('services.stripe.webhook_secret');
         Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
+        Stripe::setApiVersion('2024-04-10');
 
         try {
             $event = Webhook::constructEvent($payload, $sigHeader, $endpointSecret);
