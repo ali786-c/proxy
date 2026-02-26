@@ -60,7 +60,7 @@ class BillingController extends Controller
             $sessionData['customer'] = $request->user()->stripe_customer_id;
         }
 
-        $session = Session::create($sessionData);
+        $session = Session::create($sessionData, ["stripe_version" => "2024-04-10"]);
 
         return response()->json(['url' => $session->url]);
     }
@@ -105,7 +105,7 @@ class BillingController extends Controller
             $sessionData['customer'] = $request->user()->stripe_customer_id;
         }
 
-        $session = Session::create($sessionData);
+        $session = Session::create($sessionData, ["stripe_version" => "2024-04-10"]);
 
         return response()->json(['url' => $session->url]);
     }
