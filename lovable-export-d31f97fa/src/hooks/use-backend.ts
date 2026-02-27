@@ -144,14 +144,14 @@ export function useSupportTickets() {
 
   const createTicket = useMutation({
     mutationFn: async (ticket: { subject: string; message: string; priority: string }) => {
-      return api.post("/support/tickets", MessageSchema, ticket);
+      return api.post("/support/tickets", z.any(), ticket);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
   });
 
   const replyTicket = useMutation({
     mutationFn: async ({ id, message }: { id: number | string; message: string }) => {
-      return api.post(`/support/tickets/${id}/reply`, MessageSchema, { message });
+      return api.post(`/support/tickets/${id}/reply`, z.any(), { message });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
@@ -161,7 +161,7 @@ export function useSupportTickets() {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: number | string; status: string }) => {
-      return api.post(`/admin/support/tickets/${id}/status`, MessageSchema, { status });
+      return api.post(`/admin/support/tickets/${id}/status`, z.any(), { status });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
   });
