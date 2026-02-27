@@ -14,7 +14,9 @@ use Stripe\Stripe;
 use Stripe\Checkout\Session;
 use Stripe\PaymentIntent;
 use Stripe\Webhook;
+use Stripe\Account;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use App\Helpers\CryptomusHelper;
 
 class BillingController extends Controller
@@ -955,8 +957,12 @@ class BillingController extends Controller
         $refresh = $request->query('refresh') === 'true';
         $cacheKey = 'admin_gateway_status';
 
-        if (!$refresh && \Illuminate\Support\Facades\Cache::has($cacheKey)) {
-            return response()->json(\Illuminate\Support\Facades\Cache::get($cacheKey));
+        try {
+            if (!$refresh && Cache::has($cacheKey)) {
+                return response()->json(Cache::get($cacheKey));
+            }
+        } catch (\Exception $e) {
+            Log::error("Cache Error: " . $e->getMessage());
         }
 
         $stripeSecret = Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret');
@@ -967,12 +973,8 @@ class BillingController extends Controller
         if ($stripeSecret && $stripePublishable) {
             try {
                 Stripe::setApiKey($stripeSecret);
-                // Simple call to verify key with a short timeout if possible
-                // Stripe PHP doesn't have a direct per-call timeout easily, but we can set it globally
-                \Stripe\Stripe::setConnectTimeout(5);
-                \Stripe\Stripe::setTimeout(10);
-                
-                \Stripe\Account::retrieve();
+                // Simple call to verify key
+                Account::retrieve();
                 $stripeStatus = 'connected';
             } catch (\Exception $e) {
                 Log::warning("Stripe Connection Error: " . $e->getMessage());
@@ -1013,7 +1015,11 @@ class BillingController extends Controller
             ]
         ];
 
-        \Illuminate\Support\Facades\Cache::put($cacheKey, $status, 600); // 10 minutes
+        try {
+            Cache::put($cacheKey, $status, 600);
+        } catch (\Exception $e) {
+            Log::error("Cache Put Error: " . $e->getMessage());
+        }
 
         return response()->json($status);
     }
