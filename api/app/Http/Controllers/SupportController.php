@@ -109,8 +109,30 @@ class SupportController extends Controller
     {
         $request->validate(['status' => 'required|in:open,in_progress,resolved,closed']);
         $ticket = SupportTicket::findOrFail($id);
+
+        // Authorization: Admin can do anything, User can only close their own
+        if ($request->user()->role !== 'admin' && ($ticket->user_id !== $request->user()->id || $request->status !== 'closed')) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         $ticket->update(['status' => $request->status]);
 
         return response()->json($ticket);
+    }
+
+    /**
+     * Delete a ticket (Admin only)
+     */
+    public function destroy($id, Request $request)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $ticket = SupportTicket::findOrFail($id);
+        $ticket->messages()->delete();
+        $ticket->delete();
+
+        return response()->json(['message' => 'Ticket deleted successfully']);
     }
 }

@@ -150,7 +150,14 @@ export function useSupportTickets() {
     },
   });
 
-  return { ...query, createTicket, replyTicket };
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: number | string; status: string }) => {
+      return api.post(`/admin/support/tickets/${id}/status`, MessageSchema, { status });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+  });
+
+  return { ...query, createTicket, replyTicket, updateStatus };
 }
 
 export function useProducts() {
@@ -300,7 +307,17 @@ export function useAdminTickets() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "tickets"] }),
   });
 
-  return { ...query, replyTicket, updateStatus };
+  const deleteTicket = useMutation({
+    mutationFn: async (id: number | string) => {
+      await api.delete(`/admin/support/tickets/${id}`, MessageSchema);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    },
+  });
+
+  return { ...query, replyTicket, updateStatus, deleteTicket };
 }
 
 export function useAdminPaymentGateways() {

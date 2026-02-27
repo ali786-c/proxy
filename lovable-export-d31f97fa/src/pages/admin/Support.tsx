@@ -58,14 +58,14 @@ export default function AdminSupport() {
   const [replyText, setReplyText] = useState("");
 
   const { data: tickets = [], isLoading } = useQuery({
-    queryKey: ["admin-tickets"],
+    queryKey: ["admin", "tickets"], // Standardizing key
     queryFn: async () => {
       const data = await api.get("/admin/support/tickets", z.array(TicketSchema));
       return data.map((t: any) => ({
         id: String(t.id),
         user: t.user?.email || "Unknown",
         subject: t.subject,
-        category: "technical", // Defaulting as backend doesn't have it yet
+        category: "Support",
         status: t.status,
         priority: t.priority === "normal" ? "medium" : t.priority,
         created_at: t.created_at,
@@ -79,32 +79,40 @@ export default function AdminSupport() {
     },
   });
 
-  const replyMutation = useMutation({
-    mutationFn: (text: string) => api.post(`/admin/support/tickets/${selectedTicketId}/reply`, MessageSchema, { message: text }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
-      setReplyText("");
-      toast({ title: "Reply Sent" });
-    },
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: (status: string) => api.post(`/admin/support/tickets/${selectedTicketId}/status`, MessageSchema, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
-      toast({ title: "Status Updated" });
-    },
-  });
+  const { replyTicket, updateStatus: statusUpdateMutation, deleteTicket } = useAdminTickets();
 
   const selectedTicket = tickets.find((t: any) => t.id === selectedTicketId) || null;
 
-  const sendReply = () => {
+  const sendReply = async () => {
     if (!replyText.trim() || !selectedTicketId) return;
-    replyMutation.mutate(replyText);
+    try {
+      await replyTicket.mutateAsync({ id: selectedTicketId, message: replyText });
+      setReplyText("");
+      toast({ title: "Reply Sent" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
-  const changeStatus = (ticketId: string, status: AdminTicket["status"]) => {
-    statusMutation.mutate(status);
+  const changeStatus = async (status: string) => {
+    if (!selectedTicketId) return;
+    try {
+      await statusUpdateMutation.mutateAsync({ id: selectedTicketId, status });
+      toast({ title: "Status Updated" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedTicketId || !window.confirm("Are you sure you want to delete this ticket?")) return;
+    try {
+      await deleteTicket.mutateAsync(selectedTicketId);
+      setSelectedTicketId(null);
+      toast({ title: "Ticket Deleted" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   const filtered = tickets.filter((t: any) => {
@@ -116,8 +124,10 @@ export default function AdminSupport() {
     return true;
   });
 
-  const openCount = tickets.filter((t) => t.status === "open").length;
-  const inProgressCount = tickets.filter((t) => t.status === "in_progress").length;
+  const openCount = tickets.filter((t: any) => t.status === "open").length;
+  const inProgressCount = tickets.filter((t: any) => t.status === "in_progress").length;
+
+  if (isLoading) return <LoadingSkeleton />;
 
   return (
     <>
@@ -134,17 +144,20 @@ export default function AdminSupport() {
 
         {selectedTicket ? (
           <div className="space-y-4">
-            <Button variant="outline" size="sm" onClick={() => setSelectedTicketId(null)}>← Back</Button>
+            <div className="flex justify-between">
+              <Button variant="outline" size="sm" onClick={() => setSelectedTicketId(null)}>← Back</Button>
+              <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteTicket.isPending}>Delete Ticket</Button>
+            </div>
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-lg">{selectedTicket.subject}</CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">{selectedTicket.id} · {selectedTicket.user} · {selectedTicket.category}</p>
+                    <p className="text-xs text-muted-foreground mt-1">ID: {selectedTicket.id} · From: {selectedTicket.user}</p>
                   </div>
                   <div className="flex gap-2 items-center">
                     <Badge variant={PRIORITY_COLOR[selectedTicket.priority]}>{selectedTicket.priority}</Badge>
-                    <Select value={selectedTicket.status} onValueChange={(v: AdminTicket["status"]) => changeStatus(selectedTicket.id, v)}>
+                    <Select value={selectedTicket.status} onValueChange={(v) => changeStatus(v)}>
                       <SelectTrigger className="w-[140px] h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
