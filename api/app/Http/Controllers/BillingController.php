@@ -771,7 +771,7 @@ class BillingController extends Controller
                     'user_id' => $user->id,
                     'type' => 'credit',
                     'amount' => $pending->amount,
-                    'reference' => "CRYPTO-{$pending->txid}",
+                    'reference' => "CRYPTO-" . ($pending->txid ?: $pending->binance_id ?: $pending->id),
                     'description' => "Crypto Top-up ({$pending->currency})",
                 ]);
             }
@@ -900,6 +900,13 @@ class BillingController extends Controller
                     'status' => Setting::getValue('cryptomus_merchant_id') ? 'connected' : 'not_configured',
                     'webhook_health' => Setting::getValue('cryptomus_webhook_secret') ? 'good' : 'missing',
                     'last_sync' => now()->toIso8601String(),
+                ],
+                [
+                    'id' => 'crypto',
+                    'name' => 'Binance Pay (Manual)',
+                    'status' => Setting::getValue('binance_pay_id') ? 'connected' : 'not_configured',
+                    'webhook_health' => 'manual',
+                    'last_sync' => now()->toIso8601String(),
                 ]
             ]
         ]);
@@ -911,6 +918,7 @@ class BillingController extends Controller
             'stripe' => !empty(Setting::getValue('stripe_publishable_key')),
             'paypal' => !empty(Setting::getValue('paypal_client_id')),
             'cryptomus' => !empty(Setting::getValue('cryptomus_merchant_id')),
+            'crypto' => !empty(Setting::getValue('binance_pay_id')),
         ]);
     }
     public function checkAndTriggerAutoTopUp($user)

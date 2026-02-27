@@ -116,13 +116,13 @@ export default function Billing() {
   };
 
   const PAYMENT_METHODS = [
-    { id: "stripe" as PaymentMethod, name: "Card (Stripe)", subtitle: "Credit/Debit Card", icon: CreditCard, vatLabel: "+22% VAT" },
-    { id: "paypal" as PaymentMethod, name: "PayPal", subtitle: "PayPal Balance", icon: Wallet, vatLabel: "+22% VAT" },
-    { id: "cryptomus" as PaymentMethod, name: "Crypto", subtitle: "Automated via Cryptomus", icon: Bitcoin, vatLabel: "No VAT" },
-    { id: "manual" as PaymentMethod, name: "Binance Pay", subtitle: "Manual Transfer", icon: Bitcoin, vatLabel: "No VAT" },
-  ];
+    { id: "stripe" as PaymentMethod, name: "Card (Stripe)", subtitle: "Credit/Debit Card", icon: CreditCard, vatLabel: "+22% VAT", enabled: gateways.stripe },
+    { id: "paypal" as PaymentMethod, name: "PayPal", subtitle: "PayPal Balance", icon: Wallet, vatLabel: "+22% VAT", enabled: gateways.paypal },
+    { id: "cryptomus" as PaymentMethod, name: "Crypto", subtitle: "Automated via Cryptomus", icon: Bitcoin, vatLabel: "No VAT", enabled: gateways.cryptomus },
+    { id: "manual" as PaymentMethod, name: "Binance Pay", subtitle: "Manual Transfer", icon: Bitcoin, vatLabel: "No VAT", enabled: gateways.crypto },
+  ].filter(m => m.enabled);
 
-  const anyGatewayEnabled = gateways.stripe || gateways.paypal || gateways.cryptomus;
+  const anyGatewayEnabled = PAYMENT_METHODS.length > 0;
 
   return (
     <>

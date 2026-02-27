@@ -407,33 +407,35 @@ export default function Proxies() {
               </Button>
             )}
 
-            <Button
-              variant="outline"
-              className="flex items-center justify-between p-6 h-auto"
-              onClick={() => {
-                setShowPaymentModal(false);
-                setShowManualCrypto(true);
-              }}
-              disabled={loading}
-            >
-              <div className="flex items-center gap-3 text-left">
-                <Bitcoin className="h-6 w-6 text-orange-500" />
-                <div>
-                  <div className="font-semibold">Binance Pay / Manual</div>
-                  <div className="text-xs text-muted-foreground">Send ID & Upload Proof</div>
+            {gateways.crypto && (
+              <Button
+                variant="outline"
+                className="flex items-center justify-between p-6 h-auto"
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setShowManualCrypto(true);
+                }}
+                disabled={loading}
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <Bitcoin className="h-6 w-6 text-orange-500" />
+                  <div>
+                    <div className="font-semibold">Binance Pay / Manual</div>
+                    <div className="text-xs text-muted-foreground">Send ID & Upload Proof</div>
+                  </div>
                 </div>
-              </div>
-              <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 border-orange-200">VAT-FREE</Badge>
-            </Button>
+                <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 border-orange-200">VAT-FREE</Badge>
+              </Button>
+            )}
 
-            {!gateways.stripe && !gateways.cryptomus && (
+            {!gateways.stripe && !gateways.cryptomus && !gateways.crypto && (
               <p className="text-center text-sm text-muted-foreground italic">
-                No payment methods available. Please contact support.
+                No payment gateways are currently configured.
               </p>
             )}
           </div>
         </DialogContent>
-      </Dialog >
+      </Dialog>
 
       <ManualCryptoDialog
         open={showManualCrypto}

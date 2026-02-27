@@ -35,7 +35,7 @@ export function PaymentConfigProvider({ children }: { children: ReactNode }) {
         setGateways({
           stripe: config.stripe,
           paypal: config.paypal,
-          crypto: false, // Legacy
+          crypto: config.crypto,
           cryptomus: config.cryptomus
         });
       } catch (err) {
