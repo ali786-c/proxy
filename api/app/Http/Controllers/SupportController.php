@@ -26,6 +26,7 @@ class SupportController extends Controller
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
             'priority' => 'required|in:low,normal,high',
+            'attachment' => 'nullable|file|max:10240', // 10MB max
         ]);
 
         $ticket = SupportTicket::create([
@@ -35,10 +36,20 @@ class SupportController extends Controller
             'status' => 'open',
         ]);
 
+        $attachmentPath = null;
+        $attachmentName = null;
+
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('attachments', 'public');
+            $attachmentName = $request->file('attachment')->getClientOriginalName();
+        }
+
         TicketMessage::create([
             'support_ticket_id' => $ticket->id,
             'user_id' => $request->user()->id,
             'message' => $request->message,
+            'attachment_path' => $attachmentPath,
+            'attachment_name' => $attachmentName,
             'is_admin_reply' => $request->user()->role === 'admin',
         ]);
 
@@ -64,7 +75,10 @@ class SupportController extends Controller
      */
     public function reply(Request $request, $id)
     {
-        $request->validate(['message' => 'required|string']);
+        $request->validate([
+            'message' => 'required|string',
+            'attachment' => 'nullable|file|max:10240',
+        ]);
         $ticket = SupportTicket::findOrFail($id);
 
         // Authorization check
@@ -72,10 +86,20 @@ class SupportController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
+        $attachmentPath = null;
+        $attachmentName = null;
+
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('attachments', 'public');
+            $attachmentName = $request->file('attachment')->getClientOriginalName();
+        }
+
         $message = TicketMessage::create([
             'support_ticket_id' => $ticket->id,
             'user_id' => $request->user()->id,
             'message' => $request->message,
+            'attachment_path' => $attachmentPath,
+            'attachment_name' => $attachmentName,
             'is_admin_reply' => $request->user()->role === 'admin',
         ]);
 
