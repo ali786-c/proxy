@@ -950,8 +950,15 @@ class BillingController extends Controller
     /**
      * Admin: Check status of payment gateways.
      */
-    public function gatewayStatus()
+    public function gatewayStatus(Request $request)
     {
+        $refresh = $request->query('refresh') === 'true';
+        $cacheKey = 'admin_gateway_status';
+
+        if (!$refresh && \Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            return response()->json(\Illuminate\Support\Facades\Cache::get($cacheKey));
+        }
+
         $stripeSecret = Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret');
         $stripePublishable = Setting::getValue('stripe_publishable_key') ?: config('services.stripe.publishable');
         $stripeWebhook = Setting::getValue('stripe_webhook_secret') ?: config('services.stripe.webhook_secret');
@@ -960,15 +967,20 @@ class BillingController extends Controller
         if ($stripeSecret && $stripePublishable) {
             try {
                 Stripe::setApiKey($stripeSecret);
-                // Simple call to verify key
+                // Simple call to verify key with a short timeout if possible
+                // Stripe PHP doesn't have a direct per-call timeout easily, but we can set it globally
+                \Stripe\Stripe::setConnectTimeout(5);
+                \Stripe\Stripe::setTimeout(10);
+                
                 \Stripe\Account::retrieve();
                 $stripeStatus = 'connected';
             } catch (\Exception $e) {
+                Log::warning("Stripe Connection Error: " . $e->getMessage());
                 $stripeStatus = 'error';
             }
         }
 
-        return response()->json([
+        $status = [
             'gateways' => [
                 [
                     'id' => 'stripe',
@@ -999,7 +1011,11 @@ class BillingController extends Controller
                     'last_sync' => now()->toIso8601String(),
                 ]
             ]
-        ]);
+        ];
+
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $status, 600); // 10 minutes
+
+        return response()->json($status);
     }
 
     public function publicGatewayStatus()
