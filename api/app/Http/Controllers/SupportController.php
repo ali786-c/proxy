@@ -63,7 +63,7 @@ class SupportController extends Controller
         }])->findOrFail($id);
         
         // Authorization check
-        if ($ticket->user_id !== $request->user()->id && $request->user()->role !== 'admin') {
+        if ($ticket->user_id != $request->user()->id && trim($request->user()->role) !== 'admin') {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
