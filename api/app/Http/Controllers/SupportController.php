@@ -104,7 +104,7 @@ class SupportController extends Controller
         ]);
 
         // Auto-update status if admin replies
-        if ($request->user()->role === 'admin' && $ticket->status === 'open') {
+        if (trim($request->user()->role) === 'admin' && $ticket->status === 'open') {
             $ticket->update(['status' => 'in_progress']);
         }
 
@@ -135,7 +135,7 @@ class SupportController extends Controller
         $ticket = SupportTicket::findOrFail($id);
 
         // Authorization: Admin can do anything, User can only close their own
-        if ($request->user()->role !== 'admin' && ($ticket->user_id !== $request->user()->id || $request->status !== 'closed')) {
+        if (trim($request->user()->role) !== 'admin' && ($ticket->user_id != $request->user()->id || $request->status !== 'closed')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
