@@ -52,6 +52,15 @@ const GATEWAY_TEMPLATES: GatewayConfig[] = [
       { key: "cryptomus_webhook_secret", label: "Webhook/Sign Key", placeholder: "Your webhook key", value: "", secret: true },
     ],
   },
+  {
+    id: "crypto",
+    name: "Manual Binance Pay",
+    icon: Bitcoin,
+    fields: [
+      { key: "binance_pay_id", label: "Binance Merchant ID", placeholder: "786...", value: "" },
+      { key: "binance_pay_instructions", label: "Payment Instructions", placeholder: "Send USDT and upload proof...", value: "" },
+    ],
+  },
 ];
 
 export default function PaymentGateways() {

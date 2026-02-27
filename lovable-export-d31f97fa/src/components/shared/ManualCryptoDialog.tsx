@@ -92,7 +92,7 @@ export function ManualCryptoDialog({ open, onOpenChange, defaultAmount = "10", o
                             </Button>
                         </div>
                         <p className="text-[11px] text-muted-foreground italic text-center">
-                            Please ensure you send the exact amount. Verification usually takes 5-15 mins.
+                            {settings?.binance_pay_instructions || "Please ensure you send the exact amount. Verification usually takes 5-15 mins."}
                         </p>
                     </div>
 

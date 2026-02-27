@@ -35,6 +35,8 @@ class SettingsController extends Controller
         'cryptomus_merchant_id',
         'cryptomus_api_key',
         'cryptomus_webhook_secret',
+        'binance_pay_id',
+        'binance_pay_instructions',
     ];
 
     /**
