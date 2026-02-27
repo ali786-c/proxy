@@ -149,7 +149,7 @@ class SupportController extends Controller
      */
     public function destroy($id, Request $request)
     {
-        if ($request->user()->role !== 'admin') {
+        if (trim($request->user()->role) !== 'admin') {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
