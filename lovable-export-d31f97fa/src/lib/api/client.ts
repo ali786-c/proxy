@@ -26,10 +26,14 @@ async function request<T>(
   const token = tokenStorage.get();
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Accept: "application/json",
     ...((customHeaders as Record<string, string>) ?? {}),
+    Accept: "application/json",
   };
+
+  // Only set Content-Type to JSON if body is NOT FormData
+  if (!(body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -38,7 +42,7 @@ async function request<T>(
   const res = await fetch(`${API_BASE}${path}`, {
     ...rest,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
   });
 
   if (res.status === 401) {

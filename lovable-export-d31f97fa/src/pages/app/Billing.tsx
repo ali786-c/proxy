@@ -8,11 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Check, CreditCard, Wallet, Bitcoin, RefreshCw, Euro, Copy, AlertCircle, Info, Loader2, Download } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
 import { clientApi, type Invoice, type Plan } from "@/lib/api/dashboard";
 import { useQuery } from "@tanstack/react-query";
+import { ManualCryptoDialog } from "@/components/shared/ManualCryptoDialog";
 
 const VAT_RATE = 0.22; // 22% Italian VAT
 const MIN_PURCHASE_EUR = 5;
@@ -26,7 +24,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = 
 };
 
 
-type PaymentMethod = "stripe" | "paypal" | "cryptomus";
+type PaymentMethod = "stripe" | "paypal" | "cryptomus" | "manual";
 
 export default function Billing() {
   const [activeProduct] = useState("residential");
@@ -35,9 +33,9 @@ export default function Billing() {
   const [topUpAmount, setTopUpAmount] = useState("50");
   const [minBalance, setMinBalance] = useState("5");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
-  const [amount, setAmount] = useState("10");
   const [coupon, setCoupon] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showManualCrypto, setShowManualCrypto] = useState(false);
 
   const { data: plans } = useQuery({
     queryKey: ["plans"],
@@ -50,7 +48,7 @@ export default function Billing() {
   });
 
   const numAmount = parseFloat(amount) || 0;
-  const isCrypto = selectedMethod === "cryptomus";
+  const isCrypto = selectedMethod === "cryptomus" || selectedMethod === "manual";
   const vatAmount = isCrypto ? 0 : numAmount * VAT_RATE;
   const totalAmount = numAmount + vatAmount;
   const belowMinimum = numAmount < MIN_PURCHASE_EUR;
@@ -105,6 +103,8 @@ export default function Billing() {
       } finally {
         setIsSubmitting(false);
       }
+    } else if (selectedMethod === "manual") {
+      setShowManualCrypto(true);
     } else {
       toast({ title: `Pay with ${selectedMethod}`, description: `Redirecting to ${selectedMethod} checkout for €${totalAmount.toFixed(2)}...` });
     }
@@ -119,6 +119,7 @@ export default function Billing() {
     { id: "stripe" as PaymentMethod, name: "Card (Stripe)", subtitle: "Credit/Debit Card", icon: CreditCard, vatLabel: "+22% VAT" },
     { id: "paypal" as PaymentMethod, name: "PayPal", subtitle: "PayPal Balance", icon: Wallet, vatLabel: "+22% VAT" },
     { id: "cryptomus" as PaymentMethod, name: "Crypto", subtitle: "Automated via Cryptomus", icon: Bitcoin, vatLabel: "No VAT" },
+    { id: "manual" as PaymentMethod, name: "Binance Pay", subtitle: "Manual Transfer", icon: Bitcoin, vatLabel: "No VAT" },
   ];
 
   const anyGatewayEnabled = gateways.stripe || gateways.paypal || gateways.cryptomus;
@@ -198,7 +199,7 @@ export default function Billing() {
                     <pm.icon className="h-6 w-6" />
                     <span className="font-semibold">{pm.name}</span>
                     <span className="text-[11px] font-normal opacity-80">{pm.subtitle}</span>
-                    <Badge variant={pm.id === "crypto" ? "default" : "secondary"} className="text-[10px] mt-1">
+                    <Badge variant={pm.id === "crypto" || pm.id === "manual" ? "default" : "secondary"} className="text-[10px] mt-1">
                       {pm.vatLabel}
                     </Badge>
                     {!enabled && <span className="text-[10px] font-normal">Not available</span>}
@@ -398,6 +399,12 @@ export default function Billing() {
           </CardContent>
         </Card>
       </div>
+
+      <ManualCryptoDialog
+        open={showManualCrypto}
+        onOpenChange={setShowManualCrypto}
+        defaultAmount={amount}
+      />
     </>
   );
 }

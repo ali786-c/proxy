@@ -696,23 +696,36 @@ class BillingController extends Controller
     }
 
     public function submitCrypto(Request $request)
-    {
-        $request->validate([
-            'currency' => 'required|string',
-            'amount'   => 'required|numeric|min:1',
-            'txid'     => 'required|string|unique:pending_crypto_transactions,txid',
-        ]);
+{
+    $request->validate([
+        'currency'   => 'required|string',
+        'amount'     => 'required|numeric|min:1',
+        'txid'       => 'nullable|string',
+        'binance_id' => 'nullable|string',
+        'proof'      => 'nullable|image|max:5120', // Max 5MB
+    ]);
 
-        $pending = \App\Models\PendingCryptoTransaction::create([
-            'user_id'  => $request->user()->id,
-            'currency' => $request->currency,
-            'amount'   => $request->amount,
-            'txid'     => $request->txid,
-            'status'   => 'pending',
-        ]);
-
-        return response()->json(['message' => 'Transaction submitted for review.', 'data' => $pending]);
+    if (!$request->txid && !$request->binance_id) {
+        return response()->json(['message' => 'Please provide either a TXID or a Binance ID.'], 422);
     }
+
+    $proofPath = null;
+    if ($request->hasFile('proof')) {
+        $proofPath = $request->file('proof')->store('proofs', 'public');
+    }
+
+    $pending = \App\Models\PendingCryptoTransaction::create([
+        'user_id'    => $request->user()->id,
+        'currency'   => $request->currency,
+        'amount'     => $request->amount,
+        'txid'       => $request->txid,
+        'binance_id' => $request->binance_id,
+        'proof_path' => $proofPath,
+        'status'     => 'pending',
+    ]);
+
+    return response()->json(['message' => 'Transaction submitted for review.', 'data' => $pending]);
+}
 
     /**
      * Admin: List pending crypto transactions.

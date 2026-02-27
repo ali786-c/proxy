@@ -177,6 +177,8 @@ export const clientApi = {
     }),
   submitCrypto: (data: { currency: string; amount: number; txid: string }) =>
     api.post("/billing/submit-crypto", MessageSchema, data),
+  submitManualCrypto: (formData: FormData) =>
+    api.post("/billing/submit-crypto", MessageSchema, formData),
   createSetupIntent: () =>
     api.post("/billing/setup-intent", z.object({ client_secret: z.string() }), {}),
   getGateways: () =>

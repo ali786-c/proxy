@@ -23,6 +23,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
+import { ManualCryptoDialog } from "@/components/shared/ManualCryptoDialog";
 
 const TYPE_MAP: Record<string, string> = {
   rp: "residential",
@@ -78,6 +79,7 @@ export default function Proxies() {
   const [proxies, setProxies] = useState<any[]>([]);
   const [directPurchaseInfo, setDirectPurchaseInfo] = useState<{ productId: number; amount: number } | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showManualCrypto, setShowManualCrypto] = useState(false);
   const { gateways } = usePaymentConfig();
 
   const handleGenerate = useCallback(async () => {
@@ -405,6 +407,25 @@ export default function Proxies() {
               </Button>
             )}
 
+            <Button
+              variant="outline"
+              className="flex items-center justify-between p-6 h-auto"
+              onClick={() => {
+                setShowPaymentModal(false);
+                setShowManualCrypto(true);
+              }}
+              disabled={loading}
+            >
+              <div className="flex items-center gap-3 text-left">
+                <Bitcoin className="h-6 w-6 text-orange-500" />
+                <div>
+                  <div className="font-semibold">Binance Pay / Manual</div>
+                  <div className="text-xs text-muted-foreground">Send ID & Upload Proof</div>
+                </div>
+              </div>
+              <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 border-orange-200">VAT-FREE</Badge>
+            </Button>
+
             {!gateways.stripe && !gateways.cryptomus && (
               <p className="text-center text-sm text-muted-foreground italic">
                 No payment methods available. Please contact support.
@@ -412,7 +433,17 @@ export default function Proxies() {
             )}
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
+
+      <ManualCryptoDialog
+        open={showManualCrypto}
+        onOpenChange={setShowManualCrypto}
+        defaultAmount={directPurchaseInfo?.amount.toString()}
+        onSuccess={() => {
+          // Maybe refresh proxies or something? 
+          // Actually admin needs to approve first, so just toast is enough (handled in dialog)
+        }}
+      />
     </>
   );
 }

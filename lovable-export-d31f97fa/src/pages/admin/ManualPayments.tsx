@@ -119,9 +119,30 @@ export default function ManualPayments() {
                                 </div>
                                 <div className="flex flex-col gap-1 text-sm">
                                     <span className="text-muted-foreground">TXID:</span>
-                                    <span className="font-mono text-[10px] break-all bg-background p-1.5 rounded border">{selected.txid}</span>
+                                    <span className="font-mono text-[10px] break-all bg-background p-1.5 rounded border">{selected.txid || "N/A"}</span>
                                 </div>
+                                {selected.binance_id && (
+                                    <div className="flex flex-col gap-1 text-sm">
+                                        <span className="text-muted-foreground">Binance ID:</span>
+                                        <span className="font-mono text-[10px] break-all bg-background p-1.5 rounded border">{selected.binance_id}</span>
+                                    </div>
+                                )}
                             </div>
+
+                            {selected.proof_url && (
+                                <div className="space-y-2">
+                                    <Label>Proof Screenshot</Label>
+                                    <div className="border rounded-lg overflow-hidden bg-background">
+                                        <img
+                                            src={selected.proof_url}
+                                            alt="Payment Proof"
+                                            className="max-h-[300px] w-full object-contain cursor-zoom-in"
+                                            onClick={() => window.open(selected.proof_url, '_blank')}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground text-center italic">Click image to view full size</p>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label>Admin Note (optional)</Label>
