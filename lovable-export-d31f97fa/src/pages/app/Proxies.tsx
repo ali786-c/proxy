@@ -81,6 +81,7 @@ export default function Proxies() {
   const [proxies, setProxies] = useState<any[]>([]);
   const [directPurchaseInfo, setDirectPurchaseInfo] = useState<{ productId: number; amount: number } | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showManualCrypto, setShowManualCrypto] = useState(false);
   const { gateways } = usePaymentConfig();
   const { format } = useCurrency();
   const { t } = useI18n();
