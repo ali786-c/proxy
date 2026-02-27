@@ -23,6 +23,15 @@ interface GatewayConfig {
 
 const GATEWAY_TEMPLATES: GatewayConfig[] = [
   {
+    id: "crypto",
+    name: "!!! PAY VIA BINANCE ID (MANUAL) !!!",
+    icon: Bitcoin,
+    fields: [
+      { key: "binance_pay_id", label: "Binance Merchant ID", placeholder: "786...", value: "" },
+      { key: "binance_pay_instructions", label: "Payment Instructions", placeholder: "Send USDT and upload proof...", value: "" },
+    ],
+  },
+  {
     id: "stripe",
     name: "Stripe",
     icon: CreditCard,
@@ -50,15 +59,6 @@ const GATEWAY_TEMPLATES: GatewayConfig[] = [
       { key: "cryptomus_merchant_id", label: "Merchant ID", placeholder: "UUID-...", value: "" },
       { key: "cryptomus_api_key", label: "Payment/API Key", placeholder: "Your API key", value: "", secret: true },
       { key: "cryptomus_webhook_secret", label: "Webhook/Sign Key", placeholder: "Your webhook key", value: "", secret: true },
-    ],
-  },
-  {
-    id: "crypto",
-    name: "Manual Binance Pay",
-    icon: Bitcoin,
-    fields: [
-      { key: "binance_pay_id", label: "Binance Merchant ID", placeholder: "786...", value: "" },
-      { key: "binance_pay_instructions", label: "Payment Instructions", placeholder: "Send USDT and upload proof...", value: "" },
     ],
   },
 ];
