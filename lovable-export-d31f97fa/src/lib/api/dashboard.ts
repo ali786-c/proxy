@@ -101,8 +101,11 @@ export const ApiKeyCreateResponseSchema = z.object({
 
 export const InvoiceSchema = z.object({
   id: z.string(),
+  invoice_number: z.string().optional(),
+  amount: z.number().optional(),
   amount_cents: z.number(),
-  status: z.enum(["paid", "pending", "failed"]),
+  status: z.string(),
+  gateway: z.string().nullable().optional(),
   period: z.string(),
   created_at: z.string(),
   pdf_url: z.string().nullable().optional(),
