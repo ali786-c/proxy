@@ -11,6 +11,20 @@ import { Separator } from "@/components/ui/separator";
 import { clientApi, type Invoice, type Plan } from "@/lib/api/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { ManualCryptoDialog } from "@/components/shared/ManualCryptoDialog";
+import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
+import { useToast } from "@/hooks/use-toast";
+import {
+  CreditCard,
+  Wallet,
+  Bitcoin,
+  Euro,
+  AlertCircle,
+  Info,
+  RefreshCw,
+  Check,
+  Download,
+  Loader2
+} from "lucide-react";
 
 const VAT_RATE = 0.22; // 22% Italian VAT
 const MIN_PURCHASE_EUR = 5;
@@ -27,7 +41,9 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = 
 type PaymentMethod = "stripe" | "paypal" | "cryptomus" | "manual";
 
 export default function Billing() {
+  const { toast } = useToast();
   const [activeProduct] = useState("residential");
+  const [amount, setAmount] = useState("50");
   const { gateways, autoTopUpEnabled } = usePaymentConfig();
   const [clientAutoTopUp, setClientAutoTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("50");
@@ -120,7 +136,7 @@ export default function Billing() {
     { id: "paypal" as PaymentMethod, name: "PayPal", subtitle: "PayPal Balance", icon: Wallet, vatLabel: "+22% VAT", enabled: gateways.paypal },
     { id: "cryptomus" as PaymentMethod, name: "Crypto", subtitle: "Automated via Cryptomus", icon: Bitcoin, vatLabel: "No VAT", enabled: gateways.cryptomus },
     { id: "manual" as PaymentMethod, name: "Binance Pay", subtitle: "Manual Transfer", icon: Bitcoin, vatLabel: "No VAT", enabled: gateways.crypto },
-  ].filter(m => m.enabled);
+  ];
 
   const anyGatewayEnabled = PAYMENT_METHODS.length > 0;
 
@@ -186,7 +202,7 @@ export default function Billing() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               {PAYMENT_METHODS.map((pm) => {
-                const enabled = gateways[pm.id];
+                const enabled = pm.enabled;
                 const isSelected = selectedMethod === pm.id;
                 return (
                   <Button

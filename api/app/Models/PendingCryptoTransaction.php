@@ -21,7 +21,11 @@ class PendingCryptoTransaction extends Model
 
     public function getProofUrlAttribute()
     {
-        return $this->proof_path ? asset('storage/' . $this->proof_path) : null;
+        if (!$this->proof_path) return null;
+        
+        $baseUrl = rtrim(config('app.url'), '/');
+        // Ensure we point to the public distribution of storage
+        return $baseUrl . '/storage/' . $this->proof_path;
     }
 
     public function user()

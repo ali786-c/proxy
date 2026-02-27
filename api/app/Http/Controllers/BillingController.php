@@ -915,10 +915,10 @@ class BillingController extends Controller
     public function publicGatewayStatus()
     {
         return response()->json([
-            'stripe' => !empty(Setting::getValue('stripe_publishable_key')),
-            'paypal' => !empty(Setting::getValue('paypal_client_id')),
-            'cryptomus' => !empty(Setting::getValue('cryptomus_merchant_id')),
-            'crypto' => !empty(Setting::getValue('binance_pay_id')),
+            'stripe' => !empty(Setting::getValue('stripe_publishable_key')) && Setting::getValue('gateway_stripe_enabled') == '1',
+            'paypal' => !empty(Setting::getValue('paypal_client_id')) && Setting::getValue('gateway_paypal_enabled') == '1',
+            'cryptomus' => !empty(Setting::getValue('cryptomus_merchant_id')) && Setting::getValue('gateway_cryptomus_enabled') == '1',
+            'crypto' => !empty(Setting::getValue('binance_pay_id')) && Setting::getValue('gateway_crypto_enabled') == '1',
         ]);
     }
     public function checkAndTriggerAutoTopUp($user)
