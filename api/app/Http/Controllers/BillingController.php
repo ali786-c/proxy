@@ -934,7 +934,8 @@ class BillingController extends Controller
                 ];
             });
 
-        return response()->json($formalInvoices->merge($walletTx)->sortByDesc('created_at')->values());
+        // Use collect() to avoid Eloquent Collection merge/sort errors with arrays
+        return response()->json(collect($formalInvoices)->merge(collect($walletTx))->sortByDesc('created_at')->values());
     }
 
     /**
