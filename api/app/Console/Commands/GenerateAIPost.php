@@ -8,6 +8,7 @@ use App\Models\Setting;
 use App\Services\GeminiService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class GenerateAIPost extends Command
 {
@@ -30,9 +31,11 @@ class GenerateAIPost extends Command
      */
     public function handle(GeminiService $gemini)
     {
+        Log::info('Cron: Starting AI blog generation...');
         $this->info('Starting AI blog generation...');
 
         if (Setting::getValue('auto_blog_enabled', '0') !== '1') {
+            Log::warning('Cron: Auto-blogging is currently disabled in settings.');
             $this->warn('Auto-blogging is currently disabled in settings.');
             return;
         }
@@ -76,9 +79,11 @@ class GenerateAIPost extends Command
 
             $keywordObj->update(['last_used_at' => now()]);
 
+            Log::info("Cron: Success! Blog post published: {$post->title}");
             $this->info("Success! Blog post published: {$post->title}");
             
         } catch (\Exception $e) {
+            Log::error("Cron: AI Generation Failed: " . $e->getMessage());
             $this->error("AI Generation Failed: " . $e->getMessage());
         }
     }
