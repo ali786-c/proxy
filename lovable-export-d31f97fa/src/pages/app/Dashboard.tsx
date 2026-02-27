@@ -22,6 +22,8 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { useUsage, useStats } from "@/hooks/use-backend";
 
 const PRODUCTS = [
@@ -119,6 +121,8 @@ const QUICK_LINKS = [
 
 export default function AppDashboard() {
   const { user } = useAuth();
+  const { format } = useCurrency();
+  const { t } = useI18n();
   const { data: usage } = useUsage("24h");
   const { data: stats } = useStats();
 
@@ -138,8 +142,8 @@ export default function AppDashboard() {
                 <Wallet className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Wallet Balance</p>
-                <p className="text-2xl font-bold">€{Number(balance).toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground font-medium">{t("billing.balance")}</p>
+                <p className="text-2xl font-bold">{format(balance)}</p>
               </div>
             </CardContent>
           </Card>
@@ -150,7 +154,7 @@ export default function AppDashboard() {
                 <Activity className="h-6 w-6 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Used (Last 24h)</p>
+                <p className="text-sm text-muted-foreground font-medium">{t("dashboard.usedLast24h")}</p>
                 <p className="text-2xl font-bold">{usedGb} GB</p>
               </div>
             </CardContent>
@@ -162,8 +166,8 @@ export default function AppDashboard() {
                 <Zap className="h-6 w-6 text-warning" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Active Proxies</p>
-                <p className="text-2xl font-bold">{stats?.active_proxies ?? 0}</p>
+                <p className="text-sm text-muted-foreground font-medium">{t("dashboard.statsLast24h")}</p>
+                <div className="flex gap-3 text-2xl font-bold">{stats?.active_proxies ?? 0}</div>
               </div>
             </CardContent>
           </Card>
@@ -177,17 +181,15 @@ export default function AppDashboard() {
           <span className="flex items-center gap-1.5"><Star className="h-4 w-4 text-primary" /> Money-Back Guarantee</span>
         </div>
 
-        {/* Product Cards - Top Row (featured) */}
         <div className="grid gap-4 md:grid-cols-2">
           {PRODUCTS.slice(0, 2).map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} format={format} t={t} />
           ))}
         </div>
 
-        {/* Product Cards - Bottom Row */}
         <div className="grid gap-4 sm:grid-cols-3">
           {PRODUCTS.slice(2).map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} format={format} t={t} />
           ))}
         </div>
 
@@ -247,7 +249,7 @@ export default function AppDashboard() {
   );
 }
 
-function ProductCard({ product }: { product: typeof PRODUCTS[0] }) {
+function ProductCard({ product, format, t }: { product: typeof PRODUCTS[0], format: (val: number) => string, t: (key: string) => string }) {
   return (
     <Card className={`relative overflow-hidden ${product.popular ? "border-destructive ring-1 ring-destructive/20" : ""}`}>
       {product.popular && (
@@ -265,8 +267,8 @@ function ProductCard({ product }: { product: typeof PRODUCTS[0] }) {
         </div>
 
         <div className="flex items-baseline gap-1">
-          <span className="text-xs text-muted-foreground">From</span>
-          <span className="text-3xl font-bold">€{product.price}</span>
+          <span className="text-xs text-muted-foreground">{t("section.from")}</span>
+          <span className="text-3xl font-bold">{format(Number(product.price))}</span>
           <span className="text-sm text-muted-foreground">/{product.unit}</span>
           {product.discount && (
             <Badge variant="secondary" className="ml-2 bg-success/10 text-success text-[10px]">{product.discount}</Badge>

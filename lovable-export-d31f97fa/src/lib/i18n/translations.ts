@@ -28,6 +28,9 @@ type TranslationKeys = {
   "nav.users": string;
   "nav.permissions": string;
   "nav.alerts": string;
+  "nav.products.datacenter": string;
+  "nav.products.mobile": string;
+  "proxies.generate": string;
   // Common
   "common.save": string;
   "common.cancel": string;
@@ -44,6 +47,8 @@ type TranslationKeys = {
   "common.copy": string;
   "common.enable": string;
   "common.disable": string;
+  "common.total": string;
+  "common.pay": string;
   // Auth
   "auth.login": string;
   "auth.signup": string;
@@ -67,11 +72,16 @@ type TranslationKeys = {
   "dashboard.totalRequests": string;
   "dashboard.successRate": string;
   "dashboard.activeProxies": string;
+  "dashboard.usedLast24h": string;
+  "dashboard.statsLast24h": string;
   // Billing
   "billing.title": string;
   "billing.balance": string;
   "billing.topUp": string;
   "billing.history": string;
+  "billing.minPurchaseTitle": string;
+  "billing.orderSummary": string;
+  "billing.subtotal": string;
   // Org
   "org.title": string;
   "org.createOrg": string;
@@ -275,6 +285,8 @@ const en: TranslationKeys = {
   "nav.users": "Users",
   "nav.permissions": "Permissions",
   "nav.alerts": "Alerts",
+  "nav.products.datacenter": "Datacenter Proxies",
+  "nav.products.mobile": "Mobile Proxies",
   "common.save": "Save",
   "common.cancel": "Cancel",
   "common.delete": "Delete",
@@ -290,6 +302,8 @@ const en: TranslationKeys = {
   "common.copy": "Copy",
   "common.enable": "Enable",
   "common.disable": "Disable",
+  "common.total": "Total",
+  "common.pay": "Pay",
   "auth.login": "Login",
   "auth.signup": "Sign Up",
   "auth.logout": "Log Out",
@@ -310,10 +324,15 @@ const en: TranslationKeys = {
   "dashboard.totalRequests": "Total Requests",
   "dashboard.successRate": "Success Rate",
   "dashboard.activeProxies": "Active Proxies",
+  "dashboard.usedLast24h": "Used (Last 24h)",
+  "dashboard.statsLast24h": "Stats (Last 24h)",
   "billing.title": "Billing",
   "billing.balance": "Balance",
   "billing.topUp": "Top Up",
   "billing.history": "Transaction History",
+  "billing.minPurchaseTitle": "Minimum Purchase",
+  "billing.orderSummary": "Order Summary",
+  "billing.subtotal": "Subtotal",
   "org.title": "Organization",
   "org.createOrg": "Create Organization",
   "org.members": "Members",
@@ -515,6 +534,9 @@ const es: TranslationKeys = {
   "nav.users": "Usuarios",
   "nav.permissions": "Permisos",
   "nav.alerts": "Alertas",
+  "nav.products.datacenter": "Proxies de Centro de Datos",
+  "nav.products.mobile": "Proxies Móviles",
+  "proxies.generate": "Generar Proxies",
   "common.save": "Guardar",
   "common.cancel": "Cancelar",
   "common.delete": "Eliminar",
@@ -530,6 +552,8 @@ const es: TranslationKeys = {
   "common.copy": "Copiar",
   "common.enable": "Activar",
   "common.disable": "Desactivar",
+  "common.total": "Total",
+  "common.pay": "Pagar",
   "auth.login": "Iniciar Sesión",
   "auth.signup": "Registrarse",
   "auth.logout": "Cerrar Sesión",
@@ -550,10 +574,15 @@ const es: TranslationKeys = {
   "dashboard.totalRequests": "Total de Solicitudes",
   "dashboard.successRate": "Tasa de Éxito",
   "dashboard.activeProxies": "Proxies Activos",
+  "dashboard.usedLast24h": "Usado (Últimas 24h)",
+  "dashboard.statsLast24h": "Estadísticas (Últimas 24h)",
   "billing.title": "Facturación",
   "billing.balance": "Saldo",
   "billing.topUp": "Recargar",
   "billing.history": "Historial de Transacciones",
+  "billing.minPurchaseTitle": "Compra Mínima",
+  "billing.orderSummary": "Resumen del Pedido",
+  "billing.subtotal": "Subtotal",
   "org.title": "Organización",
   "org.createOrg": "Crear Organización",
   "org.members": "Miembros",
@@ -741,6 +770,9 @@ const fr: TranslationKeys = {
   "nav.users": "Utilisateurs",
   "nav.permissions": "Permissions",
   "nav.alerts": "Alertes",
+  "nav.products.datacenter": "Proxies Datacenter",
+  "nav.products.mobile": "Proxies Mobiles",
+  "proxies.generate": "Générer des Proxies",
   "common.save": "Sauvegarder",
   "common.cancel": "Annuler",
   "common.delete": "Supprimer",
@@ -756,6 +788,8 @@ const fr: TranslationKeys = {
   "common.copy": "Copier",
   "common.enable": "Activer",
   "common.disable": "Désactiver",
+  "common.total": "Total",
+  "common.pay": "Payer",
   "auth.login": "Connexion",
   "auth.signup": "S'inscrire",
   "auth.logout": "Déconnexion",
@@ -776,10 +810,15 @@ const fr: TranslationKeys = {
   "dashboard.totalRequests": "Total des Requêtes",
   "dashboard.successRate": "Taux de Succès",
   "dashboard.activeProxies": "Proxies Actifs",
+  "dashboard.usedLast24h": "Utilisé (Dernières 24h)",
+  "dashboard.statsLast24h": "Stats (Dernières 24h)",
   "billing.title": "Facturation",
   "billing.balance": "Solde",
   "billing.topUp": "Recharger",
   "billing.history": "Historique des Transactions",
+  "billing.minPurchaseTitle": "Achat Minimum",
+  "billing.orderSummary": "Résumé de la Commande",
+  "billing.subtotal": "Sous-total",
   "org.title": "Organisation",
   "org.createOrg": "Créer une Organisation",
   "org.members": "Membres",
@@ -1110,15 +1149,25 @@ const de: TranslationKeys = {
   "nav.users": "Benutzer",
   "nav.permissions": "Berechtigungen",
   "nav.alerts": "Alarme",
+  "nav.products.datacenter": "Datacenter Proxies",
+  "nav.products.mobile": "Mobile Proxies",
+  "proxies.generate": "Proxies Generieren",
   "dashboard.title": "Dashboard",
   "dashboard.totalBandwidth": "Gesamtbandbreite",
   "dashboard.totalRequests": "Gesamtanfragen",
   "dashboard.successRate": "Erfolgsrate",
   "dashboard.activeProxies": "Aktive Proxies",
+  "dashboard.usedLast24h": "Genutzt (Letzte 24h)",
+  "dashboard.statsLast24h": "Stats (Letzte 24h)",
   "billing.title": "Abrechnung",
   "billing.balance": "Guthaben",
   "billing.topUp": "Aufladen",
   "billing.history": "Transaktionshistorie",
+  "billing.minPurchaseTitle": "Mindestkauf",
+  "billing.orderSummary": "Bestellübersicht",
+  "billing.subtotal": "Zwischensumme",
+  "common.total": "Gesamt",
+  "common.pay": "Bezahlen",
   "2fa.title": "Zwei-Faktor-Authentifizierung",
   "2fa.description": "Fügen Sie Ihrem Konto mit einer TOTP-App eine zusätzliche Sicherheitsebene hinzu.",
   "2fa.enable": "2FA aktivieren",
@@ -1248,6 +1297,17 @@ const pt: TranslationKeys = {
   "billing.title": "Faturamento",
   "billing.balance": "Saldo",
   "billing.topUp": "Recarregar",
+  "billing.history": "Histórico de Transações",
+  "billing.minPurchaseTitle": "Compra Mínima",
+  "billing.orderSummary": "Resumo do Pedido",
+  "billing.subtotal": "Subtotal",
+  "nav.products.datacenter": "Proxies de Datacenter",
+  "nav.products.mobile": "Proxies Móveis",
+  "proxies.generate": "Gerar Proxies",
+  "common.total": "Total",
+  "common.pay": "Pagar",
+  "dashboard.usedLast24h": "Usado (Últimas 24h)",
+  "dashboard.statsLast24h": "Estatísticas (Últimas 24h)",
   "feat.enterpriseSecurity": "Segurança Empresarial",
   "feat.enterpriseSecurityDesc": "Auth por lista de IPs, túneis criptografados, pronto para SOC 2.",
   "feat.realTimeAnalytics": "Análise em Tempo Real",
@@ -1425,6 +1485,17 @@ const tr: TranslationKeys = {
   "billing.title": "Faturalandırma",
   "billing.balance": "Bakiye",
   "billing.topUp": "Yükle",
+  "billing.history": "İşlem Geçmişi",
+  "billing.minPurchaseTitle": "Minimum Satın Alma",
+  "billing.orderSummary": "Sipariş Özeti",
+  "billing.subtotal": "Ara Toplam",
+  "nav.products.datacenter": "Datacenter Proxy'leri",
+  "nav.products.mobile": "Mobil Proxy'ler",
+  "proxies.generate": "Proxy Oluştur",
+  "common.total": "Toplam",
+  "common.pay": "Öde",
+  "dashboard.usedLast24h": "Kullanılan (Son 24s)",
+  "dashboard.statsLast24h": "İstatistikler (Son 24s)",
   "feat.enterpriseSecurity": "Kurumsal Güvenlik",
   "feat.enterpriseSecurityDesc": "IP izin listesi kimlik doğrulaması, şifreli tüneller, SOC 2'ye hazır.",
   "feat.realTimeAnalytics": "Gerçek Zamanlı Analitik",
@@ -1602,6 +1673,17 @@ const zh: TranslationKeys = {
   "billing.title": "计费",
   "billing.balance": "余额",
   "billing.topUp": "充值",
+  "billing.history": "交易记录",
+  "billing.minPurchaseTitle": "最低购买额",
+  "billing.orderSummary": "订单摘要",
+  "billing.subtotal": "小计",
+  "nav.products.datacenter": "数据中心代理",
+  "nav.products.mobile": "移动代理",
+  "proxies.generate": "生成代理",
+  "common.total": "总计",
+  "common.pay": "支付",
+  "dashboard.usedLast24h": "已用 (过去24小时)",
+  "dashboard.statsLast24h": "统计 (过去24小时)",
   "feat.enterpriseSecurity": "企业级安全",
   "feat.enterpriseSecurityDesc": "IP白名单认证，加密隧道，SOC 2就绪。",
   "feat.realTimeAnalytics": "实时分析",
@@ -1779,6 +1861,17 @@ const ru: TranslationKeys = {
   "billing.title": "Биллинг",
   "billing.balance": "Баланс",
   "billing.topUp": "Пополнить",
+  "billing.history": "История Транзакций",
+  "billing.minPurchaseTitle": "Мин. Покупка",
+  "billing.orderSummary": "Сводка Заказа",
+  "billing.subtotal": "Подитог",
+  "nav.products.datacenter": "Серверные Прокси",
+  "nav.products.mobile": "Мобильные Прокси",
+  "proxies.generate": "Создать Прокси",
+  "common.total": "Итого",
+  "common.pay": "Оплатить",
+  "dashboard.usedLast24h": "Использовано (24ч)",
+  "dashboard.statsLast24h": "Статистика (24ч)",
   "feat.enterpriseSecurity": "Корпоративная безопасность",
   "feat.enterpriseSecurityDesc": "Авторизация по IP-списку, зашифрованные туннели, готов к SOC 2.",
   "feat.realTimeAnalytics": "Аналитика в реальном времени",

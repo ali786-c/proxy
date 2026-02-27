@@ -23,6 +23,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { ManualCryptoDialog } from "@/components/shared/ManualCryptoDialog";
 
 const TYPE_MAP: Record<string, string> = {
@@ -79,8 +81,9 @@ export default function Proxies() {
   const [proxies, setProxies] = useState<any[]>([]);
   const [directPurchaseInfo, setDirectPurchaseInfo] = useState<{ productId: number; amount: number } | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showManualCrypto, setShowManualCrypto] = useState(false);
   const { gateways } = usePaymentConfig();
+  const { format } = useCurrency();
+  const { t } = useI18n();
 
   const handleGenerate = useCallback(async () => {
     setError(null);
@@ -107,7 +110,7 @@ export default function Proxies() {
           productId: err.body.product_id,
           amount: err.body.total_cost,
         });
-        setError(`Insufficient balance. You need €${err.body.total_cost.toFixed(2)} to generate these proxies.`);
+        setError(`Insufficient balance. You need ${format(err.body.total_cost)} to generate these proxies.`);
       } else {
         setError(err.message || "Failed to generate proxies.");
       }
@@ -259,13 +262,13 @@ export default function Proxies() {
             <div className="flex flex-wrap gap-2">
               <Button onClick={handleGenerate} disabled={loading}>
                 {loading && !directPurchaseInfo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {loading && !directPurchaseInfo ? "Generating…" : "Generate Proxies"}
+                {loading && !directPurchaseInfo ? t("common.loading") : t("proxies.generate")}
               </Button>
 
               {directPurchaseInfo && (
                 <Button variant="secondary" onClick={() => setShowPaymentModal(true)} disabled={loading} className="gap-2">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                  Pay €{directPurchaseInfo.amount.toFixed(2)} & Generate
+                  {t("common.pay")} {format(directPurchaseInfo.amount)} & {t("proxies.generate")}
                 </Button>
               )}
             </div>

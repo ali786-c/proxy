@@ -12,6 +12,8 @@ import { clientApi, type Invoice, type Plan } from "@/lib/api/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { ManualCryptoDialog } from "@/components/shared/ManualCryptoDialog";
 import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { useI18n } from "@/contexts/I18nContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   CreditCard,
@@ -42,6 +44,8 @@ type PaymentMethod = "stripe" | "paypal" | "cryptomus" | "manual";
 
 export default function Billing() {
   const { toast } = useToast();
+  const { format } = useCurrency();
+  const { t } = useI18n();
   const [activeProduct] = useState("residential");
   const [amount, setAmount] = useState("50");
   const { gateways, autoTopUpEnabled } = usePaymentConfig();
@@ -77,7 +81,7 @@ export default function Billing() {
   const handleApplyCoupon = async () => {
     if (!coupon.trim()) return;
     if (numAmount < MIN_PURCHASE_EUR) {
-      toast({ title: "Error", description: `Please enter an amount of at least €${MIN_PURCHASE_EUR} first.`, variant: "destructive" });
+      toast({ title: "Error", description: `Please enter an amount of at least ${format(MIN_PURCHASE_EUR)} first.`, variant: "destructive" });
       return;
     }
 
@@ -91,7 +95,7 @@ export default function Billing() {
           type: res.type,
           value: res.value
         });
-        toast({ title: "Coupon Applied", description: `You saved €${res.discount.toFixed(2)}!` });
+        toast({ title: "Coupon Applied", description: `You saved ${format(res.discount)}!` });
       }
     } catch (err: any) {
       setAppliedCoupon(null);
@@ -123,7 +127,7 @@ export default function Billing() {
 
   const handleCheckout = async () => {
     if (belowMinimum) {
-      toast({ title: "Minimum not met", description: `Minimum purchase is €${MIN_PURCHASE_EUR}.`, variant: "destructive" });
+      toast({ title: "Minimum not met", description: `Minimum purchase is ${format(MIN_PURCHASE_EUR)}.`, variant: "destructive" });
       return;
     }
     if (!selectedMethod) {
@@ -154,7 +158,7 @@ export default function Billing() {
     } else if (selectedMethod === "manual") {
       setShowManualCrypto(true);
     } else {
-      toast({ title: `Pay with ${selectedMethod}`, description: `Redirecting to ${selectedMethod} checkout for €${totalAmount.toFixed(2)}...` });
+      toast({ title: `Pay with ${selectedMethod}`, description: `Redirecting to ${selectedMethod} checkout for ${format(totalAmount)}...` });
     }
   };
 
@@ -182,22 +186,22 @@ export default function Billing() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Euro className="h-5 w-5" /> Add Balance
+              <Euro className="h-5 w-5" /> {t("billing.topUp")}
             </CardTitle>
-            <CardDescription>Minimum purchase: €{MIN_PURCHASE_EUR}. 22% VAT applies to card &amp; PayPal payments. Crypto is VAT-free.</CardDescription>
+            <CardDescription>{t("billing.minPurchaseTitle")}: {format(MIN_PURCHASE_EUR)}. 22% VAT applies to card &amp; PayPal payments. Crypto is VAT-free.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             {/* Amount input */}
             <div className="grid gap-4 sm:grid-cols-2 max-w-lg">
               <div className="space-y-1.5">
-                <Label>Amount (€)</Label>
+                <Label>Amount</Label>
                 <Input
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   min={MIN_PURCHASE_EUR}
                   step="1"
-                  placeholder={`Min €${MIN_PURCHASE_EUR}`}
+                  placeholder={`Min ${format(MIN_PURCHASE_EUR)}`}
                 />
                 <div className="flex flex-wrap gap-2 mt-2">
                   {["10", "25", "50", "100"].map((preset) => (
@@ -208,13 +212,13 @@ export default function Billing() {
                       className={`text-xs h-7 px-3 ${amount === preset ? "border-primary bg-primary/5 text-primary" : ""}`}
                       onClick={() => setAmount(preset)}
                     >
-                      €{preset}
+                      {format(Number(preset))}
                     </Button>
                   ))}
                 </div>
                 {belowMinimum && numAmount > 0 && (
                   <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> Minimum purchase is €{MIN_PURCHASE_EUR}
+                    <AlertCircle className="h-3 w-3" /> Minimum purchase is {format(MIN_PURCHASE_EUR)}
                   </p>
                 )}
               </div>
@@ -243,7 +247,7 @@ export default function Billing() {
                   )}
                 </div>
                 {appliedCoupon && (
-                  <p className="text-[11px] text-green-600 font-medium"> Coupon applied: {appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}%` : `€${appliedCoupon.value}`} off</p>
+                  <p className="text-[11px] text-green-600 font-medium"> Coupon applied: {appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}%` : `${format(appliedCoupon.value)}`} off</p>
                 )}
               </div>
             </div>
@@ -280,15 +284,15 @@ export default function Billing() {
             {/* Order summary */}
             {selectedMethod && numAmount >= MIN_PURCHASE_EUR && (
               <div className="rounded-lg border bg-muted/30 p-4 max-w-sm space-y-2">
-                <h4 className="text-sm font-semibold">Order Summary</h4>
+                <h4 className="text-sm font-semibold">{t("billing.orderSummary")}</h4>
                 <div className="flex justify-between text-sm">
-                  <span>Subtotal</span>
-                  <span>€{numAmount.toFixed(2)}</span>
+                  <span>{t("billing.subtotal")}</span>
+                  <span>{format(numAmount)}</span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-sm text-green-600 font-medium font-mono">
                     <span>Discount ({appliedCoupon?.code})</span>
-                    <span>-€{discountAmount.toFixed(2)}</span>
+                    <span>-{format(discountAmount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
@@ -297,17 +301,17 @@ export default function Billing() {
                     {isCrypto && <Info className="h-3 w-3 text-muted-foreground" />}
                   </span>
                   <span className={isCrypto ? "line-through text-muted-foreground" : ""}>
-                    {isCrypto ? "€0.00 — exempt" : `€${vatAmount.toFixed(2)}`}
+                    {isCrypto ? `${format(0)} — exempt` : `${format(vatAmount)}`}
                   </span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-sm font-bold">
-                  <span>Total</span>
-                  <span>€{totalAmount.toFixed(2)}</span>
+                  <span>{t("common.total")}</span>
+                  <span>{format(totalAmount)}</span>
                 </div>
                 <Button className="w-full mt-2" onClick={handleCheckout} disabled={belowMinimum || isSubmitting}>
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Pay €{totalAmount.toFixed(2)}
+                  {t("common.pay")} {format(totalAmount)}
                 </Button>
               </div>
             )}
@@ -334,11 +338,11 @@ export default function Billing() {
               {clientAutoTopUp && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label>Min Balance Threshold (€)</Label>
+                    <Label>Min Balance Threshold</Label>
                     <Input type="number" value={minBalance} onChange={(e) => setMinBalance(e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Top-Up Amount (€)</Label>
+                    <Label>Top-Up Amount</Label>
                     <Input type="number" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
                   </div>
                 </div>
@@ -361,7 +365,7 @@ export default function Billing() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-3xl font-bold">
-                    €{(plan.price_cents / 100).toFixed(2)}
+                    {format(plan.price_cents / 100)}
                     <span className="text-base font-normal text-muted-foreground">
                       /{plan.id === "datacenter" ? "GB" : "GB"}
                     </span>
@@ -437,7 +441,7 @@ export default function Billing() {
         {/* Invoices */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Recent Invoices</CardTitle>
+            <CardTitle className="text-lg">{t("nav.invoices")}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -453,7 +457,7 @@ export default function Billing() {
                 {(invoices || []).map((inv) => (
                   <TableRow key={inv.id}>
                     <TableCell className="font-medium">{inv.period}</TableCell>
-                    <TableCell>€{(inv.amount_cents / 100).toFixed(2)}</TableCell>
+                    <TableCell>{format(inv.amount_cents / 100)}</TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[inv.status] ?? "secondary"}>{inv.status}</Badge>
                     </TableCell>
