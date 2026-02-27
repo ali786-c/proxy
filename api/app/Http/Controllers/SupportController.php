@@ -50,7 +50,7 @@ class SupportController extends Controller
             'message' => $request->message,
             'attachment_path' => $attachmentPath,
             'attachment_name' => $attachmentName,
-            'is_admin_reply' => $request->user()->role === 'admin',
+            'is_admin_reply' => trim($request->user()->role) === 'admin',
         ]);
 
         return response()->json($ticket->load('messages'), 201);
@@ -100,7 +100,7 @@ class SupportController extends Controller
             'message' => $request->message,
             'attachment_path' => $attachmentPath,
             'attachment_name' => $attachmentName,
-            'is_admin_reply' => $request->user()->role === 'admin',
+            'is_admin_reply' => trim($request->user()->role) === 'admin',
         ]);
 
         // Auto-update status if admin replies
