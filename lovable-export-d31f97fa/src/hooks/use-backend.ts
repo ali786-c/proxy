@@ -358,11 +358,12 @@ export function useAdminTickets() {
   return { ...query, replyTicket, updateStatus, deleteTicket };
 }
 
-export function useAdminPaymentGateways() {
+export function useAdminPaymentGateways(refresh?: boolean) {
   return useQuery({
-    queryKey: ["admin", "payment-gateways"],
+    queryKey: ["admin", "payment-gateways", refresh],
     queryFn: async () => {
-      return api.get("/admin/payment-gateways", z.any());
+      const url = refresh ? "/admin/payment-gateways?refresh=true" : "/admin/payment-gateways";
+      return api.get(url, z.any());
     },
   });
 }

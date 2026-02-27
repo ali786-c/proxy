@@ -74,13 +74,27 @@ export default function PaymentGateways() {
     queryFn: () => api.get("/admin/settings", z.record(z.string())),
   });
 
-  const { data: statusData, isLoading: statusLoading, refetch: refetchStatus } = useAdminPaymentGateways();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { data: statusData, isLoading: statusLoading, refetch } = useAdminPaymentGateways(isRefreshing);
+
+  const refetchStatus = async () => {
+    setIsRefreshing(true);
+    // The queryKey includes isRefreshing, so changing it to true will trigger a new fetch with ?refresh=true
+    // After it completes, we can set it back to false if we want the next normal load to be cached
+    // But TanStack Query will handle the fetch. We just need to wait for it.
+  };
+
+  useEffect(() => {
+    if (isRefreshing && !statusLoading) {
+      setIsRefreshing(false);
+    }
+  }, [statusLoading, isRefreshing]);
 
   const saveMutation = useMutation({
     mutationFn: (data: Record<string, string>) => api.post("/admin/settings", MessageSchema, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "settings"] });
-      refetchStatus();
+      refetch();
       toast({ title: "Configuration Saved", description: "Gateway settings have been updated and verified." });
     },
     onError: () => toast({ title: "Save Failed", description: "Could not save settings to backend.", variant: "destructive" }),
