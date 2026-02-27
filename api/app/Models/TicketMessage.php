@@ -8,6 +8,10 @@ class TicketMessage extends Model
 {
     protected $fillable = ['support_ticket_id', 'user_id', 'message', 'attachment_path', 'attachment_name', 'is_admin_reply'];
     
+    protected $casts = [
+        'is_admin_reply' => 'boolean',
+    ];
+
     protected $appends = ['attachment_url'];
 
     public function getAttachmentUrlAttribute()
