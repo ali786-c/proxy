@@ -13,16 +13,22 @@ class GeminiService
 
     public function __construct()
     {
-        $dbApiKey = Setting::getValue('gemini_api_key') ?? '';
-        $this->apiKey = (str_starts_with($dbApiKey, 'AIza')) ? $dbApiKey : config('services.gemini.key');
+        // We will pull values fresh in the generation method to ensure persistence
+    }
+
+    /**
+     * Fetch fresh configuration from database.
+     */
+    protected function getFreshConfig()
+    {
+        $dbApiKey = Setting::getValue('gemini_api_key');
+        $this->apiKey = ($dbApiKey && str_starts_with($dbApiKey, 'AIza')) ? $dbApiKey : config('services.gemini.key');
         
         $this->model = Setting::getValue('gemini_model') ?: config('services.gemini.model', 'gemini-2.5-flash');
 
-        Log::info('GeminiService Instantiated', [
+        Log::info('GeminiService Config Loaded', [
             'db_key_exists' => !empty($dbApiKey),
-            'db_key_starts_aiza' => str_starts_with($dbApiKey, 'AIza'),
             'using_db_key' => ($this->apiKey === $dbApiKey),
-            'final_key_length' => strlen($this->apiKey ?? ''),
             'model' => $this->model
         ]);
     }
@@ -32,8 +38,10 @@ class GeminiService
      */
     public function generateBlogPost(string $keyword)
     {
+        $this->getFreshConfig();
+
         if (!$this->apiKey) {
-            throw new \Exception('Gemini API key is not configured. Please check your .env (GEMINI_API_KEY) or saved settings.');
+            throw new \Exception('Gemini API key is not configured. Please save your API key in the admin settings.');
         }
 
         $url = "https://generativelanguage.googleapis.com/v1/models/{$this->model}:generateContent?key={$this->apiKey}";
