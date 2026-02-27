@@ -59,29 +59,7 @@ export default function AdminSupport() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  const { data: tickets = [], isLoading } = useQuery({
-    queryKey: ["admin", "tickets"], // Standardizing key
-    queryFn: async () => {
-      const data = await api.get("/admin/support/tickets", z.array(TicketSchema));
-      return data.map((t: any) => ({
-        id: String(t.id),
-        user: t.user?.email || "Unknown",
-        subject: t.subject,
-        category: "Support",
-        status: t.status,
-        priority: t.priority === "normal" ? "medium" : t.priority,
-        created_at: t.created_at,
-        updated_at: t.updated_at,
-        messages: t.messages?.map((m: any) => ({
-          sender: m.is_admin_reply ? "support" : "client",
-          text: m.message,
-          time: m.created_at,
-        })) || [],
-      }));
-    },
-  });
-
-  const { replyTicket, updateStatus: statusUpdateMutation, deleteTicket } = useAdminTickets();
+  const { data: tickets = [], isLoading, replyTicket, updateStatus: statusUpdateMutation, deleteTicket } = useAdminTickets();
 
   const selectedTicket = tickets.find((t: any) => t.id === selectedTicketId) || null;
 

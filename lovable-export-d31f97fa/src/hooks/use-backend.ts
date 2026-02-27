@@ -129,7 +129,16 @@ export function useSupportTickets() {
   const query = useQuery({
     queryKey: ["tickets"],
     queryFn: async () => {
-      return api.get("/support/tickets", z.array(z.any()));
+      const tickets = await api.get("/support/tickets", z.array(z.any()));
+      return tickets.map((t: any) => ({
+        ...t,
+        messages: t.messages?.map((m: any) => ({
+          ...m,
+          sender: m.is_admin_reply ? "support" : "client",
+          text: m.message, // for consistency
+          time: m.created_at, // for consistency
+        })) || []
+      }));
     },
   });
 
@@ -286,7 +295,21 @@ export function useAdminTickets() {
   const query = useQuery({
     queryKey: ["admin", "tickets"],
     queryFn: async () => {
-      return api.get("/admin/support/tickets", z.array(z.any()));
+      const data = await api.get("/admin/support/tickets", z.array(z.any()));
+      return data.map((t: any) => ({
+        id: String(t.id),
+        user: t.user?.email || "Unknown",
+        subject: t.subject,
+        status: t.status,
+        priority: t.priority === "normal" ? "medium" : t.priority,
+        created_at: t.created_at,
+        updated_at: t.updated_at,
+        messages: t.messages?.map((m: any) => ({
+          sender: m.is_admin_reply ? "support" : "client",
+          text: m.message,
+          time: m.created_at,
+        })) || [],
+      }));
     },
   });
 
