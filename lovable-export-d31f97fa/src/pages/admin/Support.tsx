@@ -12,6 +12,8 @@ import { toast } from "@/hooks/use-toast";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, MessageSchema } from "@/lib/api/client";
+import { useAdminTickets } from "@/hooks/use-backend";
+import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton";
 import { z } from "zod";
 
 const TicketMessageSchema = z.object({
