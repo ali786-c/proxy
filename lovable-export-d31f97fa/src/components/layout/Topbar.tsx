@@ -15,9 +15,12 @@ import { Link } from "react-router-dom";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { Wallet } from "lucide-react";
 
 export function Topbar() {
   const { user, logout } = useAuth();
+  const { format } = useCurrency();
   const settingsPath = user?.role === "admin" ? "/admin" : "/app/settings";
 
   return (
@@ -32,6 +35,12 @@ export function Topbar() {
         )}
       </div>
       <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" className="gap-2 text-xs font-semibold hover:bg-primary/5 transition-colors hidden md:flex" asChild>
+          <Link to="/app/billing">
+            <Wallet className="h-4 w-4 text-primary" />
+            <span>{format(user?.balance ?? 0)}</span>
+          </Link>
+        </Button>
         <CurrencySwitcher />
         <LanguageSwitcher />
         <NotificationCenter />

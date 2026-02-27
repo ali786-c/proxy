@@ -109,6 +109,17 @@ export const InvoiceSchema = z.object({
 });
 export type Invoice = z.infer<typeof InvoiceSchema>;
 
+// ── Coupons ──────────────────────────────────────────
+
+export const CouponResponseSchema = z.object({
+  valid: z.boolean(),
+  code: z.string(),
+  type: z.enum(["percentage", "fixed"]),
+  value: z.number(),
+  discount: z.number(),
+});
+export type CouponResponse = z.infer<typeof CouponResponseSchema>;
+
 // ── Plans ────────────────────────────────────────────
 
 export const PlanSchema = z.object({
@@ -157,24 +168,28 @@ export const clientApi = {
   // Billing
   getPlans: () => api.get("/products", z.array(PlanSchema)),
   getInvoices: () => api.get("/invoices", z.array(InvoiceSchema)),
-  createCheckout: (productId: string, amount: number) =>
-    api.post("/billing/checkout", z.object({ url: z.string() }), { product_id: productId, amount }),
-  createCryptomusCheckout: (amount: number) =>
-    api.post("/billing/cryptomus-checkout", z.object({ url: z.string() }), { amount }),
-  createProductCheckout: (productId: string, quantity: number, country?: string, session_type?: string) =>
+  createCheckout: (productId: string, amount: number, couponCode?: string) =>
+    api.post("/billing/checkout", z.object({ url: z.string() }), { product_id: productId, amount, coupon_code: couponCode }),
+  createCryptomusCheckout: (amount: number, couponCode?: string) =>
+    api.post("/billing/cryptomus-checkout", z.object({ url: z.string() }), { amount, coupon_code: couponCode }),
+  createProductCheckout: (productId: string, quantity: number, country?: string, session_type?: string, couponCode?: string) =>
     api.post("/billing/product-checkout", z.object({ url: z.string() }), {
       product_id: productId,
       quantity,
       country,
-      session_type
+      session_type,
+      coupon_code: couponCode
     }),
-  createCryptomusProductCheckout: (productId: string, quantity: number, country?: string, session_type?: string) =>
+  createCryptomusProductCheckout: (productId: string, quantity: number, country?: string, session_type?: string, couponCode?: string) =>
     api.post("/billing/cryptomus-product-checkout", z.object({ url: z.string() }), {
       product_id: productId,
       quantity,
       country,
-      session_type
+      session_type,
+      coupon_code: couponCode
     }),
+  validateCoupon: (code: string, amount: number) =>
+    api.post("/coupons/validate", CouponResponseSchema, { code, amount }),
   submitCrypto: (data: { currency: string; amount: number; txid: string }) =>
     api.post("/billing/submit-crypto", MessageSchema, data),
   submitManualCrypto: (formData: FormData) =>

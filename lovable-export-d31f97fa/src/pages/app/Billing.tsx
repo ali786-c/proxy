@@ -52,6 +52,8 @@ export default function Billing() {
   const [coupon, setCoupon] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showManualCrypto, setShowManualCrypto] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; type: string; value: number } | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
   const { data: plans } = useQuery({
     queryKey: ["plans"],
@@ -64,10 +66,40 @@ export default function Billing() {
   });
 
   const numAmount = parseFloat(amount) || 0;
+  const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  const netAmount = Math.max(0, numAmount - discountAmount);
+
   const isCrypto = selectedMethod === "cryptomus" || selectedMethod === "manual";
-  const vatAmount = isCrypto ? 0 : numAmount * VAT_RATE;
-  const totalAmount = numAmount + vatAmount;
+  const vatAmount = isCrypto ? 0 : netAmount * VAT_RATE;
+  const totalAmount = netAmount + vatAmount;
   const belowMinimum = numAmount < MIN_PURCHASE_EUR;
+
+  const handleApplyCoupon = async () => {
+    if (!coupon.trim()) return;
+    if (numAmount < MIN_PURCHASE_EUR) {
+      toast({ title: "Error", description: `Please enter an amount of at least €${MIN_PURCHASE_EUR} first.`, variant: "destructive" });
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    try {
+      const res = await clientApi.validateCoupon(coupon.toUpperCase(), numAmount);
+      if (res.valid) {
+        setAppliedCoupon({
+          code: res.code,
+          discount: res.discount,
+          type: res.type,
+          value: res.value
+        });
+        toast({ title: "Coupon Applied", description: `You saved €${res.discount.toFixed(2)}!` });
+      }
+    } catch (err: any) {
+      setAppliedCoupon(null);
+      toast({ title: "Invalid Coupon", description: err.message || "This code is not valid.", variant: "destructive" });
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
 
   const selectPlan = (planId: string) => {
     toast({ title: "Product Selected", description: `Switching to ${planId}.` });
@@ -102,7 +134,7 @@ export default function Billing() {
     if (selectedMethod === "cryptomus") {
       setIsSubmitting(true);
       try {
-        const { url } = await clientApi.createCryptomusCheckout(numAmount);
+        const { url } = await clientApi.createCryptomusCheckout(numAmount, appliedCoupon?.code);
         window.location.href = url;
       } catch (err: any) {
         toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
@@ -112,7 +144,7 @@ export default function Billing() {
     } else if (selectedMethod === "stripe") {
       setIsSubmitting(true);
       try {
-        const { url } = await clientApi.createCheckout(activeProduct, numAmount);
+        const { url } = await clientApi.createCheckout(activeProduct, numAmount, appliedCoupon?.code);
         window.location.href = url;
       } catch (err: any) {
         toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
@@ -189,9 +221,30 @@ export default function Billing() {
               <div className="space-y-1.5">
                 <Label>Promo Code (optional)</Label>
                 <div className="flex gap-2">
-                  <Input placeholder="WELCOME20" value={coupon} onChange={(e) => setCoupon(e.target.value)} />
-                  <Button variant="outline" size="sm" className="shrink-0" onClick={() => toast({ title: "Coupon Applied", description: "Discount applied to your balance." })}>Apply</Button>
+                  <Input
+                    placeholder="WELCOME20"
+                    value={coupon}
+                    onChange={(e) => setCoupon(e.target.value)}
+                    className={appliedCoupon ? "border-green-500 bg-green-500/5" : ""}
+                    disabled={!!appliedCoupon}
+                  />
+                  {appliedCoupon ? (
+                    <Button variant="outline" size="sm" onClick={() => { setAppliedCoupon(null); setCoupon(""); }}>Remove</Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={handleApplyCoupon}
+                      disabled={isValidatingCoupon || !coupon.trim()}
+                    >
+                      {isValidatingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                    </Button>
+                  )}
                 </div>
+                {appliedCoupon && (
+                  <p className="text-[11px] text-green-600 font-medium"> Coupon applied: {appliedCoupon.type === 'percentage' ? `${appliedCoupon.value}%` : `€${appliedCoupon.value}`} off</p>
+                )}
               </div>
             </div>
 
@@ -232,6 +285,12 @@ export default function Billing() {
                   <span>Subtotal</span>
                   <span>€{numAmount.toFixed(2)}</span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600 font-medium font-mono">
+                    <span>Discount ({appliedCoupon?.code})</span>
+                    <span>-€{discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="flex items-center gap-1">
                     VAT (22%)

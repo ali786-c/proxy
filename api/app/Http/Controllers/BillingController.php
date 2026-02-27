@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\Coupon;
 use App\Models\WalletTransaction;
 use App\Models\WebhookLog;
 use Illuminate\Http\Request;
@@ -22,10 +23,23 @@ class BillingController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
+            'coupon_code' => 'nullable|string',
         ]);
 
         $product = \App\Models\Product::findOrFail($request->product_id);
-        $totalAmount = ($product->price * $request->quantity) * 1.22; // Including 22% VAT for Stripe
+        $totalAmount = $product->price * $request->quantity;
+        $originalAmount = $totalAmount;
+        $couponCode = $request->coupon_code;
+
+        if ($couponCode) {
+            $coupon = Coupon::where('code', $couponCode)->first();
+            if ($coupon && $coupon->isValid($totalAmount)) {
+                $discount = $coupon->calculateDiscount($totalAmount);
+                $totalAmount = max(0, $totalAmount - $discount);
+            }
+        }
+
+        $amountWithVAT = $totalAmount * 1.22; // Including 22% VAT for Stripe
 
         Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
         Stripe::setApiVersion('2024-04-10');
@@ -54,7 +68,9 @@ class BillingController extends Controller
                 'quantity' => $request->quantity,
                 'country' => $request->country ?? 'US',
                 'session_type' => $request->session_type ?? 'rotating',
-                'amount' => $product->price * $request->quantity,
+                'amount' => $totalAmount,
+                'original_amount' => $originalAmount,
+                'coupon_code' => $couponCode,
             ],
         ];
 
@@ -71,7 +87,21 @@ class BillingController extends Controller
     {
         $request->validate([
             'amount' => 'required|numeric|min:5', // Min $5 top-up
+            'coupon_code' => 'nullable|string',
         ]);
+
+        $amount = (float) $request->amount;
+        $originalAmount = $amount;
+        $couponCode = $request->coupon_code;
+        $discount = 0;
+
+        if ($couponCode) {
+            $coupon = Coupon::where('code', $couponCode)->first();
+            if ($coupon && $coupon->isValid($amount)) {
+                $discount = $coupon->calculateDiscount($amount);
+                $amount = max(0, $amount - $discount);
+            }
+        }
 
         Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
         Stripe::setApiVersion('2024-04-10');
@@ -87,10 +117,10 @@ class BillingController extends Controller
                 'price_data' => [
                     'currency' => 'usd',
                     'product_data' => [
-                        'name' => 'Balance Top-up',
+                        'name' => 'Balance Top-up' . ($couponCode ? " (Promo: {$couponCode})" : ""),
                         'description' => 'Add funds to your UpgradedProxy wallet',
                     ],
-                    'unit_amount' => $request->amount * 100,
+                    'unit_amount' => round($amount * 100 * 1.22), // Add VAT for Stripe
                 ],
                 'quantity' => 1,
             ]],
@@ -99,7 +129,9 @@ class BillingController extends Controller
             'cancel_url' => url('/') . '/app/billing?canceled=true',
             'metadata' => [
                 'user_id' => $request->user()->id,
-                'amount' => $request->amount,
+                'amount' => $amount,
+                'original_amount' => $originalAmount,
+                'coupon_code' => $couponCode,
             ],
         ];
 
@@ -116,7 +148,20 @@ class BillingController extends Controller
     {
         $request->validate([
             'amount' => 'required|numeric|min:1',
+            'coupon_code' => 'nullable|string',
         ]);
+
+        $amount = (float) $request->amount;
+        $originalAmount = $amount;
+        $couponCode = $request->coupon_code;
+
+        if ($couponCode) {
+            $coupon = Coupon::where('code', $couponCode)->first();
+            if ($coupon && $coupon->isValid($amount)) {
+                $discount = $coupon->calculateDiscount($amount);
+                $amount = max(0, $amount - $discount);
+            }
+        }
 
         $merchantId = Setting::getValue('cryptomus_merchant_id');
         $apiKey = Setting::getValue('cryptomus_api_key');
@@ -128,7 +173,7 @@ class BillingController extends Controller
         $orderId = 'TOPUP-' . time() . '-' . $request->user()->id;
         
         $data = [
-            'amount' => (string) $request->amount,
+            'amount' => (string) $amount,
             'currency' => 'EUR', // Primary app currency
             'order_id' => $orderId,
             'url_return' => url('/') . '/app/billing?success=true&gateway=cryptomus',
@@ -136,7 +181,9 @@ class BillingController extends Controller
             'additional_data' => json_encode([
                 'user_id' => $request->user()->id,
                 'type' => 'topup',
-                'amount' => $request->amount,
+                'amount' => $amount,
+                'original_amount' => $originalAmount,
+                'coupon_code' => $couponCode,
             ]),
         ];
 
@@ -160,10 +207,21 @@ class BillingController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
+            'coupon_code' => 'nullable|string',
         ]);
 
         $product = \App\Models\Product::findOrFail($request->product_id);
-        $totalAmount = $product->price * $request->quantity; // No VAT on crypto as per UI instructions
+        $totalAmount = $product->price * $request->quantity;
+        $originalAmount = $totalAmount;
+        $couponCode = $request->coupon_code;
+
+        if ($couponCode) {
+            $coupon = Coupon::where('code', $couponCode)->first();
+            if ($coupon && $coupon->isValid($totalAmount)) {
+                $discount = $coupon->calculateDiscount($totalAmount);
+                $totalAmount = max(0, $totalAmount - $discount);
+            }
+        }
 
         $merchantId = Setting::getValue('cryptomus_merchant_id');
         $apiKey = Setting::getValue('cryptomus_api_key');
@@ -188,6 +246,8 @@ class BillingController extends Controller
                 'country' => $request->country ?? 'US',
                 'session_type' => $request->session_type ?? 'rotating',
                 'amount' => $totalAmount,
+                'original_amount' => $originalAmount,
+                'coupon_code' => $couponCode,
             ]),
         ];
 
@@ -367,13 +427,24 @@ class BillingController extends Controller
                 }
             } else {
                 // Regular Top-up
-                $user->increment('balance', $amount);
+                $originalAmount = (float) ($metadata['original_amount'] ?? $amount);
+                $couponCode = $metadata['coupon_code'] ?? null;
+                $creditAmount = $couponCode ? $originalAmount : $amount;
+
+                if ($couponCode) {
+                    $coupon = Coupon::where('code', $couponCode)->first();
+                    if ($coupon) {
+                        $coupon->increment('used_count');
+                    }
+                }
+
+                $user->increment('balance', $creditAmount);
                 WalletTransaction::create([
                     'user_id' => $user->id,
                     'type' => 'credit',
-                    'amount' => $amount,
+                    'amount' => $creditAmount,
                     'reference' => "CRYPTO-{$uuid}",
-                    'description' => 'Cryptomus Wallet Top-up',
+                    'description' => 'Cryptomus Wallet Top-up' . ($couponCode ? " (Used promo: {$couponCode})" : ""),
                 ]);
             }
 
@@ -545,14 +616,24 @@ class BillingController extends Controller
     {
         $userId = $session->metadata->user_id;
         $type   = $session->metadata->type ?? 'topup';
-        $amount = (float) $session->metadata->amount; // This is the net amount we expect
+        $amount = (float) $session->metadata->amount; // This is the net amount paid
+        $originalAmount = (float) ($session->metadata->original_amount ?? $amount);
+        $couponCode = $session->metadata->coupon_code ?? null;
         $paidGross = $session->amount_total / 100;
 
-        DB::transaction(function () use ($userId, $amount, $paidGross, $eventId, $type, $session) {
+        DB::transaction(function () use ($userId, $amount, $originalAmount, $couponCode, $paidGross, $eventId, $type, $session) {
             $user = User::lockForUpdate()->find($userId);
             if (!$user) {
                 Log::error("Webhook Error: User #{$userId} not found for session {$session->id}");
                 return;
+            }
+
+            // Track coupon usage
+            if ($couponCode) {
+                $coupon = Coupon::where('code', $couponCode)->first();
+                if ($coupon) {
+                    $coupon->increment('used_count');
+                }
             }
 
             // Save Customer ID if missing
@@ -655,14 +736,15 @@ class BillingController extends Controller
                 }
             } else {
                 // Regular Top-up
-                $user->increment('balance', $amount);
+                $creditAmount = $couponCode ? $originalAmount : $amount;
+                $user->increment('balance', $creditAmount);
 
                 WalletTransaction::create([
                     'user_id' => $user->id,
                     'type' => 'credit',
-                    'amount' => $amount,
+                    'amount' => $creditAmount,
                     'reference' => $eventId,
-                    'description' => 'Stripe Wallet Top-up',
+                    'description' => 'Stripe Wallet Top-up' . ($couponCode ? " (Used promo: {$couponCode})" : ""),
                 ]);
             }
 
