@@ -14,6 +14,7 @@ import { RequireAuth } from "@/components/guards/RequireAuth";
 import { RequireRole } from "@/components/guards/RequireRole";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { AppShell } from "@/components/layout/AppShell";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import NotFound from "./pages/NotFound";
 
 // Public pages
@@ -106,96 +107,98 @@ const App = () => (
                   <Sonner />
                   <BrowserRouter>
                     <Suspense fallback={<Loading />}>
-                      <Routes>
-                        {/* Public marketing pages */}
-                        <Route element={<PublicLayout />}>
-                          <Route path="/" element={<Landing />} />
-                          <Route path="/pricing" element={<Pricing />} />
-                          <Route path="/docs" element={<Docs />} />
-                          <Route path="/docs/scraping-browser" element={<ScrapingBrowserDocs />} />
-                          <Route path="/blog" element={<Blog />} />
-                          <Route path="/blog/:slug" element={<BlogPost />} />
-                          <Route path="/residential-proxies" element={<ResidentialProxies />} />
-                          <Route path="/datacenter-proxies" element={<DatacenterProxies />} />
-                          <Route path="/isp-proxies" element={<ISPProxies />} />
-                          <Route path="/mobile-proxies" element={<MobileProxies />} />
-                          <Route path="/socks5-proxies" element={<Socks5Proxies />} />
-                          <Route path="/proxy-api" element={<ProxyAPI />} />
-                          <Route path="/locations" element={<Locations />} />
-                          <Route path="/use-cases" element={<UseCases />} />
-                          <Route path="/privacy" element={<Privacy />} />
-                          <Route path="/terms" element={<Terms />} />
-                          <Route path="/cookies" element={<CookiePolicy />} />
-                          <Route path="/ethics" element={<Ethics />} />
-                          <Route path="/status" element={<Status />} />
-                        </Route>
+                      <ErrorBoundary>
+                        <Routes>
+                          {/* Public marketing pages */}
+                          <Route element={<PublicLayout />}>
+                            <Route path="/" element={<Landing />} />
+                            <Route path="/pricing" element={<Pricing />} />
+                            <Route path="/docs" element={<Docs />} />
+                            <Route path="/docs/scraping-browser" element={<ScrapingBrowserDocs />} />
+                            <Route path="/blog" element={<Blog />} />
+                            <Route path="/blog/:slug" element={<BlogPost />} />
+                            <Route path="/residential-proxies" element={<ResidentialProxies />} />
+                            <Route path="/datacenter-proxies" element={<DatacenterProxies />} />
+                            <Route path="/isp-proxies" element={<ISPProxies />} />
+                            <Route path="/mobile-proxies" element={<MobileProxies />} />
+                            <Route path="/socks5-proxies" element={<Socks5Proxies />} />
+                            <Route path="/proxy-api" element={<ProxyAPI />} />
+                            <Route path="/locations" element={<Locations />} />
+                            <Route path="/use-cases" element={<UseCases />} />
+                            <Route path="/privacy" element={<Privacy />} />
+                            <Route path="/terms" element={<Terms />} />
+                            <Route path="/cookies" element={<CookiePolicy />} />
+                            <Route path="/ethics" element={<Ethics />} />
+                            <Route path="/status" element={<Status />} />
+                          </Route>
 
-                        {/* Auth pages */}
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/signup" element={<Signup />} />
-                        <Route path="/forgot-password" element={<ForgotPassword />} />
-                        <Route path="/reset-password" element={<ResetPassword />} />
-                        <Route path="/install" element={<Install />} />
+                          {/* Auth pages */}
+                          <Route path="/login" element={<Login />} />
+                          <Route path="/signup" element={<Signup />} />
+                          <Route path="/forgot-password" element={<ForgotPassword />} />
+                          <Route path="/reset-password" element={<ResetPassword />} />
+                          <Route path="/install" element={<Install />} />
 
-                        {/* Client dashboard */}
-                        <Route
-                          path="/app"
-                          element={
-                            <RequireAuth>
-                              <AppShell />
-                            </RequireAuth>
-                          }
-                        >
-                          <Route index element={<AppDashboard />} />
-                          <Route path="proxies" element={<Proxies />} />
-                          <Route path="usage" element={<Usage />} />
-                          <Route path="settings" element={<AppSettings />} />
-                          <Route path="billing" element={<Billing />} />
-                          <Route path="invoices" element={<Invoices />} />
-                          <Route path="referral" element={<Referral />} />
-                          <Route path="faq" element={<FAQ />} />
-                          <Route path="scraper-api" element={<ScraperAPI />} />
-                          <Route path="scraping-browser" element={<ScrapingBrowser />} />
-                          <Route path="support" element={<Support />} />
-                          <Route path="rate-limits" element={<RateLimits />} />
-                          <Route path="security" element={<Security />} />
-                          <Route path="organization" element={<AppOrganization />} />
-                          <Route path="custom-domains" element={<CustomDomains />} />
-                        </Route>
-
-                        {/* Admin dashboard */}
-                        <Route
-                          path="/admin"
-                          element={
-                            <RequireAuth>
-                              <RequireRole role="admin">
+                          {/* Client dashboard */}
+                          <Route
+                            path="/app"
+                            element={
+                              <RequireAuth>
                                 <AppShell />
-                              </RequireRole>
-                            </RequireAuth>
-                          }
-                        >
-                          <Route index element={<AdminDashboard />} />
-                          <Route path="users" element={<AdminUsers />} />
-                          <Route path="products" element={<AdminProducts />} />
-                          <Route path="audit" element={<AdminAudit />} />
-                          <Route path="blog" element={<AdminBlog />} />
-                          <Route path="alerts" element={<AdminAlerts />} />
-                          <Route path="payment-gateways" element={<AdminPaymentGateways />} />
-                          <Route path="topup-settings" element={<AdminTopUpSettings />} />
-                          <Route path="settings" element={<AdminSettings />} />
-                          <Route path="invoices" element={<AdminInvoices />} />
-                          <Route path="support" element={<AdminSupport />} />
-                          <Route path="coupons" element={<AdminCoupons />} />
-                          <Route path="permissions" element={<AdminPermissions />} />
-                          <Route path="resellers" element={<AdminResellers />} />
-                          <Route path="fraud-detection" element={<AdminFraudDetection />} />
-                          <Route path="sla-monitoring" element={<AdminSLAMonitoring />} />
-                          <Route path="currencies" element={<AdminCurrencies />} />
-                          <Route path="manual-payments" element={<AdminManualPayments />} />
-                        </Route>
+                              </RequireAuth>
+                            }
+                          >
+                            <Route index element={<AppDashboard />} />
+                            <Route path="proxies" element={<Proxies />} />
+                            <Route path="usage" element={<Usage />} />
+                            <Route path="settings" element={<AppSettings />} />
+                            <Route path="billing" element={<Billing />} />
+                            <Route path="invoices" element={<Invoices />} />
+                            <Route path="referral" element={<Referral />} />
+                            <Route path="faq" element={<FAQ />} />
+                            <Route path="scraper-api" element={<ScraperAPI />} />
+                            <Route path="scraping-browser" element={<ScrapingBrowser />} />
+                            <Route path="support" element={<Support />} />
+                            <Route path="rate-limits" element={<RateLimits />} />
+                            <Route path="security" element={<Security />} />
+                            <Route path="organization" element={<AppOrganization />} />
+                            <Route path="custom-domains" element={<CustomDomains />} />
+                          </Route>
 
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
+                          {/* Admin dashboard */}
+                          <Route
+                            path="/admin"
+                            element={
+                              <RequireAuth>
+                                <RequireRole role="admin">
+                                  <AppShell />
+                                </RequireRole>
+                              </RequireAuth>
+                            }
+                          >
+                            <Route index element={<AdminDashboard />} />
+                            <Route path="users" element={<AdminUsers />} />
+                            <Route path="products" element={<AdminProducts />} />
+                            <Route path="audit" element={<AdminAudit />} />
+                            <Route path="blog" element={<AdminBlog />} />
+                            <Route path="alerts" element={<AdminAlerts />} />
+                            <Route path="payment-gateways" element={<AdminPaymentGateways />} />
+                            <Route path="topup-settings" element={<AdminTopUpSettings />} />
+                            <Route path="settings" element={<AdminSettings />} />
+                            <Route path="invoices" element={<AdminInvoices />} />
+                            <Route path="support" element={<AdminSupport />} />
+                            <Route path="coupons" element={<AdminCoupons />} />
+                            <Route path="permissions" element={<AdminPermissions />} />
+                            <Route path="resellers" element={<AdminResellers />} />
+                            <Route path="fraud-detection" element={<AdminFraudDetection />} />
+                            <Route path="sla-monitoring" element={<AdminSLAMonitoring />} />
+                            <Route path="currencies" element={<AdminCurrencies />} />
+                            <Route path="manual-payments" element={<AdminManualPayments />} />
+                          </Route>
+
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </ErrorBoundary>
                     </Suspense>
                   </BrowserRouter>
                 </TooltipProvider>

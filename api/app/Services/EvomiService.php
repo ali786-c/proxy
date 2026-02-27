@@ -21,7 +21,7 @@ class EvomiService
 
     private function http()
     {
-        return Http::withoutVerifying()->withHeaders([
+        return Http::withHeaders([
             'X-API-KEY' => $this->apiKey,
             'Accept'    => 'application/json',
         ]);

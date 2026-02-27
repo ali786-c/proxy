@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { SidebarNav } from "@/components/layout/SidebarNav";
 import { Topbar } from "@/components/layout/Topbar";
+import { PaymentStatusModal } from "@/components/shared/PaymentStatusModal";
 
 export function AppShell() {
   return (
@@ -14,6 +15,7 @@ export function AppShell() {
             <Outlet />
           </div>
         </SidebarInset>
+        <PaymentStatusModal />
       </div>
     </SidebarProvider>
   );

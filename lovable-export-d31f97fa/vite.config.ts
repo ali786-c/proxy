@@ -32,4 +32,15 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom", "lucide-react"],
+          ui: ["@/components/ui/button", "@/components/ui/alert-dialog", "@/components/ui/dialog"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
 }));

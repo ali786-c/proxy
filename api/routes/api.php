@@ -1,96 +1,6 @@
 <?php
 
-// ─── REAL Proxy Connectivity Test ───────────────────────────────────────────
-Route::get('/debug-test-proxy', function() {
-    $user = \App\Models\User::where('email', 'aliyantarar@gmail.com')->first();
-
-    if (!$user || !$user->evomi_username || empty($user->evomi_keys)) {
-        return response()->json(['error' => 'User has no proxy credentials in DB', 'user_state' => [
-            'evomi_username' => $user->evomi_username ?? null,
-            'evomi_keys'     => $user->evomi_keys,
-        ]]);
-    }
-
-    // Get the residential proxy key
-    $keys     = $user->evomi_keys;
-    $proxyKey = $keys['rp'] ?? $keys['residential'] ?? null;
-
-    if (!$proxyKey) {
-        return response()->json(['error' => 'No residential proxy key found', 'available_keys' => array_keys($keys)]);
-    }
-
-    // Construct proxy URL
-    $proxyUser = $user->evomi_username;
-    $proxyPass = "{$proxyKey}_country-US_session-rotating";
-    $proxyUrl  = "http://{$proxyUser}:{$proxyPass}@gate.evomi.com:1000";
-
-    // Make a real HTTP request THROUGH the proxy
-    try {
-        $ch = curl_init('http://ip-api.com/json');
-        curl_setopt($ch, CURLOPT_PROXY, $proxyUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $result = curl_exec($ch);
-        $error  = curl_error($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        return response()->json([
-            'proxy_used'       => "gate.evomi.com:1000",
-            'proxy_username'   => $proxyUser,
-            'proxy_pass_hint'  => substr($proxyPass, 0, 15) . '...',
-            'http_code'        => $httpCode,
-            'curl_error'       => $error ?: null,
-            'ip_api_response'  => $result ? json_decode($result, true) : null,
-        ]);
-    } catch (\Exception $e) {
-        return response()->json(['exception' => $e->getMessage()]);
-    }
-});
-
-// ─── Debug Route ─────────────────────────────────────────────────────────────
-Route::get('/debug-proxy', function() {
-    $evomi  = app(\App\Services\EvomiService::class);
-    $apiKey = config('services.evomi.key');
-    $user   = \App\Models\User::where('email', 'aliyantarar@gmail.com')->first();
-
-    $subuserData = null;
-    if ($user && $user->evomi_username) {
-        $subuserData = $evomi->getSubuserData($user->evomi_username);
-    }
-
-    return response()->json([
-        'api_key_set'    => !empty($apiKey),
-        'api_key_prefix' => $apiKey ? substr($apiKey, 0, 8) . '...' : null,
-        'user' => $user ? [
-            'id'               => $user->id,
-            'email'            => $user->email,
-            'balance'          => $user->balance,
-            'evomi_username'   => $user->evomi_username,
-            'evomi_subuser_id' => $user->evomi_subuser_id,
-            'evomi_keys'       => $user->evomi_keys,
-        ] : 'user not found',
-        'subuser_data_from_evomi' => $subuserData,
-    ]);
-});
-
-// Simple log tail
-Route::get('/debug-logs', function() {
-    $path  = storage_path('logs/laravel.log');
-    if (!file_exists($path)) return 'No log file found.';
-    $lines = file($path);
-    return implode('', array_slice($lines, -80));
-});
-
-Route::get('/test-evomi', function() {
-    return [
-        'status'   => 'API is reachable',
-        'products' => \App\Models\Product::all(['name', 'type']),
-        'time'     => now()->toDateTimeString(),
-    ];
-});
+// Debug routes removed from public space for security. Moving to admin group.
 
 
 // ─────────────────────────────────────────────
@@ -256,6 +166,14 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/sla/configs', [\App\Http\Controllers\SLAController::class, 'storeConfig']);
     Route::get('/sla/credits', [\App\Http\Controllers\SLAController::class, 'getCredits']);
     Route::post('/sla/credits/{id}/approve', [\App\Http\Controllers\SLAController::class, 'approveCredit']);
+
+    // Secured Debug Routes
+    Route::get('/debug-logs', function() {
+        $path  = storage_path('logs/laravel.log');
+        if (!file_exists($path)) return 'No log file found.';
+        $lines = file($path);
+        return implode('', array_slice($lines, -100));
+    });
 });
 
 // Public test route removed from bottom, moved to top.

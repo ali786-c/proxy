@@ -208,24 +208,54 @@ class BillingController extends Controller
 
     public function handleCryptomusWebhook(Request $request)
     {
-        $payload = $request->getContent();
-        $signHeader = $request->header('sign');
-        $apiKey = Setting::getValue('cryptomus_webhook_secret') ?: Setting::getValue('cryptomus_api_key');
-
-        if (!$signHeader || !$apiKey) {
-            Log::error('Cryptomus Webhook Error: Missing sign header or API key.');
-            return response()->json(['error' => 'Unauthorized'], 401);
+        // IP Whitelisting (Optional but recommended by Cryptomus)
+        $allowedIps = ['91.227.144.54'];
+        if (!in_array($request->ip(), $allowedIps) && !app()->environment('local')) {
+            Log::warning("Cryptomus Webhook Warning: Request from unauthorized IP: " . $request->ip());
+            // We only warn for now to avoid breaking existing setups if IPs change
         }
 
-        if (!CryptomusHelper::verifySignature($payload, $signHeader, $apiKey)) {
+        $data = $request->all();
+        $apiKey = Setting::getValue('cryptomus_webhook_secret') ?: Setting::getValue('cryptomus_api_key');
+
+        if (!$apiKey) {
+            Log::error('Cryptomus Webhook Error: Missing API key.');
+            return response()->json(['error' => 'API Key not configured'], 401);
+        }
+
+        if (!CryptomusHelper::verifySignature($data, $apiKey)) {
             Log::error('Cryptomus Webhook Error: Signature mismatch.');
             return response()->json(['error' => 'Invalid signature'], 400);
         }
 
-        $data = $request->all();
         $status = $data['status'] ?? 'unknown';
 
-        // Only process successful payments
+        // Handle terminal failure states
+        if (in_array($status, ['fail', 'cancel', 'system_fail'])) {
+            Log::warning("Cryptomus Payment Terminal Failure: User redirected or process failed. Status: {$status}, UUID: " . ($data['uuid'] ?? 'N/A'));
+            return response()->json(['message' => 'Failure recorded']);
+        }
+
+        // Handle Partial Payments (VERY IMPORTANT)
+        if ($status === 'wrong_amount') {
+            Log::error("Cryptomus Webhook ALERT: Partial payment detected. UUID: {$data['uuid']}. User paid {$data['payment_amount']} {$data['currency']} instead of {$data['amount']} {$data['currency']}. Manual intervention required.");
+            
+            // Mark invoice as failed/wrong_amount in internal records
+            $metadata = isset($data['additional_data']) ? json_decode($data['additional_data'], true) : null;
+            if ($metadata && isset($metadata['user_id'])) {
+                \App\Models\Invoice::create([
+                    'user_id' => $metadata['user_id'],
+                    'amount' => $data['payment_amount'] ?? 0,
+                    'currency' => $data['currency'] ?? 'EUR',
+                    'status' => 'failed',
+                    'description' => "Cryptomus Partial Payment: Received {$data['payment_amount']} instead of {$data['amount']}",
+                ]);
+            }
+            
+            return response()->json(['message' => 'Partial payment logged']);
+        }
+
+        // Only process successful payments (including paid_over)
         if (!in_array($status, ['paid', 'paid_over', 'completed'])) {
             return response()->json(['message' => 'Payment status ignored: ' . $status]);
         }
@@ -399,6 +429,18 @@ class BillingController extends Controller
             case 'setup_intent.succeeded':
                 $this->updateUserPaymentMethod($event->data->object);
                 break;
+            case 'payment_intent.payment_failed':
+                $this->handlePaymentFailed($event->data->object, $event->id);
+                break;
+            case 'checkout.session.expired':
+                $this->handleSessionExpired($event->data->object, $event->id);
+                break;
+            case 'invoice.payment_failed':
+                $this->handleInvoiceFailed($event->data->object, $event->id);
+                break;
+            case 'invoice.voided':
+                $this->handleInvoiceVoided($event->data->object, $event->id);
+                break;
         }
 
         return response()->json(['status' => 'success']);
@@ -430,6 +472,73 @@ class BillingController extends Controller
         });
 
         Log::info("Invoice paid and logged for user {$user->id}: {$invoice->id}");
+    }
+
+    protected function handleInvoiceFailed($invoice, $eventId)
+    {
+        $user = User::where('stripe_customer_id', $invoice->customer)->first();
+        if (!$user) return;
+
+        \App\Models\Invoice::updateOrCreate(
+            ['stripe_invoice_id' => $invoice->id],
+            [
+                'user_id' => $user->id,
+                'status' => 'failed',
+                'description' => $invoice->last_payment_error ? $invoice->last_payment_error->message : 'Payment failed',
+            ]
+        );
+
+        WebhookLog::create([
+            'provider' => 'stripe',
+            'event_id' => $eventId,
+        ]);
+
+        Log::warning("Invoice payment failed for user {$user->id}: {$invoice->id}");
+    }
+
+    protected function handleInvoiceVoided($invoice, $eventId)
+    {
+        $user = User::where('stripe_customer_id', $invoice->customer)->first();
+        if (!$user) return;
+
+        \App\Models\Invoice::updateOrCreate(
+            ['stripe_invoice_id' => $invoice->id],
+            [
+                'user_id' => $user->id,
+                'status' => 'voided',
+            ]
+        );
+
+        WebhookLog::create([
+            'provider' => 'stripe',
+            'event_id' => $eventId,
+        ]);
+
+        Log::info("Invoice voided for user {$user->id}: {$invoice->id}");
+    }
+
+    protected function handlePaymentFailed($intent, $eventId)
+    {
+        $userId = $intent->metadata->user_id ?? null;
+        $error = $intent->last_payment_error ? $intent->last_payment_error->message : 'Unknown error';
+
+        Log::warning("Stripe Payment Failed for User #{$userId}: {$error}");
+
+        WebhookLog::create([
+            'provider' => 'stripe',
+            'event_id' => $eventId,
+        ]);
+    }
+
+    protected function handleSessionExpired($session, $eventId)
+    {
+        $userId = $session->metadata->user_id ?? 'unknown';
+        Log::info("Stripe Checkout Session Expired for User #{$userId}: {$session->id}");
+
+        WebhookLog::create([
+            'provider' => 'stripe',
+            'event_id' => $eventId,
+        ]);
     }
 
     protected function fulfillPayment($session, $eventId)
