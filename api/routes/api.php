@@ -68,6 +68,8 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::get('/me/usage',          [\App\Http\Controllers\AuthController::class, 'usage']);
     Route::get('/me/events',         [\App\Http\Controllers\AuthController::class, 'events']);
     Route::get('/me/subscription',   [\App\Http\Controllers\AuthController::class, 'subscription']);
+    Route::get('/me/topup-settings', [\App\Http\Controllers\AuthController::class, 'getTopUpSettings']);
+    Route::post('/me/topup-settings', [\App\Http\Controllers\AuthController::class, 'updateTopUpSettings']);
 });
 
 // ─────────────────────────────────────────────

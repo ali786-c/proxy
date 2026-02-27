@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { clientApi, type Invoice, type Plan } from "@/lib/api/dashboard";
-import { useQuery } from "@tanstack/react-query";
+import { clientApi, type Invoice, type Plan, type TopUpSettings } from "@/lib/api/dashboard";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ManualCryptoDialog } from "@/components/shared/ManualCryptoDialog";
 import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -25,7 +25,9 @@ import {
   RefreshCw,
   Check,
   Download,
-  Loader2
+  Loader2,
+  Save,
+  CreditCard as CardIcon
 } from "lucide-react";
 
 const VAT_RATE = 0.22; // 22% Italian VAT
@@ -43,21 +45,62 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = 
 type PaymentMethod = "stripe" | "paypal" | "cryptomus" | "manual";
 
 export default function Billing() {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { format } = useCurrency();
   const { t } = useI18n();
   const [activeProduct] = useState("residential");
   const [amount, setAmount] = useState("50");
   const { gateways, autoTopUpEnabled } = usePaymentConfig();
+
   const [clientAutoTopUp, setClientAutoTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("50");
   const [minBalance, setMinBalance] = useState("5");
+  const [maxMonthly, setMaxMonthly] = useState("500");
+
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [coupon, setCoupon] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showManualCrypto, setShowManualCrypto] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; type: string; value: number } | null>(null);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
+  const { data: topUpSettings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["top-up-settings"],
+    queryFn: () => clientApi.getTopUpSettings(),
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("setup_success") === "true") {
+      toast({ title: "Card Saved", description: "Your payment method has been securely saved for auto top-up." });
+      // Remove query param
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get("setup_canceled") === "true") {
+      toast({ title: "Setup Canceled", description: "Card setup was canceled. Auto top-up remains disabled.", variant: "destructive" });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // Sync state with fetched data
+  useMemo(() => {
+    if (topUpSettings) {
+      setClientAutoTopUp(topUpSettings.enabled);
+      setTopUpAmount(topUpSettings.amount.toString());
+      setMinBalance(topUpSettings.threshold.toString());
+      setMaxMonthly(topUpSettings.max_monthly.toString());
+    }
+  }, [topUpSettings]);
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: (data: { enabled: boolean; threshold: number; amount: number; max_monthly: number }) =>
+      clientApi.updateTopUpSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["top-up-settings"] });
+      toast({ title: "Settings Saved", description: "Your auto top-up preferences have been updated." });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
 
   const { data: plans } = useQuery({
     queryKey: ["plans"],
@@ -112,17 +155,32 @@ export default function Billing() {
 
   const handleAutoTopUp = async (enabled: boolean) => {
     setClientAutoTopUp(enabled);
-    if (enabled) {
+    if (enabled && topUpSettings && !topUpSettings.has_payment_method) {
       try {
-        const { client_secret } = await clientApi.createSetupIntent();
-        // Here we would normally use Stripe Element to confirm SetupIntent
-        // For now, we'll just show the toast
-        toast({ title: "Card setup started", description: "Please follow the instructions to save your card for auto top-up." });
+        const { url } = await clientApi.createSetupIntent();
+        window.location.href = url;
       } catch (err: any) {
         toast({ title: "Setup Error", description: err.message, variant: "destructive" });
         setClientAutoTopUp(false);
       }
+    } else {
+      // If turning off or if card exists, just save the status
+      saveSettingsMutation.mutate({
+        enabled,
+        threshold: parseFloat(minBalance),
+        amount: parseFloat(topUpAmount),
+        max_monthly: parseFloat(maxMonthly)
+      });
     }
+  };
+
+  const handleSavePreferences = () => {
+    saveSettingsMutation.mutate({
+      enabled: clientAutoTopUp,
+      threshold: parseFloat(minBalance),
+      amount: parseFloat(topUpAmount),
+      max_monthly: parseFloat(maxMonthly)
+    });
   };
 
   const handleCheckout = async () => {
@@ -321,11 +379,27 @@ export default function Billing() {
 
         {/* Auto Top-Up */}
         {autoTopUpEnabled && (
-          <Card>
+          <Card className={!topUpSettings?.global_enabled ? "opacity-60 grayscale-[0.5]" : ""}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <RefreshCw className="h-5 w-5" /> Auto Top-Up
+              <CardTitle className="flex items-center justify-between text-lg">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" /> Auto Top-Up
+                </div>
+                {topUpSettings?.has_payment_method ? (
+                  <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 flex gap-1 items-center">
+                    <Check className="h-3 w-3" /> Card Saved
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground flex gap-1 items-center">
+                    <AlertCircle className="h-3 w-3" /> No Card Saved
+                  </Badge>
+                )}
               </CardTitle>
+              {!topUpSettings?.global_enabled && (
+                <CardDescription className="text-destructive font-medium">
+                  Auto Top-up is currently disabled by the administrator.
+                </CardDescription>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
@@ -333,19 +407,43 @@ export default function Billing() {
                   <p className="text-sm font-medium">Enable Auto Top-Up</p>
                   <p className="text-xs text-muted-foreground">Automatically add balance when it drops below the threshold</p>
                 </div>
-                <Switch checked={clientAutoTopUp} onCheckedChange={handleAutoTopUp} />
+                <Switch
+                  checked={clientAutoTopUp}
+                  onCheckedChange={handleAutoTopUp}
+                  disabled={!topUpSettings?.global_enabled}
+                />
               </div>
               {clientAutoTopUp && (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label>Min Balance Threshold</Label>
-                    <Input type="number" value={minBalance} onChange={(e) => setMinBalance(e.target.value)} />
+                <>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label>Min Balance Threshold</Label>
+                      <Input type="number" value={minBalance} onChange={(e) => setMinBalance(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Top-Up Amount</Label>
+                      <Input type="number" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Monthly Max Cap</Label>
+                      <Input type="number" value={maxMonthly} onChange={(e) => setMaxMonthly(e.target.value)} />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Top-Up Amount</Label>
-                    <Input type="number" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} />
+                  <div className="flex justify-between items-center pt-2">
+                    <p className="text-[11px] text-muted-foreground max-w-[250px]">
+                      A 22% Stripe VAT will be added to each auto top-up.
+                      Total charge: {format(parseFloat(topUpAmount) * 1.22)}
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={handleSavePreferences}
+                      disabled={saveSettingsMutation.isPending}
+                    >
+                      {saveSettingsMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+                      Save Preferences
+                    </Button>
                   </div>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>

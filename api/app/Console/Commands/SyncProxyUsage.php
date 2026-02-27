@@ -71,6 +71,17 @@ class SyncProxyUsage extends Command
                 }
             }
         }
+
+        // 3. Auto Top-up check
+        $this->info('Checking for low balance auto top-ups...');
+        $billing = app(\App\Http\Controllers\BillingController::class);
+        
+        \App\Models\User::where('balance', '<', 100) // Optimization: only check users with relatively low balance
+            ->chunk(100, function ($users) use ($billing) {
+                foreach ($users as $user) {
+                    $billing->checkAndTriggerAutoTopUp($user);
+                }
+            });
         
         $this->info('Sync Complete.');
     }

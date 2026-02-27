@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Stripe\Stripe;
 use Stripe\Checkout\Session;
+use Stripe\PaymentIntent;
 use Stripe\Webhook;
 use Illuminate\Support\Facades\Http;
 use App\Helpers\CryptomusHelper;
@@ -863,7 +864,7 @@ class BillingController extends Controller
     }
 
     /**
-     * Create a SetupIntent for saving a card for Auto Top-Up.
+     * Create a Stripe Checkout Session in 'setup' mode to save a card.
      */
     public function createSetupIntent(Request $request)
     {
@@ -879,12 +880,19 @@ class BillingController extends Controller
             $user->update(['stripe_customer_id' => $customer->id]);
         }
 
-        $setupIntent = \Stripe\SetupIntent::create([
-            'customer' => $user->stripe_customer_id,
+        $session = \Stripe\Checkout\Session::create([
             'payment_method_types' => ['card'],
+            'mode' => 'setup',
+            'customer' => $user->stripe_customer_id,
+            'success_url' => url('/') . '/app/billing?setup_success=true',
+            'cancel_url' => url('/') . '/app/billing?setup_canceled=true',
+            'metadata' => [
+                'user_id' => $user->id,
+                'type' => 'card_setup'
+            ]
         ]);
 
-        return response()->json(['client_secret' => $setupIntent->client_secret]);
+        return response()->json(['url' => $session->url]);
     }
 
     public function invoices(Request $request)
@@ -1003,52 +1011,83 @@ class BillingController extends Controller
             'crypto' => !empty(Setting::getValue('binance_pay_id')) && Setting::getValue('gateway_crypto_enabled') == '1',
         ]);
     }
-    public function checkAndTriggerAutoTopUp($user)
+    /**
+     * Check and execute Auto Top-up for a user (Off-session Stripe Payment)
+     */
+    public function checkAndTriggerAutoTopUp(User $user)
     {
+        // 1. Check global master switch
+        if (Setting::getValue('auto_topup_enabled') !== '1') {
+            return false;
+        }
+
         $settings = $user->auto_topup_settings;
-        if (!$settings || !($settings['enabled'] ?? false)) {
-            return;
+        
+        // 2. Check user level toggle and data
+        if (!isset($settings['enabled']) || !$settings['enabled'] || !isset($settings['amount']) || !$user->default_payment_method) {
+            return false;
         }
 
-        $threshold = $settings['threshold'] ?? 10;
-        $amount    = $settings['amount'] ?? 50;
+        Log::info("Triggering Auto Top-up check for User #{$user->id}. Balance: {$user->balance}");
 
-        if ($user->balance < $threshold && $user->default_payment_method) {
-            $this->chargeSavedCard($user, $amount);
+        // 3. Check Threshold
+        $threshold = (float) ($settings['threshold'] ?? Setting::getValue('min_balance_threshold', 5));
+        if ($user->balance >= $threshold) {
+             return false;
         }
-    }
 
-    protected function chargeSavedCard($user, $amount)
-    {
-        Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
+        // 4. Check Monthly Cap (Safety)
+        $maxMonthly = (float) ($settings['max_monthly'] ?? Setting::getValue('max_monthly_topup', 500));
+        $thisMonthCharges = WalletTransaction::where('user_id', $user->id)
+            ->where('description', 'LIKE', '%Auto Top-up%')
+            ->where('created_at', '>=', now()->startOfMonth())
+            ->sum('amount');
+        
+        if ($thisMonthCharges >= $maxMonthly) {
+            Log::warning("Auto Top-up capped for user {$user->id}. Monthly limit reaches: {$thisMonthCharges} / {$maxMonthly}");
+            return false;
+        }
+
+        $amount = (float) $settings['amount'];
+        $amountWithVAT = $amount * 1.22;
 
         try {
-            $paymentIntent = \Stripe\PaymentIntent::create([
-                'amount' => $amount * 100, // cents
+            Log::info("Attempting off-session charge of \${$amount} for User #{$user->id}");
+            Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
+            
+            $pi = PaymentIntent::create([
+                'amount' => round($amountWithVAT * 100),
                 'currency' => 'usd',
                 'customer' => $user->stripe_customer_id,
                 'payment_method' => $user->default_payment_method,
                 'off_session' => true,
                 'confirm' => true,
+                'description' => "Auto Top-up for User #{$user->id}",
+                'metadata' => [
+                    'user_id' => $user->id,
+                    'type' => 'auto_topup',
+                    'original_amount' => $amount
+                ]
             ]);
 
-            if ($paymentIntent->status === 'succeeded') {
-                DB::transaction(function () use ($user, $amount, $paymentIntent) {
-                    $user->increment('balance', $amount);
-                    WalletTransaction::create([
-                        'user_id' => $user->id,
-                        'type' => 'credit',
-                        'amount' => $amount,
-                        'description' => 'Auto Top-Up via Stripe',
-                        'reference' => $paymentIntent->id,
-                    ]);
-                });
-                Log::info("Auto Top-Up successful for User {$user->id}");
+            if ($pi->status === 'succeeded') {
+                $user->increment('balance', $amount);
+                WalletTransaction::create([
+                    'user_id' => $user->id,
+                    'amount' => $amount,
+                    'type' => 'credit',
+                    'description' => "Auto Top-up: Saved Card charged successfully.",
+                    'reference' => $pi->id
+                ]);
+                Log::info("Auto Top-up successful for User #{$user->id}. Transaction: {$pi->id}");
+                return true;
             }
-        } catch (\Stripe\Exception\CardException $e) {
-            Log::error("Auto Top-Up failed for User {$user->id}: " . $e->getMessage());
+
+            Log::error("Auto Top-up PI Status: " . $pi->status);
+            return false;
         } catch (\Exception $e) {
-            Log::error("Auto Top-Up error for User {$user->id}: " . $e->getMessage());
+            Log::error("Auto Top-up failed for user {$user->id}: " . $e->getMessage());
+            return false;
         }
     }
 }

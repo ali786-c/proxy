@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Order;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -276,5 +277,54 @@ class AuthController extends Controller
             'price_cents'  => 0,
             'status'       => 'active',
         ]);
+    }
+
+    /**
+     * GET /me/topup-settings - Get user top-up settings merged with global defaults
+     */
+    public function getTopUpSettings(Request $request)
+    {
+        $user = $request->user();
+        $userSettings = $user->auto_topup_settings ?? [];
+        
+        $defaults = [
+            'enabled'     => Setting::getValue('auto_topup_enabled') === '1',
+            'threshold'   => (float) Setting::getValue('min_balance_threshold', 5),
+            'amount'      => (float) Setting::getValue('default_topup_amount', 50),
+            'max_monthly' => (float) Setting::getValue('max_monthly_topup', 500),
+        ];
+
+        return response()->json([
+            'enabled'            => (bool) ($userSettings['enabled'] ?? false),
+            'threshold'          => (float) ($userSettings['threshold'] ?? $defaults['threshold']),
+            'amount'             => (float) ($userSettings['amount'] ?? $defaults['amount']),
+            'max_monthly'        => (float) ($userSettings['max_monthly'] ?? $defaults['max_monthly']),
+            'has_payment_method' => !empty($user->default_payment_method),
+            'global_enabled'     => $defaults['enabled'],
+        ]);
+    }
+
+    /**
+     * POST /me/topup-settings - Update user top-up preferences
+     */
+    public function updateTopUpSettings(Request $request)
+    {
+        $request->validate([
+            'enabled'     => 'required|boolean',
+            'threshold'   => 'required|numeric|min:0',
+            'amount'      => 'required|numeric|min:1',
+            'max_monthly' => 'required|numeric|min:1',
+        ]);
+
+        $user = $request->user();
+        $user->auto_topup_settings = [
+            'enabled'     => $request->enabled,
+            'threshold'   => $request->threshold,
+            'amount'      => $request->amount,
+            'max_monthly' => $request->max_monthly,
+        ];
+        $user->save();
+
+        return response()->json(['message' => 'Top-up settings updated successfully.']);
     }
 }

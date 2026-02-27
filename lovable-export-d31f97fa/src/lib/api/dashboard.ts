@@ -131,6 +131,16 @@ export const PlanSchema = z.object({
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
+export const TopUpSettingsSchema = z.object({
+  enabled: z.boolean(),
+  threshold: z.number(),
+  amount: z.number(),
+  max_monthly: z.number(),
+  has_payment_method: z.boolean(),
+  global_enabled: z.boolean(),
+});
+export type TopUpSettings = z.infer<typeof TopUpSettingsSchema>;
+
 // ── API Functions ────────────────────────────────────
 
 export const clientApi = {
@@ -206,6 +216,11 @@ export const clientApi = {
 
   // Proxy settings (geo-metadata)
   getProxySettings: () => api.get("/proxies/settings", z.any()),
+
+  // User Top-up Settings
+  getTopUpSettings: () => api.get("/me/topup-settings", TopUpSettingsSchema),
+  updateTopUpSettings: (settings: { enabled: boolean; threshold: number; amount: number; max_monthly: number }) =>
+    api.post("/me/topup-settings", MessageSchema, settings),
 
   // Auth Extras
   forgotPassword: (email: string) =>

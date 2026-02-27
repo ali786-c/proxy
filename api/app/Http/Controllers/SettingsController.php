@@ -37,6 +37,16 @@ class SettingsController extends Controller
         'cryptomus_webhook_secret',
         'binance_pay_id',
         'binance_pay_instructions',
+        'auto_topup_enabled',
+        'min_balance_threshold',
+        'default_topup_amount',
+        'max_monthly_topup',
+        'topup_source_primary',
+        'topup_source_fallback',
+        'retry_attempts',
+        'retry_interval',
+        'notify_client_success',
+        'notify_admin_failure',
     ];
 
     /**
