@@ -135,23 +135,33 @@ export function useSupportTickets() {
         messages: t.messages?.map((m: any) => ({
           ...m,
           sender: m.is_admin_reply ? "support" : "client",
-          text: m.message, // for consistency
-          time: m.created_at, // for consistency
+          text: m.message,
+          time: m.created_at,
+          attachment_url: m.attachment_url,
+          attachment_name: m.attachment_name,
         })) || []
       }));
     },
   });
 
   const createTicket = useMutation({
-    mutationFn: async (ticket: { subject: string; message: string; priority: string }) => {
-      return api.post("/support/tickets", z.any(), ticket);
+    mutationFn: async ({ subject, message, priority, attachment }: { subject: string; message: string; priority: string; attachment?: File }) => {
+      const formData = new FormData();
+      formData.append("subject", subject);
+      formData.append("message", message);
+      formData.append("priority", priority);
+      if (attachment) formData.append("attachment", attachment);
+      return api.post("/support/tickets", z.any(), formData);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
   });
 
   const replyTicket = useMutation({
-    mutationFn: async ({ id, message }: { id: number | string; message: string }) => {
-      return api.post(`/support/tickets/${id}/reply`, z.any(), { message });
+    mutationFn: async ({ id, message, attachment }: { id: number | string; message: string; attachment?: File }) => {
+      const formData = new FormData();
+      formData.append("message", message);
+      if (attachment) formData.append("attachment", attachment);
+      return api.post(`/support/tickets/${id}/reply`, z.any(), formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
@@ -308,14 +318,19 @@ export function useAdminTickets() {
           sender: m.is_admin_reply ? "support" : "client",
           text: m.message,
           time: m.created_at,
+          attachment_url: m.attachment_url,
+          attachment_name: m.attachment_name,
         })) || [],
       }));
     },
   });
 
   const replyTicket = useMutation({
-    mutationFn: async ({ id, message }: { id: number | string; message: string }) => {
-      return api.post(`/admin/support/tickets/${id}/reply`, MessageSchema, { message });
+    mutationFn: async ({ id, message, attachment }: { id: number | string; message: string; attachment?: File }) => {
+      const formData = new FormData();
+      formData.append("message", message);
+      if (attachment) formData.append("attachment", attachment);
+      return api.post(`/admin/support/tickets/${id}/reply`, MessageSchema, formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "tickets"] });

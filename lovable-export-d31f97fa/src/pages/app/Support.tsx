@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton";
-import { Plus, MessageSquare, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, MessageSquare, Clock, CheckCircle2, AlertCircle, Paperclip } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useSupportTickets } from "@/hooks/use-backend";
 
@@ -30,7 +30,9 @@ export default function Support() {
   const [newSubject, setNewSubject] = useState("");
   const [newPriority, setNewPriority] = useState("normal");
   const [newMessage, setNewMessage] = useState("");
+  const [newFile, setNewFile] = useState<File | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [replyFile, setReplyFile] = useState<File | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const selectedTicket = tickets?.find((t: any) => t.id === selectedTicketId);
@@ -38,9 +40,15 @@ export default function Support() {
   const handleCreate = async () => {
     if (!newSubject.trim() || !newMessage.trim()) return;
     try {
-      await createTicket.mutateAsync({ subject: newSubject, message: newMessage, priority: newPriority });
+      await createTicket.mutateAsync({
+        subject: newSubject,
+        message: newMessage,
+        priority: newPriority,
+        attachment: newFile || undefined
+      });
       setNewSubject("");
       setNewMessage("");
+      setNewFile(null);
       setDialogOpen(false);
       toast({ title: "Ticket Created", description: "Your support ticket has been submitted." });
     } catch (err: any) {
@@ -49,10 +57,15 @@ export default function Support() {
   };
 
   const handleReply = async () => {
-    if (!replyText.trim() || !selectedTicketId) return;
+    if ((!replyText.trim() && !replyFile) || !selectedTicketId) return;
     try {
-      await replyTicket.mutateAsync({ id: selectedTicketId, message: replyText });
+      await replyTicket.mutateAsync({
+        id: selectedTicketId,
+        message: replyText,
+        attachment: replyFile || undefined
+      });
       setReplyText("");
+      setReplyFile(null);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -103,6 +116,10 @@ export default function Support() {
                     <Label>Message</Label>
                     <Textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Describe your issue in detail..." rows={4} />
                   </div>
+                  <div className="space-y-1.5">
+                    <Label>Attachment (Optional)</Label>
+                    <Input type="file" onChange={(e) => setNewFile(e.target.files?.[0] || null)} className="cursor-pointer" />
+                  </div>
                 </div>
                 <DialogFooter>
                   <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
@@ -141,6 +158,14 @@ export default function Support() {
                           <span className="text-[10px] opacity-70">{new Date(msg.created_at).toLocaleString()}</span>
                         </div>
                         <p className="whitespace-pre-wrap">{msg.message}</p>
+                        {msg.attachment_url && (
+                          <div className="mt-2 pt-2 border-t border-current/20">
+                            <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs hover:underline mt-1">
+                              <Paperclip className="h-3 w-3" />
+                              {msg.attachment_name || "View Attachment"}
+                            </a>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -149,16 +174,21 @@ export default function Support() {
                 {selectedTicket.status !== "closed" && (
                   <div className="pt-4 border-t space-y-3">
                     <Label>Reply to Ticket</Label>
-                    <Textarea
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="Type your message here..."
-                      rows={3}
-                    />
-                    <div className="flex justify-end">
-                      <Button onClick={handleReply} disabled={!replyText.trim() || replyTicket.isPending}>
-                        {replyTicket.isPending ? "Sending..." : "Send Reply"}
-                      </Button>
+                    <div className="flex flex-col gap-2">
+                      <Textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Type your message here..."
+                        rows={3}
+                      />
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 max-w-[250px]">
+                          <Input type="file" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} className="h-8 text-xs cursor-pointer" />
+                        </div>
+                        <Button onClick={handleReply} disabled={(!replyText.trim() && !replyFile) || replyTicket.isPending}>
+                          {replyTicket.isPending ? "Sending..." : "Send Reply"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}

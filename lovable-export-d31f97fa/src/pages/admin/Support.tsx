@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, MessageSquare } from "lucide-react";
+import { Search, MessageSquare, Paperclip } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +21,8 @@ const TicketMessageSchema = z.object({
   message: z.string(),
   is_admin_reply: z.boolean(),
   created_at: z.string(),
+  attachment_url: z.string().nullable().optional(),
+  attachment_name: z.string().nullable().optional(),
 });
 
 const TicketSchema = z.object({
@@ -46,7 +48,7 @@ interface AdminTicket {
   priority: "low" | "medium" | "high";
   created_at: string;
   updated_at: string;
-  messages: { sender: "client" | "support"; text: string; time: string }[];
+  messages: { sender: "client" | "support"; text: string; time: string; attachment_url?: string; attachment_name?: string }[];
 }
 
 const STATUS_COLOR = { open: "secondary", in_progress: "default", resolved: "outline", closed: "outline" } as const;
@@ -58,16 +60,22 @@ export default function AdminSupport() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [replyFile, setReplyFile] = useState<File | null>(null);
 
   const { data: tickets = [], isLoading, replyTicket, updateStatus: statusUpdateMutation, deleteTicket } = useAdminTickets();
 
   const selectedTicket = tickets.find((t: any) => t.id === selectedTicketId) || null;
 
   const sendReply = async () => {
-    if (!replyText.trim() || !selectedTicketId) return;
+    if ((!replyText.trim() && !replyFile) || !selectedTicketId) return;
     try {
-      await replyTicket.mutateAsync({ id: selectedTicketId, message: replyText });
+      await replyTicket.mutateAsync({
+        id: selectedTicketId,
+        message: replyText,
+        attachment: replyFile || undefined
+      });
       setReplyText("");
+      setReplyFile(null);
       toast({ title: "Reply Sent" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -160,12 +168,27 @@ export default function AdminSupport() {
                         <span className="text-xs text-muted-foreground">{new Date(msg.time).toLocaleString()}</span>
                       </div>
                       <p>{msg.text}</p>
+                      {msg.attachment_url && (
+                        <div className="mt-2 pt-2 border-t border-current/10">
+                          <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs hover:underline mt-1">
+                            <Paperclip className="h-3 w-3" />
+                            {msg.attachment_name || "View Attachment"}
+                          </a>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-                <div className="flex gap-2">
-                  <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your reply..." rows={2} className="flex-1" />
-                  <Button onClick={sendReply} disabled={!replyText.trim()} className="self-end">Send</Button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your reply..." rows={2} className="flex-1" />
+                    <Button onClick={sendReply} disabled={(!replyText.trim() && !replyFile)} className="self-end">Send</Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-full max-w-xs">
+                      <Input type="file" onChange={(e) => setReplyFile(e.target.files?.[0] || null)} className="h-8 text-xs cursor-pointer" />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
