@@ -907,13 +907,16 @@ class BillingController extends Controller
 
         $formalInvoices = $invoicesQuery->map(function ($inv) {
             return [
-                'id'           => "INV-{$inv->id}",
-                'amount_cents' => (int) ($inv->amount * 100),
-                'status'       => $inv->status,
-                'period'       => $inv->created_at->format('M Y'),
-                'created_at'   => $inv->created_at->toIso8601String(),
-                'description'  => $inv->description ?: 'Subscription/Purchase',
-                'pdf_url'      => $inv->pdf_url,
+                'id'             => (string) $inv->id,
+                'invoice_number' => "INV-{$inv->id}",
+                'amount'         => (float) $inv->amount,
+                'amount_cents'   => (int) ($inv->amount * 100),
+                'status'         => $inv->status,
+                'gateway'        => $inv->stripe_invoice_id ? 'stripe' : 'manual',
+                'period'         => $inv->created_at->format('M Y'),
+                'created_at'     => $inv->created_at->toIso8601String(),
+                'description'    => $inv->description ?: 'Subscription/Purchase',
+                'pdf_url'        => $inv->pdf_url,
             ];
         });
 
@@ -923,14 +926,21 @@ class BillingController extends Controller
             ->latest()
             ->get()
             ->map(function ($t) {
+                $gateway = 'balance';
+                if (str_contains(strtolower($t->description), 'crypto')) $gateway = 'crypto';
+                if (str_contains(strtolower($t->description), 'binance')) $gateway = 'binance';
+
                 return [
-                    'id'           => (string) $t->id,
-                    'amount_cents' => (int) ($t->amount * 100),
-                    'status'       => 'paid',
-                    'period'       => $t->created_at->format('M Y'),
-                    'created_at'   => $t->created_at->toIso8601String(),
-                    'description'  => $t->description,
-                    'pdf_url'      => null,
+                    'id'             => (string) $t->id,
+                    'invoice_number' => "TX-{$t->id}",
+                    'amount'         => (float) $t->amount,
+                    'amount_cents'   => (int) ($t->amount * 100),
+                    'status'         => 'paid',
+                    'gateway'        => $gateway,
+                    'period'         => $t->created_at->format('M Y'),
+                    'created_at'     => $t->created_at->toIso8601String(),
+                    'description'    => $t->description,
+                    'pdf_url'        => null,
                 ];
             });
 
