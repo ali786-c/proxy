@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 
 import { SEOHead } from "@/components/seo/SEOHead";
 import { ErrorBanner } from "@/components/shared/ErrorBanner";
@@ -26,6 +27,7 @@ import { usePaymentConfig } from "@/contexts/PaymentConfigContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { ManualCryptoDialog } from "@/components/shared/ManualCryptoDialog";
+import { formatProxyLine } from "@/lib/utils";
 
 const TYPE_MAP: Record<string, string> = {
   rp: "residential",
@@ -34,9 +36,13 @@ const TYPE_MAP: Record<string, string> = {
   dc: "datacenter",
 };
 
-function formatProxyLine(p: any) {
-  return `${p.host}:${p.port}:${p.username}:${p.password}`;
-}
+const SLUG_MAP: Record<string, string> = {
+  rp: "core-residential",
+  mp: "mobile",
+  isp: "static-residential",
+  dc: "datacenter",
+};
+
 
 function generateCurl(p: any) {
   return `curl -x http://${p.username}:${p.password}@${p.host}:${p.port} https://httpbin.org/ip`;
@@ -184,9 +190,14 @@ export default function Proxies() {
 
   return (
     <>
-      <SEOHead title="Proxy Generator" noindex />
+      <SEOHead title="Generate Proxies" noindex />
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Proxy Generator</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Generate Proxies</h1>
+          <Button variant="outline" asChild>
+            <Link to="/app/proxies/core-residential">View Active Proxies</Link>
+          </Button>
+        </div>
 
         {/* Generator Form */}
         <Card>
@@ -315,6 +326,11 @@ export default function Proxies() {
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => exportAs("json")}>
                       <Download className="mr-1.5 h-3.5 w-3.5" /> Download .json
+                    </Button>
+                    <Button variant="secondary" size="sm" asChild className="ml-auto">
+                      <Link to={`/app/proxies/${SLUG_MAP[productType] || "core-residential"}`}>
+                        View in {SLUG_MAP[productType]?.split("-").map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(" ") || "Residential"} Tab
+                      </Link>
                     </Button>
                   </div>
                 </CardContent>

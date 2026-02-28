@@ -53,6 +53,7 @@ const ScrapingBrowserDocs = lazy(() => import("./pages/docs/ScrapingBrowserDocs"
 // Client dashboard
 const AppDashboard = lazy(() => import("./pages/app/Dashboard"));
 const Proxies = lazy(() => import("./pages/app/Proxies"));
+const ProxyList = lazy(() => import("./pages/app/ProxyList"));
 const Usage = lazy(() => import("./pages/app/Usage"));
 const AppSettings = lazy(() => import("./pages/app/Settings"));
 const Billing = lazy(() => import("./pages/app/Billing"));
@@ -150,6 +151,8 @@ const App = () => (
                             }
                           >
                             <Route index element={<AppDashboard />} />
+                            <Route path="proxies/generate" element={<Proxies />} />
+                            <Route path="proxies/:type" element={<ProxyList />} />
                             <Route path="proxies" element={<Proxies />} />
                             <Route path="usage" element={<Usage />} />
                             <Route path="settings" element={<AppSettings />} />
