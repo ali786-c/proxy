@@ -566,10 +566,12 @@ class BillingController extends Controller
 
         // Verify the session belongs to the authenticated user (security check)
         $authenticatedUserId = $request->user()->id;
-        $sessionUserId = $session->metadata->user_id ?? null;
+        // Robust metadata extraction in verifySession
+        $metadata = $session->metadata;
+        $sessionUserId = isset($metadata['user_id']) ? $metadata['user_id'] : ($metadata->user_id ?? null);
 
-        if ((string)$sessionUserId !== (string)$authenticatedUserId) {
-            Log::warning("verifySession: User #{$authenticatedUserId} tried to claim session for user #{$sessionUserId}");
+        if (!$sessionUserId || (string)$sessionUserId !== (string)$authenticatedUserId) {
+            Log::warning("verifySession: User #{$authenticatedUserId} tried to claim session. Session Metadata User ID: " . ($sessionUserId ?? 'NULL'));
             return response()->json(['message' => 'Session does not belong to this account.'], 403);
         }
 
@@ -735,34 +737,32 @@ class BillingController extends Controller
     {
         $referralService = app(ReferralService::class);
         
-        // Robust Metadata Extraction (Handle arrays or objects)
-        $metadata = is_array($session->metadata) ? $session->metadata : $session->metadata->toArray();
-        $userId   = $metadata['user_id'] ?? null;
+        // ULTIMATE Metadata Extraction (Stripe library versions can vary)
+        $metadata = $session->metadata;
+        $userId   = isset($metadata['user_id']) ? $metadata['user_id'] : ($metadata->user_id ?? null);
 
         if (!$userId) {
-            Log::error("Fulfillment Error: No user_id in metadata for session {$session->id}");
+            Log::critical("CRITICAL Fulfillment Error: No user_id found in metadata for session {$session->id}. Full session: " . json_encode($session->toArray()));
             return;
         }
 
-        // Logging for cPanel debugging
-        Log::info("Fulfilling payment for User #{$userId}, Reference: {$eventId}");
-        Log::debug("Session Metadata: " . json_encode($metadata));
+        // Detailed logging for cPanel debugging
+        Log::info("START Fulfilling payment for User #{$userId}, Reference: {$eventId}");
 
-        $type   = $metadata['type'] ?? 'topup';
+        $type           = isset($metadata['type']) ? $metadata['type'] : ($metadata->type ?? 'topup');
+        $amount         = (float) (isset($metadata['amount']) ? $metadata['amount'] : ($metadata->amount ?? 0));
+        $originalAmount = (float) (isset($metadata['original_amount']) ? $metadata['original_amount'] : ($metadata->original_amount ?? $amount));
+        $couponCode     = isset($metadata['coupon_code']) ? $metadata['coupon_code'] : ($metadata->coupon_code ?? null);
         
-        // Metadata values are strings in Stripe SDK, so cast to float
-        $amount = (float) ($metadata['amount'] ?? 0); 
-        $originalAmount = (float) ($metadata['original_amount'] ?? $amount);
-        $couponCode     = $metadata['coupon_code'] ?? null;
         $paidGross      = isset($session->amount_total) ? $session->amount_total / 100 : 0;
         $currency       = strtoupper($session->currency ?? 'EUR');
 
-        DB::transaction(function () use ($userId, $amount, $originalAmount, $couponCode, $paidGross, $eventId, $type, $session) {
-            $user = User::lockForUpdate()->find($userId);
-            if (!$user) {
-                Log::error("Webhook Error: User #{$userId} not found for session {$session->id}");
-                return;
-            }
+        try {
+            DB::transaction(function () use ($userId, $amount, $originalAmount, $couponCode, $paidGross, $eventId, $type, $session, $currency, $referralService) {
+                $user = User::lockForUpdate()->find($userId);
+                if (!$user) {
+                    throw new \Exception("User #{$userId} not found during DB transaction.");
+                }
 
             // Track coupon usage
             if ($couponCode) {
@@ -910,7 +910,14 @@ class BillingController extends Controller
                 'event_id' => $eventId,
             ]);
         });
+        Log::info("SUCCESSfully fulfilled payment for User #{$userId}, Reference: {$eventId}");
+    } catch (\Exception $e) {
+        Log::error("CRITICAL Transaction Failed for User #{$userId}, Reference: {$eventId}. Error: " . $e->getMessage());
+        Log::error($e->getTraceAsString());
+        // Rethrow to let the caller know it failed
+        throw $e;
     }
+}
 
     protected function fulfillSetup($session)
     {
