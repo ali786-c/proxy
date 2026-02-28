@@ -557,8 +557,10 @@ class BillingController extends Controller
             return response()->json(['status' => 'pending', 'message' => 'Payment not yet completed.']);
         }
 
-        // Idempotency: already handled by webhook?
+        // Idempotency: already handled?
+        // We use the Session ID (cs_...) as the primary reference for top-ups
         if (WebhookLog::where('event_id', $session->id)->exists()) {
+            Log::info("verifySession: Session {$session->id} already processed. Skipping.");
             return response()->json(['status' => 'already_processed', 'message' => 'Payment already credited.']);
         }
 
@@ -604,10 +606,8 @@ class BillingController extends Controller
         switch ($event->type) {
             case 'checkout.session.completed':
             case 'checkout.session.async_payment_succeeded':
-                $session = $event->data->object;
                 if ($session->mode === 'payment') {
-                    // Use $session->id (cs_...) instead of $event->id (evt_...)
-                    // This matches verifySession() and prevents double-crediting
+                    // Use $session->id (cs_...) as the primary reference for top-ups to match verifySession
                     $this->fulfillPayment($session, $session->id);
                 } elseif ($session->mode === 'setup') {
                     $this->fulfillSetup($session);
@@ -734,18 +734,28 @@ class BillingController extends Controller
     protected function fulfillPayment($session, $eventId)
     {
         $referralService = app(ReferralService::class);
-        $userId = $session->metadata->user_id;
+        
+        // Robust Metadata Extraction (Handle arrays or objects)
+        $metadata = is_array($session->metadata) ? $session->metadata : $session->metadata->toArray();
+        $userId   = $metadata['user_id'] ?? null;
+
+        if (!$userId) {
+            Log::error("Fulfillment Error: No user_id in metadata for session {$session->id}");
+            return;
+        }
 
         // Logging for cPanel debugging
         Log::info("Fulfilling payment for User #{$userId}, Reference: {$eventId}");
+        Log::debug("Session Metadata: " . json_encode($metadata));
 
-        $type   = $session->metadata->type ?? 'topup';
+        $type   = $metadata['type'] ?? 'topup';
         
         // Metadata values are strings in Stripe SDK, so cast to float
-        $amount = (float) ($session->metadata->amount ?? 0); 
-        $originalAmount = (float) ($session->metadata->original_amount ?? $amount);
-        $couponCode     = $session->metadata->coupon_code ?? null;
+        $amount = (float) ($metadata['amount'] ?? 0); 
+        $originalAmount = (float) ($metadata['original_amount'] ?? $amount);
+        $couponCode     = $metadata['coupon_code'] ?? null;
         $paidGross      = isset($session->amount_total) ? $session->amount_total / 100 : 0;
+        $currency       = strtoupper($session->currency ?? 'EUR');
 
         DB::transaction(function () use ($userId, $amount, $originalAmount, $couponCode, $paidGross, $eventId, $type, $session) {
             $user = User::lockForUpdate()->find($userId);
@@ -868,7 +878,7 @@ class BillingController extends Controller
                 
                 if ($creditAmount > 0) {
                     $user->increment('balance', $creditAmount);
-                    Log::info("Credited wallet for User #{$userId}: +€{$creditAmount} (Ref: {$eventId})");
+                    Log::info("Credited wallet for User #{$userId}: +{$currency} {$creditAmount} (Ref: {$eventId})");
                     
                     $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Stripe)");
 
@@ -879,6 +889,17 @@ class BillingController extends Controller
                         'reference' => $eventId,
                         'description' => 'Stripe Wallet Top-up' . ($couponCode && !empty($couponCode) ? " (Used promo: {$couponCode})" : ""),
                     ]);
+
+                    // CREATE FORMAL INVOICE RECORD
+                    \App\Models\Invoice::create([
+                        'user_id'           => $user->id,
+                        'stripe_invoice_id' => $session->invoice ?? null, // Link if exists
+                        'amount'            => $paidGross,
+                        'currency'          => $currency,
+                        'status'            => 'paid',
+                        'description'       => "Wallet Top-up: Add {$currency} {$creditAmount} to balance" . ($couponCode ? " (Ref: {$couponCode})" : ""),
+                    ]);
+                    Log::info("Created Invoice record for User #{$userId}, Session: {$session->id}");
                 } else {
                     Log::warning("Zero amount top-up for User #{$userId}. Amount: {$amount}, Original: {$originalAmount}");
                 }
