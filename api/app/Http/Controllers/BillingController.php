@@ -66,7 +66,7 @@ class BillingController extends Controller
                     'quantity' => 1,
                 ]],
                 'mode' => 'payment',
-                'success_url' => url('/') . '/app/billing?success=true&direct=true',
+                'success_url' => url('/') . '/app/billing?success=true&direct=true&session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => url('/') . '/app/billing?canceled=true',
                 'metadata' => [
                     'user_id' => $request->user()->id,
@@ -144,7 +144,7 @@ class BillingController extends Controller
                     'quantity' => 1,
                 ]],
                 'mode' => 'payment',
-                'success_url' => url('/') . '/app/billing?success=true',
+                'success_url' => url('/') . '/app/billing?success=true&session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => url('/') . '/app/billing?canceled=true',
                 'metadata' => [
                     'user_id' => $request->user()->id,
@@ -498,7 +498,60 @@ class BillingController extends Controller
         });
     }
 
+    /**
+     * Verify a completed Stripe Checkout Session when user returns to success URL.
+     * This acts as a guaranteed fallback in case the webhook is delayed or fails.
+     * POST /billing/verify-session
+     */
+    public function verifySession(Request $request)
+    {
+        $request->validate([
+            'session_id' => 'required|string|starts_with:cs_',
+        ]);
+
+        $stripeSecret = Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret');
+        if (!$stripeSecret) {
+            return response()->json(['message' => 'Payment gateway not configured.'], 503);
+        }
+
+        try {
+            Stripe::setApiKey($stripeSecret);
+            $session = Session::retrieve($request->session_id);
+        } catch (\Exception $e) {
+            Log::error('verifySession Stripe Error: ' . $e->getMessage());
+            return response()->json(['message' => 'Could not verify session.'], 422);
+        }
+
+        // Only process paid sessions
+        if ($session->payment_status !== 'paid') {
+            return response()->json(['status' => 'pending', 'message' => 'Payment not yet completed.']);
+        }
+
+        // Idempotency: already handled by webhook?
+        if (WebhookLog::where('event_id', $session->id)->exists()) {
+            return response()->json(['status' => 'already_processed', 'message' => 'Payment already credited.']);
+        }
+
+        // Verify the session belongs to the authenticated user (security check)
+        $authenticatedUserId = $request->user()->id;
+        $sessionUserId = $session->metadata->user_id ?? null;
+
+        if ((string)$sessionUserId !== (string)$authenticatedUserId) {
+            Log::warning("verifySession: User #{$authenticatedUserId} tried to claim session for user #{$sessionUserId}");
+            return response()->json(['message' => 'Session does not belong to this account.'], 403);
+        }
+
+        // Fulfill the payment (same logic as webhook)
+        $this->fulfillPayment($session, $session->id);
+
+        return response()->json([
+            'status' => 'fulfilled',
+            'message' => 'Payment verified and balance updated successfully.',
+        ]);
+    }
+
     public function handleWebhook(Request $request)
+
     {
         $payload = $request->getContent();
         $sigHeader = $request->header('Stripe-Signature');

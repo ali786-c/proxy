@@ -209,6 +209,8 @@ export const clientApi = {
     api.post("/billing/submit-crypto", MessageSchema, formData),
   createSetupIntent: () =>
     api.post("/billing/setup-intent", z.object({ client_secret: z.string() }), {}),
+  verifySession: (sessionId: string) =>
+    api.post("/billing/verify-session", z.object({ status: z.string(), message: z.string() }), { session_id: sessionId }),
   getGateways: () =>
     api.get("/billing/gateways", z.object({
       stripe: z.boolean(),

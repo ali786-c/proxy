@@ -70,17 +70,49 @@ export default function Billing() {
     queryFn: () => clientApi.getTopUpSettings(),
   });
 
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("setup_success") === "true") {
+
+    if (params.get("success") === "true") {
+      const sessionId = params.get("session_id");
+      // Clean URL immediately
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      if (sessionId) {
+        // Call backend to verify and credit balance (guaranteed fulfillment)
+        clientApi.verifySession(sessionId)
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ["me"] });
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            queryClient.invalidateQueries({ queryKey: ["stats"] });
+            setShowSuccessModal(true);
+          })
+          .catch(() => {
+            // If already processed by webhook, still show success and refresh
+            queryClient.invalidateQueries({ queryKey: ["me"] });
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            setShowSuccessModal(true);
+          });
+      } else {
+        // No session_id (old flow), still refresh and show success
+        queryClient.invalidateQueries({ queryKey: ["me"] });
+        queryClient.invalidateQueries({ queryKey: ["invoices"] });
+        setShowSuccessModal(true);
+      }
+    } else if (params.get("setup_success") === "true") {
       toast({ title: "Card Saved", description: "Your payment method has been securely saved for auto top-up." });
-      // Remove query param
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (params.get("setup_canceled") === "true") {
       toast({ title: "Setup Canceled", description: "Card setup was canceled. Auto top-up remains disabled.", variant: "destructive" });
       window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get("canceled") === "true") {
+      toast({ title: "Payment Canceled", description: "Your payment was canceled. No charges were made.", variant: "destructive" });
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
+
 
   // Sync state with fetched data
   useMemo(() => {
