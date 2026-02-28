@@ -45,6 +45,13 @@ const ProductSchema = z.object({
   features: z.array(z.string()).nullable().optional(),
 });
 
+const PaginatedProductSchema = z.object({
+  data: z.array(ProductSchema),
+  current_page: z.number(),
+  last_page: z.number(),
+  total: z.number(),
+});
+
 interface Product {
   id: string;
   name: string;
@@ -86,25 +93,32 @@ export default function AdminProducts() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
 
-  const { data: products, isLoading } = useQuery({
-    queryKey: ["admin-products"],
+  const [page, setPage] = useState(1);
+
+  const { data: paginatedData, isLoading } = useQuery({
+    queryKey: ["admin-products", page],
     queryFn: async () => {
-      const data = await api.get("/admin/products", z.array(ProductSchema));
-      return data.map((p) => ({
-        id: String(p.id),
-        name: p.name,
-        proxy_type: p.type,
-        unit: p.type === "isp" ? "IP" : p.type === "dc_unmetered" ? "Month" : "GB",
-        base_cost_eur: Number(p.price),
-        sell_price_eur: Number(p.price),
-        markup_pct: 0,
-        is_active: Boolean(p.is_active),
-        evomi_product_id: p.evomi_product_id,
-        tagline: p.tagline || "",
-        features: p.features || []
-      }));
+      const resp = await api.get(`/admin/products?page=${page}`, PaginatedProductSchema);
+      return {
+        ...resp,
+        data: resp.data.map((p) => ({
+          id: String(p.id),
+          name: p.name,
+          proxy_type: p.type,
+          unit: p.type === "isp" ? "IP" : p.type === "dc_unmetered" ? "Month" : "GB",
+          base_cost_eur: Number(p.price),
+          sell_price_eur: Number(p.price),
+          markup_pct: 0,
+          is_active: Boolean(p.is_active),
+          evomi_product_id: p.evomi_product_id,
+          tagline: p.tagline || "",
+          features: p.features || []
+        }))
+      };
     },
   });
+
+  const products = paginatedData?.data || [];
 
   const mutation = useMutation({
     mutationFn: (data: any) => {
@@ -232,6 +246,31 @@ export default function AdminProducts() {
                 ))}
               </TableBody>
             </Table>
+            {paginatedData && paginatedData.last_page > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Showing page {paginatedData.current_page} of {paginatedData.last_page} ({paginatedData.total} products)
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(paginatedData.last_page, p + 1))}
+                    disabled={page === paginatedData.last_page}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

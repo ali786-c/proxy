@@ -26,9 +26,9 @@ class ProductController extends Controller
         }
     }
 
-    public function adminIndex()
+    public function adminIndex(Request $request)
     {
-        return response()->json(Product::latest()->get());
+        return response()->json(Product::latest()->paginate(15));
     }
 
     public function store(Request $request)
