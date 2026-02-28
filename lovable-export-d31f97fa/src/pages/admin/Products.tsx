@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, MessageSchema } from "@/lib/api/client";
@@ -41,6 +41,8 @@ const ProductSchema = z.object({
   price: z.coerce.number(),
   is_active: z.coerce.number().or(z.boolean()).optional().default(true),
   evomi_product_id: z.string().nullable().optional(),
+  tagline: z.string().nullable().optional(),
+  features: z.array(z.string()).nullable().optional(),
 });
 
 interface Product {
@@ -62,6 +64,8 @@ type FormData = {
   markup_pct: string;
   is_active: boolean;
   evomi_product_id: string;
+  tagline: string;
+  features: string[];
 };
 
 const EMPTY_FORM: FormData = {
@@ -71,7 +75,9 @@ const EMPTY_FORM: FormData = {
   base_cost_eur: "",
   markup_pct: "0",
   is_active: true,
-  evomi_product_id: ""
+  evomi_product_id: "",
+  tagline: "",
+  features: []
 };
 
 export default function AdminProducts() {
@@ -93,7 +99,9 @@ export default function AdminProducts() {
         sell_price_eur: Number(p.price),
         markup_pct: 0,
         is_active: Boolean(p.is_active),
-        evomi_product_id: p.evomi_product_id
+        evomi_product_id: p.evomi_product_id,
+        tagline: p.tagline || "",
+        features: p.features || []
       }));
     },
   });
@@ -141,7 +149,9 @@ export default function AdminProducts() {
       base_cost_eur: String(p.base_cost_eur),
       markup_pct: "0",
       is_active: p.is_active,
-      evomi_product_id: p.evomi_product_id || ""
+      evomi_product_id: p.evomi_product_id || "",
+      tagline: p.tagline || "",
+      features: p.features || []
     });
     setModalOpen(true);
   };
@@ -158,7 +168,9 @@ export default function AdminProducts() {
       type: form.proxy_type,
       price: parseFloat(computeSellPrice()),
       is_active: form.is_active,
-      evomi_product_id: form.evomi_product_id
+      evomi_product_id: form.evomi_product_id,
+      tagline: form.tagline,
+      features: form.features
     });
   };
 
@@ -241,10 +253,18 @@ export default function AdminProducts() {
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Product" : "Create Product"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto px-1">
             <div className="space-y-1">
               <Label>Name</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Tagline / Subtitle</Label>
+              <Input
+                placeholder="e.g. 100% ethical residential proxies"
+                value={form.tagline}
+                onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -293,6 +313,48 @@ export default function AdminProducts() {
                 value={form.evomi_product_id}
                 onChange={(e) => setForm({ ...form, evomi_product_id: e.target.value })}
               />
+            </div>
+
+            <div className="space-y-2 border rounded-md p-3">
+              <div className="flex justify-between items-center">
+                <Label>Features List</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setForm({ ...form, features: [...form.features, ""] })}
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add Feature
+                </Button>
+              </div>
+              {form.features.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No features added. Core defaults will be shown.</p>
+              )}
+              {form.features.map((feat, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input
+                    value={feat}
+                    placeholder="e.g. 50M+ Real IPs"
+                    onChange={(e) => {
+                      const newFeats = [...form.features];
+                      newFeats[idx] = e.target.value;
+                      setForm({ ...form, features: newFeats });
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-destructive"
+                    onClick={() => {
+                      const newFeats = form.features.filter((_, i) => i !== idx);
+                      setForm({ ...form, features: newFeats });
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />

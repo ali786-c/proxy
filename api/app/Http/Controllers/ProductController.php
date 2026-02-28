@@ -16,6 +16,8 @@ class ProductController extends Controller
                     'name'        => $product->name,
                     'price_cents' => (int) ($product->price * 100),
                     'type'        => $product->type,
+                    'tagline'     => $product->tagline,
+                    'features'    => $product->features,
                 ];
             });
             return response()->json($products);
@@ -37,6 +39,9 @@ class ProductController extends Controller
             'price'            => 'required|numeric|min:0',
             'evomi_product_id' => 'required|string|max:255|unique:products,evomi_product_id',
             'is_active'        => 'boolean',
+            'tagline'          => 'nullable|string|max:255',
+            'features'         => 'nullable|array',
+            'features.*'       => 'string',
         ]);
 
         $product = Product::create($validated);
@@ -53,6 +58,9 @@ class ProductController extends Controller
             'price'            => 'sometimes|required|numeric|min:0',
             'evomi_product_id' => 'sometimes|required|string|max:255|unique:products,evomi_product_id,' . $id,
             'is_active'        => 'sometimes|boolean',
+            'tagline'          => 'nullable|string|max:255',
+            'features'         => 'nullable|array',
+            'features.*'       => 'string',
         ]);
 
         $product->update($validated);

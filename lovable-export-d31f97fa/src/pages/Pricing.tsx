@@ -145,6 +145,8 @@ export default function Pricing() {
       db_id: p.id,
       name: p.name,
       price: `€${(p.price_cents / 100).toFixed(2)}`,
+      desc: p.tagline || meta.desc,
+      features: p.features || []
     };
   });
 

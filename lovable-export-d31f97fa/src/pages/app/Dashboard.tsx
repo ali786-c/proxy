@@ -125,6 +125,19 @@ export default function AppDashboard() {
   const { t } = useI18n();
   const { data: usage } = useUsage("24h");
   const { data: stats } = useStats();
+  const { data: backendProducts } = useProducts();
+
+  const products = (backendProducts || []).map((p: any) => {
+    const meta = PRODUCTS.find(m => m.id === p.type) || PRODUCTS[0];
+    return {
+      ...meta,
+      db_id: p.id,
+      name: p.name,
+      price: p.price_cents / 100,
+      subtitle: p.tagline || meta.subtitle,
+      features: p.features && p.features.length > 0 ? p.features : meta.features,
+    };
+  });
 
   const balance = user?.balance ?? 0;
   const usedGb = usage?.total_bandwidth_mb ? (usage.total_bandwidth_mb / 1024).toFixed(2) : "0.00";
