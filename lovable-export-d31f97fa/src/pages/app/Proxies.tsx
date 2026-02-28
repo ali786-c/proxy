@@ -32,15 +32,17 @@ import { formatProxyLine } from "@/lib/utils";
 const TYPE_MAP: Record<string, string> = {
   rp: "residential",
   mp: "mobile",
-  isp: "isp",
   dc: "datacenter",
+  dc_ipv6: "datacenter_ipv6",
+  dc_unmetered: "datacenter_unmetered",
 };
 
 const SLUG_MAP: Record<string, string> = {
-  rp: "core-residential",
+  rp: "residential",
   mp: "mobile",
-  isp: "static-residential",
   dc: "datacenter",
+  dc_ipv6: "datacenter-ipv6",
+  dc_unmetered: "datacenter-unmetered",
 };
 
 
@@ -328,7 +330,7 @@ export default function Proxies() {
                       <Download className="mr-1.5 h-3.5 w-3.5" /> Download .json
                     </Button>
                     <Button variant="secondary" size="sm" asChild className="ml-auto">
-                      <Link to={`/app/proxies/${SLUG_MAP[productType] || "core-residential"}`}>
+                      <Link to={`/app/proxies/${SLUG_MAP[productType] || "residential"}`}>
                         View in {SLUG_MAP[productType]?.split("-").map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(" ") || "Residential"} Tab
                       </Link>
                     </Button>

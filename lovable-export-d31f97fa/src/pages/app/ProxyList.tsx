@@ -12,19 +12,19 @@ import { toast } from "@/hooks/use-toast";
 import { formatProxyLine } from "@/lib/utils";
 
 const TYPE_LABELS: Record<string, string> = {
-    "core-residential": "Core Residential",
-    "static-residential": "Static Residential",
-    "premium-residential": "Premium Residential",
+    "residential": "Residential Proxies",
     "datacenter": "Datacenter Proxies",
     "mobile": "Mobile Proxies",
+    "datacenter-ipv6": "Datacenter IPv6",
+    "datacenter-unmetered": "Datacenter Unmetered",
 };
 
 const DB_TYPE_MAP: Record<string, string> = {
-    "core-residential": "rp",
+    "residential": "rp",
     "mobile": "mp",
-    "static-residential": "isp",
     "datacenter": "dc",
-    "premium-residential": "rp",
+    "datacenter-ipv6": "dc_ipv6",
+    "datacenter-unmetered": "dc_unmetered",
 };
 
 export default function ProxyList() {
