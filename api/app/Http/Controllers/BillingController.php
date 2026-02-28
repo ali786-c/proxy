@@ -512,14 +512,6 @@ class BillingController extends Controller
                 ]);
             }
 
-            // Mark formal invoice
-            \App\Models\Invoice::create([
-                'user_id' => $user->id,
-                'amount' => $amount,
-                'currency' => $data['currency'] ?? 'EUR',
-                'status' => 'paid',
-                'description' => 'Cryptomus Crypto Payment',
-            ]);
 
             WebhookLog::create([
                 'provider' => 'cryptomus',
@@ -890,16 +882,6 @@ class BillingController extends Controller
                         'description' => 'Stripe Wallet Top-up' . ($couponCode && !empty($couponCode) ? " (Used promo: {$couponCode})" : ""),
                     ]);
 
-                    // CREATE FORMAL INVOICE RECORD
-                    \App\Models\Invoice::create([
-                        'user_id'           => $user->id,
-                        'stripe_invoice_id' => $session->invoice ?? null, // Link if exists
-                        'amount'            => $paidGross,
-                        'currency'          => $currency,
-                        'status'            => 'paid',
-                        'description'       => "Wallet Top-up: Add {$currency} {$creditAmount} to balance" . ($couponCode ? " (Ref: {$couponCode})" : ""),
-                    ]);
-                    Log::info("Created Invoice record for User #{$userId}, Session: {$session->id}");
                 } else {
                     Log::warning("Zero amount top-up for User #{$userId}. Amount: {$amount}, Original: {$originalAmount}");
                 }
