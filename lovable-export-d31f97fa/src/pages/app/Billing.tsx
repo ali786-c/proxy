@@ -289,7 +289,7 @@ export default function Billing() {
             <CardTitle className="flex items-center gap-2 text-lg">
               <Euro className="h-5 w-5" /> {t("billing.topUp")}
             </CardTitle>
-            <CardDescription>{t("billing.minPurchaseTitle")}: {format(MIN_PURCHASE_EUR)}. 22% VAT applies to card &amp; PayPal payments. Crypto is VAT-free.</CardDescription>
+            <CardDescription>{t("billing.minPurchaseTitle")}: {displaySymbol}{minPurchaseDisplay.toFixed(2)}. 22% VAT applies to card &amp; PayPal payments. Crypto is VAT-free.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             {/* Amount input */}
@@ -303,28 +303,12 @@ export default function Billing() {
                   min={minPurchaseDisplay}
                   step="0.01"
                   placeholder={`Min ${displaySymbol}${minPurchaseDisplay.toFixed(2)}`}
+                  className={belowMinimum && numAmount > 0 ? "border-destructive ring-destructive" : ""}
                 />
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {[10, 25, 50, 100].map((eurPreset) => {
-                    // Convert EUR preset to user's display currency
-                    const displayVal = eurToDisplay(eurPreset);
-                    const displayStr = displayVal.toFixed(2);
-                    return (
-                      <Button
-                        key={eurPreset}
-                        variant="outline"
-                        size="sm"
-                        className={`text-xs h-7 px-3 ${parseFloat(amount) === displayVal ? "border-primary bg-primary/5 text-primary" : ""}`}
-                        onClick={() => setAmount(displayStr)}
-                      >
-                        {displaySymbol}{displayStr}
-                      </Button>
-                    );
-                  })}
-                </div>
                 {belowMinimum && numAmount > 0 && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> Minimum purchase is {format(MIN_PURCHASE_EUR)}
+                  <p className="text-sm text-destructive font-medium flex items-center gap-1.5 mt-1.5 p-2 bg-destructive/10 rounded-md">
+                    <AlertCircle className="h-4 w-4" />
+                    Minimum purchase amount is {displaySymbol}{minPurchaseDisplay.toFixed(2)}
                   </p>
                 )}
               </div>
