@@ -104,20 +104,46 @@ class BillingController extends Controller
     public function createCheckout(Request $request)
     {
         $request->validate([
-            'amount' => 'required|numeric|min:5', // Min $5 top-up
-            'coupon_code' => 'nullable|string',
+            'amount'        => 'required|numeric|min:1',
+            'coupon_code'   => 'nullable|string',
+            'currency_code' => 'nullable|string|max:10',
         ]);
 
-        $amount = (float) $request->amount;
-        $originalAmount = $amount;
-        $couponCode = $request->coupon_code;
-        $discount = 0;
+        $inputAmount     = (float) $request->amount;
+        $inputCurrency   = strtoupper($request->currency_code ?? 'EUR');
+        $couponCode      = $request->coupon_code;
 
+        // ── Currency Conversion to EUR ────────────────────────────────────────
+        // Stripe account is EUR-based, so we always charge in EUR.
+        // Exchange rates in DB are relative to USD (i.e., EUR rate = units of currency per 1 USD).
+        // To convert: amountInEUR = inputAmount / inputCurrencyRate * eurRate
+        // where eurRate = EUR per USD (e.g., 0.92 means 1 USD = 0.92 EUR)
+        $amountInEur = $inputAmount;
+        if ($inputCurrency !== 'EUR') {
+            $inputCurrencyModel = \App\Models\SupportedCurrency::where('code', $inputCurrency)->first();
+            $eurModel           = \App\Models\SupportedCurrency::where('code', 'EUR')->first();
+
+            if ($inputCurrencyModel && $eurModel) {
+                // rates are stored as: 1 USD = X units of currency
+                // So inputAmount / inputCurrencyRate = USD amount
+                // USD amount * eurRate = EUR amount
+                $usdAmount    = $inputAmount / $inputCurrencyModel->exchange_rate;
+                $amountInEur  = $usdAmount * $eurModel->exchange_rate;
+            }
+            // If currency not found in DB, fall back to treating amount as EUR
+        }
+
+        // Round to 2 decimal places
+        $amountInEur    = round($amountInEur, 2);
+        $originalAmount = $amountInEur;
+        $discount       = 0;
+
+        // ── Apply Coupon (on EUR amount) ──────────────────────────────────────
         if ($couponCode) {
             $coupon = Coupon::where('code', $couponCode)->first();
-            if ($coupon && $coupon->isValid($amount)) {
-                $discount = $coupon->calculateDiscount($amount);
-                $amount = max(0, $amount - $discount);
+            if ($coupon && $coupon->isValid($amountInEur)) {
+                $discount    = $coupon->calculateDiscount($amountInEur);
+                $amountInEur = max(0, $amountInEur - $discount);
             }
         }
 
@@ -130,27 +156,33 @@ class BillingController extends Controller
         try {
             Stripe::setApiKey($stripeSecret);
 
+            // Stripe amount is always in EUR, with 22% VAT added
+            $stripeAmount = round($amountInEur * 100 * 1.22); // cents
+
             $sessionData = [
                 'payment_method_types' => ['card'],
                 'line_items' => [[
                     'price_data' => [
-                        'currency' => 'eur',
+                        'currency'     => 'eur',
                         'product_data' => [
-                            'name' => 'Balance Top-up' . ($couponCode ? " (Promo: {$couponCode})" : ""),
-                            'description' => 'Add funds to your UpgradedProxy wallet',
+                            'name'        => 'Balance Top-up' . ($couponCode ? " (Promo: {$couponCode})" : ""),
+                            'description' => "Add funds to your UpgradedProxy wallet (charged in EUR)" .
+                                             ($inputCurrency !== 'EUR' ? " — converted from {$inputCurrency} {$inputAmount}" : ""),
                         ],
-                        'unit_amount' => round($amount * 100 * 1.22), // Add 22% VAT
+                        'unit_amount' => $stripeAmount,
                     ],
                     'quantity' => 1,
                 ]],
-                'mode' => 'payment',
+                'mode'        => 'payment',
                 'success_url' => url('/') . '/app/billing?success=true&session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => url('/') . '/app/billing?canceled=true',
-                'metadata' => [
-                    'user_id' => $request->user()->id,
-                    'amount' => $amount,
-                    'original_amount' => $originalAmount,
-                    'coupon_code' => $couponCode,
+                'cancel_url'  => url('/') . '/app/billing?canceled=true',
+                'metadata'    => [
+                    'user_id'         => $request->user()->id,
+                    'amount'          => $amountInEur,          // EUR net amount (after coupon) for wallet credit
+                    'original_amount' => $originalAmount,       // EUR pre-coupon
+                    'coupon_code'     => $couponCode,
+                    'input_currency'  => $inputCurrency,
+                    'input_amount'    => $inputAmount,
                 ],
             ];
 

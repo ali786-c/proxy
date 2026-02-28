@@ -238,8 +238,9 @@ export default function Billing() {
     } else if (selectedMethod === "stripe") {
       setIsSubmitting(true);
       try {
-        // Send raw numAmount + coupon code — backend applies discount and VAT
-        const { url } = await clientApi.createCheckout(numAmount, appliedCoupon?.code);
+        // Send raw numAmount + coupon code + currency code
+        // Backend converts to EUR (Stripe base currency) using stored exchange rates
+        const { url } = await clientApi.createCheckout(numAmount, appliedCoupon?.code, currency.code);
         window.location.href = url;
       } catch (err: any) {
         toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
