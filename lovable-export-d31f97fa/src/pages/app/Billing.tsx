@@ -151,7 +151,15 @@ export default function Billing() {
   const isCrypto = selectedMethod === "cryptomus" || selectedMethod === "manual";
   const vatAmount = isCrypto ? 0 : netAmount * VAT_RATE;
   const totalAmount = netAmount + vatAmount;
-  const belowMinimum = numAmount < MIN_PURCHASE_EUR;
+
+  // Convert a EUR amount to the user's display currency
+  // exchange_rate is now EUR-based: 1 EUR = exchange_rate units of currency
+  const eurToDisplay = (eurAmt: number) => currency.exchange_rate * eurAmt;
+  const displaySymbol = currency.symbol;
+
+  // Minimum purchase in user's display currency
+  const minPurchaseDisplay = eurToDisplay(MIN_PURCHASE_EUR);
+  const belowMinimum = numAmount < minPurchaseDisplay;
 
   const handleApplyCoupon = async () => {
     if (!coupon.trim()) return;
@@ -217,7 +225,7 @@ export default function Billing() {
 
   const handleCheckout = async () => {
     if (belowMinimum) {
-      toast({ title: "Minimum not met", description: `Minimum purchase is ${format(MIN_PURCHASE_EUR)}.`, variant: "destructive" });
+      toast({ title: "Minimum not met", description: `Minimum purchase is ${displaySymbol}${minPurchaseDisplay.toFixed(2)}.`, variant: "destructive" });
       return;
     }
     if (!selectedMethod) {
@@ -238,9 +246,9 @@ export default function Billing() {
     } else if (selectedMethod === "stripe") {
       setIsSubmitting(true);
       try {
-        // totalAmount = what user sees as final total (includes VAT)
-        // netAmount = pre-VAT subtotal (what gets credited to wallet)
-        // currency.code = user's display currency (backend will convert to EUR)
+        // totalAmount and netAmount are in user's display currency
+        // currency.code tells backend which currency to convert from
+        // Backend divides by exchange_rate to get EUR for Stripe
         const { url } = await clientApi.createCheckout(totalAmount, netAmount, currency.code);
         window.location.href = url;
       } catch (err: any) {
@@ -292,22 +300,27 @@ export default function Billing() {
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  min={MIN_PURCHASE_EUR}
-                  step="1"
-                  placeholder={`Min ${format(MIN_PURCHASE_EUR)}`}
+                  min={minPurchaseDisplay}
+                  step="0.01"
+                  placeholder={`Min ${displaySymbol}${minPurchaseDisplay.toFixed(2)}`}
                 />
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {["10", "25", "50", "100"].map((preset) => (
-                    <Button
-                      key={preset}
-                      variant="outline"
-                      size="sm"
-                      className={`text-xs h-7 px-3 ${amount === preset ? "border-primary bg-primary/5 text-primary" : ""}`}
-                      onClick={() => setAmount(preset)}
-                    >
-                      {format(Number(preset))}
-                    </Button>
-                  ))}
+                  {[10, 25, 50, 100].map((eurPreset) => {
+                    // Convert EUR preset to user's display currency
+                    const displayVal = eurToDisplay(eurPreset);
+                    const displayStr = displayVal.toFixed(2);
+                    return (
+                      <Button
+                        key={eurPreset}
+                        variant="outline"
+                        size="sm"
+                        className={`text-xs h-7 px-3 ${parseFloat(amount) === displayVal ? "border-primary bg-primary/5 text-primary" : ""}`}
+                        onClick={() => setAmount(displayStr)}
+                      >
+                        {displaySymbol}{displayStr}
+                      </Button>
+                    );
+                  })}
                 </div>
                 {belowMinimum && numAmount > 0 && (
                   <p className="text-xs text-destructive flex items-center gap-1">
@@ -380,12 +393,12 @@ export default function Billing() {
                 <h4 className="text-sm font-semibold">{t("billing.orderSummary")}</h4>
                 <div className="flex justify-between text-sm">
                   <span>{t("billing.subtotal")}</span>
-                  <span>{format(numAmount)}</span>
+                  <span>{displaySymbol}{netAmount.toFixed(2)}</span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-sm text-green-600 font-medium font-mono">
                     <span>Discount ({appliedCoupon?.code})</span>
-                    <span>-{format(discountAmount)}</span>
+                    <span>-{displaySymbol}{discountAmount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
@@ -394,17 +407,17 @@ export default function Billing() {
                     {isCrypto && <Info className="h-3 w-3 text-muted-foreground" />}
                   </span>
                   <span className={isCrypto ? "line-through text-muted-foreground" : ""}>
-                    {isCrypto ? `${format(0)} — exempt` : `${format(vatAmount)}`}
+                    {isCrypto ? `${displaySymbol}0.00 — exempt` : `${displaySymbol}${vatAmount.toFixed(2)}`}
                   </span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-sm font-bold">
                   <span>{t("common.total")}</span>
-                  <span>{format(totalAmount)}</span>
+                  <span>{displaySymbol}{totalAmount.toFixed(2)}</span>
                 </div>
                 <Button className="w-full mt-2" onClick={handleCheckout} disabled={belowMinimum || isSubmitting}>
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {t("common.pay")} {format(totalAmount)}
+                  {t("common.pay")} {displaySymbol}{totalAmount.toFixed(2)}
                 </Button>
               </div>
             )}
