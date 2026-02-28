@@ -31,6 +31,8 @@ class User extends Authenticatable
         'stripe_customer_id',
         'default_payment_method',
         'auto_topup_settings',
+        'signup_ip',
+        'custom_referral_rate',
     ];
 
     /**

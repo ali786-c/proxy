@@ -266,6 +266,15 @@ export function useAllowlist() {
   return { ...query, addEntry, removeEntry };
 }
 
+export function useReferrals() {
+  return useQuery({
+    queryKey: ["referrals"],
+    queryFn: async () => {
+      return clientApi.getReferralStats();
+    },
+  });
+}
+
 // ── Payment Actions ──────────────────────────
 
 export function useStripeCheckout() {

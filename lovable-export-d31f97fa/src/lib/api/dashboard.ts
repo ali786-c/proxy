@@ -225,6 +225,9 @@ export const clientApi = {
   updateTopUpSettings: (settings: { enabled: boolean; threshold: number; amount: number; max_monthly: number }) =>
     api.post("/me/topup-settings", MessageSchema, settings),
 
+  // Referral
+  getReferralStats: () => api.get("/referrals", z.any()),
+
   // Auth Extras
   forgotPassword: (email: string) =>
     api.post("/auth/password/email", MessageSchema, { email }),

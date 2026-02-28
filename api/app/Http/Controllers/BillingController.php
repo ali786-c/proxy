@@ -18,6 +18,7 @@ use Stripe\Account;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use App\Helpers\CryptomusHelper;
+use App\Services\ReferralService;
 
 class BillingController extends Controller
 {
@@ -357,7 +358,8 @@ class BillingController extends Controller
             return;
         }
 
-        DB::transaction(function () use ($userId, $amount, $uuid, $type, $metadata, $data) {
+        $referralService = app(ReferralService::class);
+        DB::transaction(function () use ($userId, $amount, $uuid, $type, $metadata, $data, $referralService) {
             $user = User::lockForUpdate()->find($userId);
             if (!$user) return;
 
@@ -412,6 +414,7 @@ class BillingController extends Controller
 
                 if (!$fulfilled) {
                     $user->increment('balance', $amount);
+                    $referralService->awardCommission($user, $amount, "Commission from Buy Fallback (Cryptomus)");
                     WalletTransaction::create([
                         'user_id' => $user->id,
                         'type' => 'credit',
@@ -617,6 +620,7 @@ class BillingController extends Controller
 
     protected function fulfillPayment($session, $eventId)
     {
+        $referralService = app(ReferralService::class);
         $userId = $session->metadata->user_id;
         $type   = $session->metadata->type ?? 'topup';
         $amount = (float) $session->metadata->amount; // This is the net amount paid
@@ -720,6 +724,7 @@ class BillingController extends Controller
                 if (!$fulfilled) {
                     // FALLBACK: Credit user wallet if direct fulfillment failed
                     $user->increment('balance', $amount);
+                    $referralService->awardCommission($user, $amount, "Commission from Buy Fallback (Stripe)");
                     WalletTransaction::create([
                         'user_id' => $user->id,
                         'type' => 'credit',
@@ -741,6 +746,7 @@ class BillingController extends Controller
                 // Regular Top-up
                 $creditAmount = $couponCode ? $originalAmount : $amount;
                 $user->increment('balance', $creditAmount);
+                $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Stripe)");
 
                 WalletTransaction::create([
                     'user_id' => $user->id,
@@ -1105,6 +1111,10 @@ class BillingController extends Controller
 
             if ($pi->status === 'succeeded') {
                 $user->increment('balance', $amount);
+                
+                $referralService = app(ReferralService::class);
+                $referralService->awardCommission($user, $amount, "Commission from Auto Top-up (Stripe)");
+
                 WalletTransaction::create([
                     'user_id' => $user->id,
                     'amount' => $amount,
