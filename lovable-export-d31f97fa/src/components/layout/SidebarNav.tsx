@@ -252,11 +252,11 @@ export function SidebarNav() {
       defaultOpen: true,
       items: [
         { title: "Generate Proxies", url: "/app/proxies/generate", icon: Package, badge: "Action" },
-        { title: "Core Residential", url: "/app/proxies/core-residential", icon: Globe, badge: "New" },
-        { title: "Static Residential", url: "/app/proxies/static-residential", icon: Layers, badge: "New" },
-        { title: "Premium Residential", url: "/app/proxies/premium-residential", icon: Wifi },
-        { title: t("nav.products.datacenter"), url: "/app/proxies/datacenter", icon: Server },
-        { title: t("nav.products.mobile"), url: "/app/proxies/mobile", icon: Smartphone },
+        { title: "Residential", url: "/app/proxies/residential", icon: Globe },
+        { title: t("nav.products.datacenter") || "Datacenter", url: "/app/proxies/datacenter", icon: Server },
+        { title: t("nav.products.mobile") || "Mobile", url: "/app/proxies/mobile", icon: Smartphone },
+        { title: "Datacenter IPv6", url: "/app/proxies/datacenter-ipv6", icon: Server },
+        { title: "Datacenter (Unmetered)", url: "/app/proxies/datacenter-unmetered", icon: Server },
       ],
     },
     {
