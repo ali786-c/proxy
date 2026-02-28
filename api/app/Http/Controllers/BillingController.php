@@ -43,48 +43,64 @@ class BillingController extends Controller
             }
         }
 
-        $amountWithVAT = $totalAmount * 1.22; // Including 22% VAT for Stripe
-
-        Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
-        Stripe::setApiVersion('2024-04-10');
-
-        $sessionData = [
-            'automatic_payment_methods' => ['enabled' => true],
-            'invoice_creation' => ['enabled' => true],
-            'line_items' => [[
-                'price_data' => [
-                    'currency' => 'usd',
-                    'product_data' => [
-                        'name' => "{$request->quantity}x {$product->name}",
-                        'description' => "Direct purchase of {$request->quantity}x {$product->name} proxies",
-                    ],
-                    'unit_amount' => round($totalAmount * 100),
-                ],
-                'quantity' => 1,
-            ]],
-            'mode' => 'payment',
-            'success_url' => url('/') . '/app/billing?success=true&direct=true',
-            'cancel_url' => url('/') . '/app/billing?canceled=true',
-            'metadata' => [
-                'user_id' => $request->user()->id,
-                'type' => 'direct_purchase',
-                'product_id' => $product->id,
-                'quantity' => $request->quantity,
-                'country' => $request->country ?? 'US',
-                'session_type' => $request->session_type ?? 'rotating',
-                'amount' => $totalAmount,
-                'original_amount' => $originalAmount,
-                'coupon_code' => $couponCode,
-            ],
-        ];
-
-        if ($request->user()->stripe_customer_id) {
-            $sessionData['customer'] = $request->user()->stripe_customer_id;
+        $stripeSecret = Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret');
+        if (!$stripeSecret) {
+            Log::error('Stripe product checkout failed: No Stripe secret key configured.');
+            return response()->json(['message' => 'Payment gateway is not configured. Please contact support.'], 503);
         }
 
-        $session = Session::create($sessionData, ["stripe_version" => "2024-04-10"]);
+        try {
+            Stripe::setApiKey($stripeSecret);
+            Stripe::setApiVersion('2024-04-10');
 
-        return response()->json(['url' => $session->url]);
+            $sessionData = [
+                'automatic_payment_methods' => ['enabled' => true],
+                'invoice_creation' => ['enabled' => true],
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => 'usd',
+                        'product_data' => [
+                            'name' => "{$request->quantity}x {$product->name}",
+                            'description' => "Direct purchase of {$request->quantity}x {$product->name} proxies",
+                        ],
+                        'unit_amount' => round($totalAmount * 100),
+                    ],
+                    'quantity' => 1,
+                ]],
+                'mode' => 'payment',
+                'success_url' => url('/') . '/app/billing?success=true&direct=true',
+                'cancel_url' => url('/') . '/app/billing?canceled=true',
+                'metadata' => [
+                    'user_id' => $request->user()->id,
+                    'type' => 'direct_purchase',
+                    'product_id' => $product->id,
+                    'quantity' => $request->quantity,
+                    'country' => $request->country ?? 'US',
+                    'session_type' => $request->session_type ?? 'rotating',
+                    'amount' => $totalAmount,
+                    'original_amount' => $originalAmount,
+                    'coupon_code' => $couponCode,
+                ],
+            ];
+
+            if ($request->user()->stripe_customer_id) {
+                $sessionData['customer'] = $request->user()->stripe_customer_id;
+            }
+
+            $session = Session::create($sessionData, ["stripe_version" => "2024-04-10"]);
+
+            return response()->json(['url' => $session->url]);
+
+        } catch (\Stripe\Exception\AuthenticationException $e) {
+            Log::error('Stripe Auth Error (Product): ' . $e->getMessage());
+            return response()->json(['message' => 'Payment gateway authentication failed. Please contact support.'], 503);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            Log::error('Stripe API Error (Product): ' . $e->getMessage());
+            return response()->json(['message' => 'Payment error: ' . $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Product Checkout Error: ' . $e->getMessage());
+            return response()->json(['message' => 'Server error during checkout. Please try again.'], 500);
+        }
     }
 
     public function createCheckout(Request $request)
@@ -107,45 +123,63 @@ class BillingController extends Controller
             }
         }
 
-        Stripe::setApiKey(Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret'));
-        Stripe::setApiVersion('2024-04-10');
-
-        $sessionData = [
-            'automatic_payment_methods' => [
-                'enabled' => true,
-            ],
-            'invoice_creation' => [
-                'enabled' => true,
-            ],
-            'line_items' => [[
-                'price_data' => [
-                    'currency' => 'usd',
-                    'product_data' => [
-                        'name' => 'Balance Top-up' . ($couponCode ? " (Promo: {$couponCode})" : ""),
-                        'description' => 'Add funds to your UpgradedProxy wallet',
-                    ],
-                    'unit_amount' => round($amount * 100 * 1.22), // Add VAT for Stripe
-                ],
-                'quantity' => 1,
-            ]],
-            'mode' => 'payment',
-            'success_url' => url('/') . '/app/billing?success=true',
-            'cancel_url' => url('/') . '/app/billing?canceled=true',
-            'metadata' => [
-                'user_id' => $request->user()->id,
-                'amount' => $amount,
-                'original_amount' => $originalAmount,
-                'coupon_code' => $couponCode,
-            ],
-        ];
-
-        if ($request->user()->stripe_customer_id) {
-            $sessionData['customer'] = $request->user()->stripe_customer_id;
+        $stripeSecret = Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret');
+        if (!$stripeSecret) {
+            Log::error('Stripe checkout failed: No Stripe secret key configured.');
+            return response()->json(['message' => 'Payment gateway is not configured. Please contact support.'], 503);
         }
 
-        $session = Session::create($sessionData, ["stripe_version" => "2024-04-10"]);
+        try {
+            Stripe::setApiKey($stripeSecret);
+            Stripe::setApiVersion('2024-04-10');
 
-        return response()->json(['url' => $session->url]);
+            $sessionData = [
+                'automatic_payment_methods' => [
+                    'enabled' => true,
+                ],
+                'invoice_creation' => [
+                    'enabled' => true,
+                ],
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => 'usd',
+                        'product_data' => [
+                            'name' => 'Balance Top-up' . ($couponCode ? " (Promo: {$couponCode})" : ""),
+                            'description' => 'Add funds to your UpgradedProxy wallet',
+                        ],
+                        'unit_amount' => round($amount * 100 * 1.22), // Add VAT for Stripe
+                    ],
+                    'quantity' => 1,
+                ]],
+                'mode' => 'payment',
+                'success_url' => url('/') . '/app/billing?success=true',
+                'cancel_url' => url('/') . '/app/billing?canceled=true',
+                'metadata' => [
+                    'user_id' => $request->user()->id,
+                    'amount' => $amount,
+                    'original_amount' => $originalAmount,
+                    'coupon_code' => $couponCode,
+                ],
+            ];
+
+            if ($request->user()->stripe_customer_id) {
+                $sessionData['customer'] = $request->user()->stripe_customer_id;
+            }
+
+            $session = Session::create($sessionData, ["stripe_version" => "2024-04-10"]);
+
+            return response()->json(['url' => $session->url]);
+
+        } catch (\Stripe\Exception\AuthenticationException $e) {
+            Log::error('Stripe Auth Error: ' . $e->getMessage());
+            return response()->json(['message' => 'Payment gateway authentication failed. Please contact support.'], 503);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            Log::error('Stripe API Error: ' . $e->getMessage());
+            return response()->json(['message' => 'Payment error: ' . $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Checkout Error: ' . $e->getMessage());
+            return response()->json(['message' => 'Server error during checkout. Please try again.'], 500);
+        }
     }
 
     public function createCryptomusCheckout(Request $request)
