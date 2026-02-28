@@ -10,7 +10,8 @@ import { ErrorBanner } from "@/components/shared/ErrorBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck, Smartphone } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const loginSchema = z.object({
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
@@ -24,6 +25,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   const {
     register,
@@ -131,43 +133,76 @@ export default function Login() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm px-4">
             <div className="w-full max-w-sm space-y-6 rounded-lg border bg-card p-8 shadow-lg">
               <div className="space-y-2 text-center">
-                <h2 className="text-2xl font-bold">Two-Factor Authentication</h2>
+                <h2 className="text-2xl font-bold">Secure Login</h2>
                 <p className="text-sm text-muted-foreground text-pretty">
-                  Enter the 6-digit code from your authenticator app to complete the login process.
+                  {isRecoveryMode
+                    ? "Enter one of your 13-character recovery codes."
+                    : "Enter the 6-digit verification code from your authenticator app."}
                 </p>
               </div>
 
-              <div className="flex justify-center">
-                <div className="space-y-4 w-full">
-                  <div className="flex justify-center">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
+              <div className="flex flex-col items-center space-y-6">
+                <div className="w-full flex justify-center">
+                  {!isRecoveryMode ? (
+                    <InputOTP
                       maxLength={6}
                       value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))}
-                      className="w-full h-12 text-center text-2xl font-bold tracking-[0.5em] rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      onChange={setOtpCode}
+                      autoFocus
+                    >
+                      <InputOTPGroup className="gap-2">
+                        <InputOTPSlot index={0} className="w-10 h-14 text-xl border-2" />
+                        <InputOTPSlot index={1} className="w-10 h-14 text-xl border-2" />
+                        <InputOTPSlot index={2} className="w-10 h-14 text-xl border-2" />
+                        <InputOTPSlot index={3} className="w-10 h-14 text-xl border-2" />
+                        <InputOTPSlot index={4} className="w-10 h-14 text-xl border-2" />
+                        <InputOTPSlot index={5} className="w-10 h-14 text-xl border-2" />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  ) : (
+                    <Input
+                      placeholder="000000-000000"
+                      className="text-center text-lg font-mono tracking-widest h-14 uppercase"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
                       autoFocus
                     />
-                  </div>
+                  )}
+                </div>
 
+                <div className="w-full space-y-3">
                   <Button
-                    className="w-full"
+                    className="w-full py-6 text-base font-semibold shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
                     onClick={handleVerify2fa}
-                    disabled={submitting || otpCode.length !== 6}
+                    disabled={submitting || (isRecoveryMode ? otpCode.length < 10 : otpCode.length !== 6)}
                   >
-                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {submitting ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="mr-2 h-5 w-5" />
+                    )}
                     Verify & Sign In
                   </Button>
 
-                  <Button
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => window.location.reload()}
-                  >
-                    Cancel
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="link"
+                      className="text-xs text-primary/80"
+                      onClick={() => {
+                        setIsRecoveryMode(!isRecoveryMode);
+                        setOtpCode("");
+                      }}
+                    >
+                      {isRecoveryMode ? "Use authenticator app instead" : "Lost access? Use a recovery code"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full text-xs text-muted-foreground"
+                      onClick={() => window.location.reload()}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

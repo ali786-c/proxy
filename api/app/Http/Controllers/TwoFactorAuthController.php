@@ -39,11 +39,14 @@ class TwoFactorAuthController extends Controller
 
         // Generate SVG QR Code using BaconQrCode
         $renderer = new ImageRenderer(
-            new RendererStyle(200),
+            new RendererStyle(200, 1), // Margin of 1
             new SvgImageBackEnd()
         );
         $writer = new Writer($renderer);
         $qrCodeSvg = $writer->writeString($qrCodeUrl);
+
+        // Strip XML declaration if present to ensure clean rendering in HTML
+        $qrCodeSvg = trim(preg_replace('/^<\?xml[^>]*\?>/i', '', $qrCodeSvg));
 
         return response()->json([
             'secret' => $user->two_factor_secret,

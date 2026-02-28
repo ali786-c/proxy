@@ -124,7 +124,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'challenge_token' => 'required|string',
-            'code'           => 'required|string|size:6',
+            'code'           => 'required|string|min:6|max:15',
         ]);
 
         $userId = Cache::get("2fa_challenge_{$request->challenge_token}");
@@ -135,7 +135,22 @@ class AuthController extends Controller
 
         $user = User::findOrFail($userId);
 
-        if (!app(\PragmaRX\Google2FALaravel\Google2FA::class)->verifyKey($user->two_factor_secret, $request->code)) {
+        $isRecoveryCode = str_contains($request->code, '-');
+        $valid = false;
+
+        if ($isRecoveryCode) {
+            $codes = $user->two_factor_recovery_codes ?? [];
+            if (in_array($request->code, $codes)) {
+                $valid = true;
+                // Consume the code
+                $user->two_factor_recovery_codes = array_values(array_diff($codes, [$request->code]));
+                $user->save();
+            }
+        } else {
+            $valid = app(\PragmaRX\Google2FALaravel\Google2FA::class)->verifyKey($user->two_factor_secret, $request->code);
+        }
+
+        if (!$valid) {
             return response()->json(['message' => 'Invalid verification code.'], 422);
         }
 
