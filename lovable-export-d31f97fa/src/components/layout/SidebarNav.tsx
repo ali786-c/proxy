@@ -135,6 +135,7 @@ const ADMIN_SECTIONS: NavSection[] = [
       { title: "Users", url: "/admin/users", icon: Users },
       { title: "Products", url: "/admin/products", icon: Package },
       { title: "Invoices", url: "/admin/invoices", icon: Receipt },
+      { title: "Referrals", url: "/admin/referrals", icon: Gift },
     ],
   },
   {
