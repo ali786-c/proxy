@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/dashboard";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { twoFactorApi } from "@/lib/api/dashboard";
 
 // ── Client Hooks ──────────────────────────────
 
@@ -585,5 +586,46 @@ export function useUpdateInfluencerRate() {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "referrals", "stats"] });
     },
+  });
+}
+
+// ── 2FA Hooks ────────────────────────────────
+
+export function use2FASetup() {
+  return useQuery({
+    queryKey: ["auth", "2fa", "setup"],
+    queryFn: () => twoFactorApi.setup(),
+    staleTime: 0,
+    retry: false,
+  });
+}
+
+export function use2FAConfirm() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => twoFactorApi.confirm(code),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["profile-info"] });
+    },
+  });
+}
+
+export function use2FADisable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { password: string; code?: string }) => twoFactorApi.disable(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["profile-info"] });
+    },
+  });
+}
+
+export function use2FARecoveryCodes(enabled: boolean = false) {
+  return useQuery({
+    queryKey: ["auth", "2fa", "recovery-codes"],
+    queryFn: () => twoFactorApi.getRecoveryCodes(),
+    enabled: enabled,
   });
 }

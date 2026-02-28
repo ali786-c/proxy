@@ -234,3 +234,19 @@ export const clientApi = {
   resetPassword: (data: any) =>
     api.post("/auth/password/reset", MessageSchema, data),
 };
+
+export const twoFactorApi = {
+  setup: () => api.get("/2fa/setup", z.object({
+    secret: z.string(),
+    qr_code_svg: z.string()
+  })),
+  confirm: (code: string) => api.post("/2fa/confirm", z.object({
+    message: z.string(),
+    recovery_codes: z.array(z.string())
+  }), { code }),
+  disable: (data: { password: string; code?: string }) =>
+    api.post("/2fa/disable", MessageSchema, data),
+  getRecoveryCodes: () => api.get("/2fa/recovery-codes", z.object({
+    recovery_codes: z.array(z.string())
+  })),
+};

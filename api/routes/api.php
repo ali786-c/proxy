@@ -14,6 +14,7 @@ Route::prefix('auth')->group(function () {
     Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::get('/me',      [\App\Http\Controllers\AuthController::class, 'me']);
         Route::post('/logout', [\App\Http\Controllers\AuthController::class, 'logout']);
+        Route::post('/2fa/verify', [\App\Http\Controllers\AuthController::class, 'verify2fa'])->withoutMiddleware(['auth:sanctum']);
     });
 });
 
@@ -57,6 +58,14 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 
     // Referral Routes
     Route::get('/referrals', [\App\Http\Controllers\ReferralController::class, 'index']);
+
+    // 2FA Routes
+    Route::prefix('2fa')->group(function () {
+        Route::get('/setup',          [\App\Http\Controllers\TwoFactorAuthController::class, 'setup']);
+        Route::post('/confirm',       [\App\Http\Controllers\TwoFactorAuthController::class, 'confirm']);
+        Route::post('/disable',       [\App\Http\Controllers\TwoFactorAuthController::class, 'disable']);
+        Route::get('/recovery-codes', [\App\Http\Controllers\TwoFactorAuthController::class, 'getRecoveryCodes']);
+    });
 
     // API Key Routes
     Route::get('/api_keys',         [\App\Http\Controllers\ApiKeyController::class, 'index']);

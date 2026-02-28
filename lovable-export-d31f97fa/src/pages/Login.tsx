@@ -37,7 +37,29 @@ export default function Login() {
   const onSubmit = async (data: Required<LoginInput>) => {
     setSubmitting(true);
     try {
-      const user = await login(data);
+      const result = await login(data);
+      if (result && 'requires_2fa' in result && result.requires_2fa) {
+        // Stay on page, AuthContext will trigger 2FA UI
+        return;
+      }
+      const user = result as any;
+      const defaultNext = user.role === 'admin' ? "/admin" : "/app";
+      navigate(params.get("next") ?? defaultNext, { replace: true });
+    } catch {
+      // error is set in context
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const [otpCode, setOtpCode] = useState("");
+  const { verify2fa, is2FAPending } = useAuth();
+
+  const handleVerify2fa = async () => {
+    if (otpCode.length !== 6) return;
+    setSubmitting(true);
+    try {
+      const user = await verify2fa(otpCode);
       const defaultNext = user.role === 'admin' ? "/admin" : "/app";
       navigate(params.get("next") ?? defaultNext, { replace: true });
     } catch {
@@ -104,6 +126,53 @@ export default function Login() {
             <Link to="/signup" className="text-primary hover:underline">Sign up</Link>
           </p>
         </form>
+
+        {is2FAPending && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm px-4">
+            <div className="w-full max-w-sm space-y-6 rounded-lg border bg-card p-8 shadow-lg">
+              <div className="space-y-2 text-center">
+                <h2 className="text-2xl font-bold">Two-Factor Authentication</h2>
+                <p className="text-sm text-muted-foreground text-pretty">
+                  Enter the 6-digit code from your authenticator app to complete the login process.
+                </p>
+              </div>
+
+              <div className="flex justify-center">
+                <div className="space-y-4 w-full">
+                  <div className="flex justify-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))}
+                      className="w-full h-12 text-center text-2xl font-bold tracking-[0.5em] rounded-md border border-input bg-transparent px-3 py-1 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      autoFocus
+                    />
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    onClick={handleVerify2fa}
+                    disabled={submitting || otpCode.length !== 6}
+                  >
+                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Verify & Sign In
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => window.location.reload()}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

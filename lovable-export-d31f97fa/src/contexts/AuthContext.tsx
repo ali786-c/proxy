@@ -13,14 +13,18 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   error: string | null;
+  is2FAPending: boolean;
+  challengeToken: string | null;
 }
 
 interface AuthContextValue extends AuthState {
-  login: (data: LoginInput) => Promise<User>;
+  login: (data: LoginInput) => Promise<any>;
+  verify2fa: (code: string) => Promise<User>;
   signup: (data: SignupInput) => Promise<User>;
   logout: () => Promise<void>;
   clearError: () => void;
   isAuthenticated: boolean;
+  is2FAPending: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,20 +34,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: null,
     isLoading: true,
     error: null,
+    is2FAPending: false,
+    challengeToken: null,
   });
 
   const loadUser = useCallback(async () => {
     const token = tokenStorage.get();
     if (!token) {
-      setState({ user: null, isLoading: false, error: null });
+      setState({ user: null, isLoading: false, error: null, is2FAPending: false, challengeToken: null });
       return;
     }
     try {
       const user = await authApi.me();
-      setState({ user, isLoading: false, error: null });
+      setState({ user, isLoading: false, error: null, is2FAPending: false, challengeToken: null });
     } catch {
       tokenStorage.clear();
-      setState({ user: null, isLoading: false, error: null });
+      setState({ user: null, isLoading: false, error: null, is2FAPending: false, challengeToken: null });
     }
   }, []);
 
@@ -54,10 +60,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (data: LoginInput) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
-      const { user, token } = await authApi.login(data);
-      tokenStorage.set(token);
-      setState({ user, isLoading: false, error: null });
-      return user;
+      const response = await authApi.login(data);
+
+      if ('requires_2fa' in response && response.requires_2fa) {
+        setState((s) => ({
+          ...s,
+          isLoading: false,
+          is2FAPending: true,
+          challengeToken: response.challenge_token,
+        }));
+        return response;
+      }
+
+      if ('user' in response && 'token' in response) {
+        const { user, token } = response;
+        tokenStorage.set(token);
+        setState((s) => ({ ...s, user, isLoading: false, error: null, is2FAPending: false, challengeToken: null }));
+        return user;
+      }
+
+      throw new Error("Invalid response from server");
     } catch (err: any) {
       const message = err?.message ?? "Login failed. Check your credentials.";
       setState((s) => ({ ...s, isLoading: false, error: message }));
@@ -65,13 +87,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const verify2fa = useCallback(async (code: string) => {
+    if (!state.challengeToken) throw new Error("No active 2FA challenge");
+
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      const response = await authApi.verify2fa({
+        challenge_token: state.challengeToken,
+        code,
+      });
+
+      if ('requires_2fa' in response && response.requires_2fa) {
+        throw new Error("Unexpected 2FA state");
+      }
+
+      if ('user' in response && 'token' in response) {
+        const { user, token } = response;
+        tokenStorage.set(token);
+        setState((s) => ({
+          ...s,
+          user,
+          isLoading: false,
+          is2FAPending: false,
+          challengeToken: null,
+        }));
+        return user;
+      }
+
+      throw new Error("Invalid response from server");
+    } catch (err: any) {
+      const message = err?.message ?? "2FA verification failed.";
+      setState((s) => ({ ...s, isLoading: false, error: message }));
+      throw err;
+    }
+  }, [state.challengeToken]);
+
   const signup = useCallback(async (data: SignupInput) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
-      const { user, token } = await authApi.signup(data);
-      tokenStorage.set(token);
-      setState({ user, isLoading: false, error: null });
-      return user;
+      const response = await authApi.signup(data);
+      if ('requires_2fa' in response && response.requires_2fa) {
+        throw new Error("Registration should not redirect to 2FA challenge");
+      }
+
+      if ('user' in response && 'token' in response) {
+        const { user, token } = response;
+        tokenStorage.set(token);
+        setState({ user, isLoading: false, error: null, is2FAPending: false, challengeToken: null });
+        return user;
+      }
+
+      throw new Error("Invalid response from server");
     } catch (err: any) {
       const message = err?.message ?? "Registration failed.";
       setState((s) => ({ ...s, isLoading: false, error: message }));
@@ -84,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authApi.logout();
     } finally {
       tokenStorage.clear();
-      setState({ user: null, isLoading: false, error: null });
+      setState({ user: null, isLoading: false, error: null, is2FAPending: false, challengeToken: null });
     }
   }, []);
 
@@ -97,10 +163,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         ...state,
         login,
+        verify2fa,
         signup,
         logout,
         clearError,
         isAuthenticated: !!state.user,
+        is2FAPending: state.is2FAPending,
       }}
     >
       {children}

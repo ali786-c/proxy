@@ -8,15 +8,23 @@ export const UserSchema = z.object({
   role: z.enum(["client", "admin", "banned"]),
   balance: z.number().default(0),
   referral_code: z.string().nullable().optional(),
+  is_2fa_enabled: z.boolean().default(false),
 });
 
 export type User = z.infer<typeof UserSchema>;
 export type UserRole = User["role"];
 
-const AuthResponseSchema = z.object({
-  user: UserSchema,
-  token: z.string(),
-});
+const AuthResponseSchema = z.union([
+  z.object({
+    user: UserSchema,
+    token: z.string(),
+    requires_2fa: z.literal(false).optional(),
+  }),
+  z.object({
+    requires_2fa: z.literal(true),
+    challenge_token: z.string(),
+  })
+]);
 
 export const loginSchema = z.object({
   email: z
@@ -56,4 +64,6 @@ export const authApi = {
   login: (data: LoginInput) => api.post("/auth/login", AuthResponseSchema, data),
   signup: (data: SignupInput) => api.post("/auth/signup", AuthResponseSchema, data),
   logout: () => api.post("/auth/logout", MessageSchema),
+  verify2fa: (data: { challenge_token: string; code: string }) =>
+    api.post("/auth/2fa/verify", AuthResponseSchema, data),
 };

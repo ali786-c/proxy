@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Cache;
 use App\Services\EvomiService;
+use PragmaRX\Google2FALaravel\Facade as Google2FA;
 
 class AuthController extends Controller
 {
@@ -95,6 +96,50 @@ class AuthController extends Controller
         }
 
         $this->recordLoginAttempt($request, $user, true);
+
+        // Check if 2FA is enabled
+        if ($user->hasTwoFactorEnabled()) {
+            $challengeToken = Str::random(60);
+            Cache::put("2fa_challenge_{$challengeToken}", $user->id, 300); // 5 minutes
+
+            return response()->json([
+                'requires_2fa' => true,
+                'challenge_token' => $challengeToken,
+            ]);
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'user'  => $this->formatUser($user),
+            'token' => $token,
+        ]);
+    }
+
+    /**
+     * Verify 2FA code during login.
+     * POST /auth/2fa/verify
+     */
+    public function verify2fa(Request $request)
+    {
+        $request->validate([
+            'challenge_token' => 'required|string',
+            'code'           => 'required|string|size:6',
+        ]);
+
+        $userId = Cache::get("2fa_challenge_{$request->challenge_token}");
+
+        if (!$userId) {
+            return response()->json(['message' => 'Challenge expired or invalid.'], 422);
+        }
+
+        $user = User::findOrFail($userId);
+
+        if (!app(\PragmaRX\Google2FALaravel\Google2FA::class)->verifyKey($user->two_factor_secret, $request->code)) {
+            return response()->json(['message' => 'Invalid verification code.'], 422);
+        }
+
+        Cache::forget("2fa_challenge_{$request->challenge_token}");
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -251,6 +296,7 @@ class AuthController extends Controller
             'role'          => $user->role,
             'balance'       => (float) $user->balance,
             'referral_code' => $user->referral_code,
+            'is_2fa_enabled'=> $user->hasTwoFactorEnabled(),
         ];
     }
 
