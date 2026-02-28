@@ -51,10 +51,9 @@ class BillingController extends Controller
 
         try {
             Stripe::setApiKey($stripeSecret);
-            Stripe::setApiVersion('2024-04-10');
 
             $sessionData = [
-                'automatic_payment_methods' => ['enabled' => true],
+                'payment_method_types' => ['card'],
                 'line_items' => [[
                     'price_data' => [
                         'currency' => 'eur',
@@ -130,12 +129,9 @@ class BillingController extends Controller
 
         try {
             Stripe::setApiKey($stripeSecret);
-            Stripe::setApiVersion('2024-04-10');
 
             $sessionData = [
-                'automatic_payment_methods' => [
-                    'enabled' => true,
-                ],
+                'payment_method_types' => ['card'],
                 'line_items' => [[
                     'price_data' => [
                         'currency' => 'eur',
@@ -143,7 +139,7 @@ class BillingController extends Controller
                             'name' => 'Balance Top-up' . ($couponCode ? " (Promo: {$couponCode})" : ""),
                             'description' => 'Add funds to your UpgradedProxy wallet',
                         ],
-                        'unit_amount' => round($amount * 100 * 1.22), // Add VAT for Stripe
+                        'unit_amount' => round($amount * 100 * 1.22), // Add 22% VAT
                     ],
                     'quantity' => 1,
                 ]],
