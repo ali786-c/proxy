@@ -15,7 +15,18 @@ class AdminController extends Controller
 {
     public function users(Request $request)
     {
-        return response()->json(User::latest()->get());
+        $query = User::latest();
+
+        if ($request->search) {
+            $s = $request->search;
+            $query->where(function($q) use ($s) {
+                $q->where('name', 'like', "%$s%")
+                  ->orWhere('email', 'like', "%$s%")
+                  ->orWhere('referral_code', 'like', "%$s%");
+            });
+        }
+
+        return response()->json($query->get());
     }
 
     public function updateBalance(Request $request)
@@ -339,6 +350,17 @@ class AdminController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->user_id) {
+            $query->where('referrer_id', $request->user_id);
+        }
+
+        if ($request->search) {
+            $s = $request->search;
+            $query->whereHas('referrer', function($q) use ($s) {
+                $q->where('name', 'like', "%$s%")->orWhere('email', 'like', "%$s%");
+            });
+        }
+
         return response()->json($query->latest()->paginate(20));
     }
 
@@ -361,5 +383,25 @@ class AdminController extends Controller
         ]);
 
         return response()->json(['message' => 'Influencer rate updated successfully']);
+    }
+
+    public function updateReferralEarningStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,completed,void',
+        ]);
+
+        $earning = \App\Models\ReferralEarning::findOrFail($id);
+        $oldStatus = $earning->status;
+        $earning->status = $request->status;
+        $earning->save();
+
+        AdminLog::create([
+            'admin_id' => $request->user()->id,
+            'action' => 'update_referral_earning_status',
+            'details' => "Referral earning #{$id} status changed from {$oldStatus} to {$request->status}",
+        ]);
+
+        return response()->json(['message' => 'Earning status updated successfully']);
     }
 }
