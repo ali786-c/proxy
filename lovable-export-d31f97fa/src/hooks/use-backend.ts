@@ -560,11 +560,16 @@ export function useAdminReferralStats() {
   });
 }
 
-export function useAdminReferralEarnings(status?: string) {
+export function useAdminReferralEarnings(status?: string, page: number = 1) {
   return useQuery({
-    queryKey: ["admin", "referrals", "earnings", status],
+    queryKey: ["admin", "referrals", "earnings", status, page],
     queryFn: async () => {
-      const url = status ? `/admin/referrals/earnings?status=${status}` : "/admin/referrals/earnings";
+      const params = new URLSearchParams();
+      if (status) params.append("status", status);
+      if (page > 1) params.append("page", page.toString());
+
+      const queryString = params.toString();
+      const url = queryString ? `/admin/referrals/earnings?${queryString}` : "/admin/referrals/earnings";
       return api.get(url, z.any());
     },
   });
