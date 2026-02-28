@@ -20,6 +20,7 @@ const UserSchema = z.object({
   email: z.string(),
   role: z.string(),
   balance: z.number().or(z.string()),
+  custom_referral_rate: z.number().nullable().optional(),
   created_at: z.string(),
 });
 
@@ -50,6 +51,12 @@ function useAdminAction() {
         return api.post("/admin/users/ban", MessageSchema, {
           user_id: payload.user_id,
           reason: payload.ban_reason || (action === "ban_user" ? "Banned by admin" : "Unbanned by admin"),
+        });
+      }
+      if (action === "update_influencer_rate") {
+        return api.post("/admin/referrals/influencer-rate", MessageSchema, {
+          user_id: payload.user_id,
+          custom_rate: payload.custom_rate,
         });
       }
       if (action === "adjust_balance") {
@@ -182,6 +189,7 @@ export default function AdminUsers() {
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Balance</TableHead>
+                  <TableHead>Influencer</TableHead>
                   <TableHead>Joined</TableHead>
                 </TableRow>
               </TableHeader>
@@ -201,6 +209,13 @@ export default function AdminUsers() {
                       </Badge>
                     </TableCell>
                     <TableCell>${Number(user.balance ?? 0).toFixed(2)}</TableCell>
+                    <TableCell>
+                      {user.custom_referral_rate ? (
+                        <Badge variant="outline" className="text-secondary border-secondary">
+                          {user.custom_referral_rate}% Rate
+                        </Badge>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))}
@@ -331,6 +346,37 @@ export default function AdminUsers() {
                       {selectedUser.is_banned ? <Shield className="mr-2 h-4 w-4" /> : <ShieldOff className="mr-2 h-4 w-4" />}
                       {selectedUser.is_banned ? "Unban User" : "Ban User"}
                     </Button>
+                  </div>
+                </div>
+
+                {/* Influencer Control */}
+                <div className="border-t pt-4 space-y-3">
+                  <p className="text-sm font-semibold">Influencer Settings</p>
+                  <div className="space-y-2">
+                    <Label>Custom Referral Rate (%)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 15"
+                        defaultValue={selectedUser.custom_referral_rate || ""}
+                        onBlur={async (e) => {
+                          const rate = e.target.value === "" ? null : parseFloat(e.target.value);
+                          if (rate !== selectedUser.custom_referral_rate) {
+                            try {
+                              await adminAction.mutateAsync({
+                                action: "update_influencer_rate",
+                                user_id: selectedUser.user_id,
+                                custom_rate: rate,
+                              });
+                              toast({ title: "Influencer rate updated" });
+                            } catch (err: any) {
+                              toast({ title: "Error", description: err.message, variant: "destructive" });
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Set a custom rate for this specific user. Leave empty for default.</p>
                   </div>
                 </div>
               </div>

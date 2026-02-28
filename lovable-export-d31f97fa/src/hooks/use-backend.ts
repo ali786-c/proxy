@@ -548,3 +548,37 @@ export function useResolveFraudSignal() {
     },
   });
 }
+
+// ── Admin Referral Hooks ──────────────────────
+
+export function useAdminReferralStats() {
+  return useQuery({
+    queryKey: ["admin", "referrals", "stats"],
+    queryFn: async () => {
+      return api.get("/admin/referrals/stats", z.any());
+    },
+  });
+}
+
+export function useAdminReferralEarnings(status?: string) {
+  return useQuery({
+    queryKey: ["admin", "referrals", "earnings", status],
+    queryFn: async () => {
+      const url = status ? `/admin/referrals/earnings?status=${status}` : "/admin/referrals/earnings";
+      return api.get(url, z.any());
+    },
+  });
+}
+
+export function useUpdateInfluencerRate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { user_id: number | string; custom_rate: number | null }) => {
+      return api.post("/admin/referrals/influencer-rate", MessageSchema, params);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "referrals", "stats"] });
+    },
+  });
+}

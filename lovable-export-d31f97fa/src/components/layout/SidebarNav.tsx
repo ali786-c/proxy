@@ -312,6 +312,7 @@ export function SidebarNav() {
         { title: t("nav.users"), url: "/admin/users", icon: Users },
         { title: t("nav.products"), url: "/admin/products", icon: Package },
         { title: t("nav.invoices"), url: "/admin/invoices", icon: Receipt },
+        { title: "Referrals", url: "/admin/referrals", icon: Gift },
       ],
     },
     {

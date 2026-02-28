@@ -87,6 +87,7 @@ const AdminFraudDetection = lazy(() => import("./pages/admin/FraudDetection"));
 const AdminSLAMonitoring = lazy(() => import("./pages/admin/SLAMonitoring"));
 const AdminCurrencies = lazy(() => import("./pages/admin/Currencies"));
 const AdminManualPayments = lazy(() => import("./pages/admin/ManualPayments"));
+const AdminReferrals = lazy(() => import("./pages/admin/Referrals"));
 
 const queryClient = new QueryClient();
 
@@ -194,6 +195,7 @@ const App = () => (
                             <Route path="sla-monitoring" element={<AdminSLAMonitoring />} />
                             <Route path="currencies" element={<AdminCurrencies />} />
                             <Route path="manual-payments" element={<AdminManualPayments />} />
+                            <Route path="referrals" element={<AdminReferrals />} />
                           </Route>
 
                           <Route path="*" element={<NotFound />} />
