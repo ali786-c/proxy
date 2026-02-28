@@ -47,7 +47,7 @@ interface Product {
   id: string;
   name: string;
   proxy_type: string;
-  unit: "GB" | "IP";
+  unit: "GB" | "IP" | "Month";
   base_cost_eur: number;
   sell_price_eur: number;
   markup_pct: number;
@@ -57,14 +57,22 @@ interface Product {
 type FormData = {
   name: string;
   proxy_type: string;
-  unit: "GB" | "IP";
+  unit: "GB" | "IP" | "Month";
   base_cost_eur: string;
   markup_pct: string;
   is_active: boolean;
   evomi_product_id: string;
 };
 
-const EMPTY_FORM: FormData = { name: "", proxy_type: "residential", unit: "GB", base_cost_eur: "", markup_pct: "0", is_active: true, evomi_product_id: "" };
+const EMPTY_FORM: FormData = {
+  name: "",
+  proxy_type: "rp",
+  unit: "GB",
+  base_cost_eur: "",
+  markup_pct: "0",
+  is_active: true,
+  evomi_product_id: ""
+};
 
 export default function AdminProducts() {
   const queryClient = useQueryClient();
@@ -80,7 +88,7 @@ export default function AdminProducts() {
         id: String(p.id),
         name: p.name,
         proxy_type: p.type,
-        unit: p.type === "isp" ? "IP" : "GB",
+        unit: p.type === "isp" ? "IP" : p.type === "dc_unmetered" ? "Month" : "GB",
         base_cost_eur: Number(p.price),
         sell_price_eur: Number(p.price),
         markup_pct: 0,
@@ -244,21 +252,23 @@ export default function AdminProducts() {
                 <Select value={form.proxy_type} onValueChange={(v) => setForm({ ...form, proxy_type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="residential">Residential</SelectItem>
-                    <SelectItem value="datacenter">Datacenter</SelectItem>
-                    <SelectItem value="isp">ISP</SelectItem>
-                    <SelectItem value="mobile">Mobile</SelectItem>
-                    <SelectItem value="socks5">SOCKS5</SelectItem>
+                    <SelectItem value="rp">Residential (rp)</SelectItem>
+                    <SelectItem value="dc">Datacenter (dc)</SelectItem>
+                    <SelectItem value="mp">Mobile (mp)</SelectItem>
+                    <SelectItem value="isp">Static/ISP (isp)</SelectItem>
+                    <SelectItem value="dc_ipv6">Datacenter IPv6 (dc_ipv6)</SelectItem>
+                    <SelectItem value="dc_unmetered">Datacenter Unmetered (dc_unmetered)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <Label>Billing Unit</Label>
-                <Select value={form.unit} onValueChange={(v: "GB" | "IP") => setForm({ ...form, unit: v })}>
+                <Select value={form.unit} onValueChange={(v: "GB" | "IP" | "Month") => setForm({ ...form, unit: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="GB">Per GB</SelectItem>
                     <SelectItem value="IP">Per IP</SelectItem>
+                    <SelectItem value="Month">Per Month</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

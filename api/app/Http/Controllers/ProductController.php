@@ -16,8 +16,6 @@ class ProductController extends Controller
                     'name'        => $product->name,
                     'price_cents' => (int) ($product->price * 100),
                     'type'        => $product->type,
-                    'included_gb' => 1,
-                    'features'    => ['High Speed', '99.9% Uptime', 'Global Locations'],
                 ];
             });
             return response()->json($products);
@@ -35,9 +33,9 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'name'             => 'required|string|max:255',
-            'type'             => 'required|string|max:100',
+            'type'             => 'required|string|in:rp,dc,mp,isp,dc_ipv6,dc_unmetered',
             'price'            => 'required|numeric|min:0',
-            'evomi_product_id' => 'required|string|max:255',
+            'evomi_product_id' => 'required|string|max:255|unique:products,evomi_product_id',
             'is_active'        => 'boolean',
         ]);
 
@@ -51,9 +49,9 @@ class ProductController extends Controller
 
         $validated = $request->validate([
             'name'             => 'sometimes|required|string|max:255',
-            'type'             => 'sometimes|required|string|max:100',
+            'type'             => 'sometimes|required|string|in:rp,dc,mp,isp,dc_ipv6,dc_unmetered',
             'price'            => 'sometimes|required|numeric|min:0',
-            'evomi_product_id' => 'sometimes|required|string|max:255',
+            'evomi_product_id' => 'sometimes|required|string|max:255|unique:products,evomi_product_id,' . $id,
             'is_active'        => 'sometimes|boolean',
         ]);
 
