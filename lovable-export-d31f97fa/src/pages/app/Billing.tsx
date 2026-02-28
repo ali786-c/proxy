@@ -89,11 +89,20 @@ export default function Billing() {
             queryClient.invalidateQueries({ queryKey: ["stats"] });
             setShowSuccessModal(true);
           })
-          .catch(() => {
-            // If already processed by webhook, still show success and refresh
-            queryClient.invalidateQueries({ queryKey: ["me"] });
-            queryClient.invalidateQueries({ queryKey: ["invoices"] });
-            setShowSuccessModal(true);
+          .catch((err) => {
+            // Check if it's already processed or truly failed
+            if (err.message && err.message.includes("already")) {
+              queryClient.invalidateQueries({ queryKey: ["me"] });
+              setShowSuccessModal(true);
+            } else {
+              // Truly failed verification - balance might still update via webhook soon
+              toast({
+                title: "Processing Payment",
+                description: "Your payment was received. It may take a minute for your balance to update. Please refresh shortly.",
+                variant: "default"
+              });
+              queryClient.invalidateQueries({ queryKey: ["me"] });
+            }
           });
       } else {
         // No session_id (old flow), still refresh and show success

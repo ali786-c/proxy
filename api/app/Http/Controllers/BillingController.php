@@ -172,13 +172,15 @@ class BillingController extends Controller
                 'success_url' => url('/') . '/app/billing?success=true&session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url'  => url('/') . '/app/billing?canceled=true',
                 'metadata'    => [
-                    'user_id'         => $request->user()->id,
-                    // 'amount' = net EUR credited to wallet (pre-VAT)
-                    'amount'          => $netInEur,
-                    'total_charged'   => $totalInEur,
-                    'input_currency'  => $inputCurrency,
-                    'input_total'     => $totalInput,
-                    'input_net'       => $netInput,
+                    'user_id'         => (string) $request->user()->id,
+                    'type'            => 'topup',
+                    'amount'          => (string) $netInEur,           // net credited to wallet
+                    'original_amount' => (string) $netInEur,           // fallback for fulfillPayment
+                    'total_charged'   => (string) $totalInEur,         // total user paid
+                    'input_currency'  => (string) $inputCurrency,
+                    'input_total'     => (string) $totalInput,
+                    'input_net'       => (string) $netInput,
+                    'coupon_code'     => (string) ($request->coupon_code ?? ''),
                 ],
             ];
 
@@ -604,7 +606,9 @@ class BillingController extends Controller
             case 'checkout.session.async_payment_succeeded':
                 $session = $event->data->object;
                 if ($session->mode === 'payment') {
-                    $this->fulfillPayment($session, $event->id);
+                    // Use $session->id (cs_...) instead of $event->id (evt_...)
+                    // This matches verifySession() and prevents double-crediting
+                    $this->fulfillPayment($session, $session->id);
                 } elseif ($session->mode === 'setup') {
                     $this->fulfillSetup($session);
                 }
@@ -731,11 +735,17 @@ class BillingController extends Controller
     {
         $referralService = app(ReferralService::class);
         $userId = $session->metadata->user_id;
+
+        // Logging for cPanel debugging
+        Log::info("Fulfilling payment for User #{$userId}, Reference: {$eventId}");
+
         $type   = $session->metadata->type ?? 'topup';
-        $amount = (float) $session->metadata->amount; // This is the net amount paid
+        
+        // Metadata values are strings in Stripe SDK, so cast to float
+        $amount = (float) ($session->metadata->amount ?? 0); 
         $originalAmount = (float) ($session->metadata->original_amount ?? $amount);
-        $couponCode = $session->metadata->coupon_code ?? null;
-        $paidGross = $session->amount_total / 100;
+        $couponCode     = $session->metadata->coupon_code ?? null;
+        $paidGross      = isset($session->amount_total) ? $session->amount_total / 100 : 0;
 
         DB::transaction(function () use ($userId, $amount, $originalAmount, $couponCode, $paidGross, $eventId, $type, $session) {
             $user = User::lockForUpdate()->find($userId);
@@ -854,17 +864,24 @@ class BillingController extends Controller
                 }
             } else {
                 // Regular Top-up
-                $creditAmount = $couponCode ? $originalAmount : $amount;
-                $user->increment('balance', $creditAmount);
-                $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Stripe)");
+                $creditAmount = $originalAmount ?: $amount;
+                
+                if ($creditAmount > 0) {
+                    $user->increment('balance', $creditAmount);
+                    Log::info("Credited wallet for User #{$userId}: +€{$creditAmount} (Ref: {$eventId})");
+                    
+                    $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Stripe)");
 
-                WalletTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'credit',
-                    'amount' => $creditAmount,
-                    'reference' => $eventId,
-                    'description' => 'Stripe Wallet Top-up' . ($couponCode ? " (Used promo: {$couponCode})" : ""),
-                ]);
+                    WalletTransaction::create([
+                        'user_id' => $user->id,
+                        'type'    => 'credit',
+                        'amount'  => $creditAmount,
+                        'reference' => $eventId,
+                        'description' => 'Stripe Wallet Top-up' . ($couponCode && !empty($couponCode) ? " (Used promo: {$couponCode})" : ""),
+                    ]);
+                } else {
+                    Log::warning("Zero amount top-up for User #{$userId}. Amount: {$amount}, Original: {$originalAmount}");
+                }
             }
 
             WebhookLog::create([
