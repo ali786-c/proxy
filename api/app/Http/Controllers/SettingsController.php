@@ -47,6 +47,9 @@ class SettingsController extends Controller
         'retry_interval',
         'notify_client_success',
         'notify_admin_failure',
+        'referral_system_enabled',
+        'referral_commission_percentage',
+        'referral_hold_days',
     ];
 
     /**

@@ -22,6 +22,11 @@ class ReferralService
     public function awardCommission(User $user, float $amount, string $description = 'Referral Commission')
     {
         try {
+            // Check if referral system is enabled globally
+            if (Setting::getValue('referral_system_enabled', '1') !== '1') {
+                return;
+            }
+
             // Check if user has a referrer
             $referral = Referral::where('referred_id', $user->id)->first();
             

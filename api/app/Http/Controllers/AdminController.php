@@ -316,4 +316,50 @@ class AdminController extends Controller
         $reseller->update($validated);
         return response()->json($reseller);
     }
+
+    public function referralStats()
+    {
+        return response()->json([
+            'total_referrals' => \App\Models\Referral::count(),
+            'total_pending'   => (float) \App\Models\ReferralEarning::where('status', 'pending')->sum('amount'),
+            'total_completed' => (float) \App\Models\ReferralEarning::where('status', 'completed')->sum('amount'),
+            'top_referrers'   => User::whereHas('referrals')
+                ->withCount('referrals')
+                ->orderBy('referrals_count', 'desc')
+                ->limit(5)
+                ->get(['id', 'name', 'email', 'referrals_count'])
+        ]);
+    }
+
+    public function listReferralEarnings(Request $request)
+    {
+        $query = \App\Models\ReferralEarning::with(['referrer', 'referred']);
+        
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+
+        return response()->json($query->latest()->paginate(20));
+    }
+
+    public function updateInfluencerRate(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'custom_rate' => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+        $user->custom_referral_rate = $request->custom_rate;
+        $user->save();
+
+        AdminLog::create([
+            'admin_id' => $request->user()->id,
+            'target_user_id' => $user->id,
+            'action' => 'update_influencer_rate',
+            'details' => "Custom referral rate set to " . ($request->custom_rate ?? 'null') . "%",
+        ]);
+
+        return response()->json(['message' => 'Influencer rate updated successfully']);
+    }
 }

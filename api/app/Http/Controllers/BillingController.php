@@ -430,6 +430,7 @@ class BillingController extends Controller
                         'reference' => "CRYPTO-{$uuid}",
                         'description' => "Cryptomus Direct Buy: {$quantity}x Product #{$productId}",
                     ]);
+                    $referralService->awardCommission($user, $amount, "Commission from Direct Buy (Cryptomus)");
                 }
             } else {
                 // Regular Top-up
@@ -445,6 +446,7 @@ class BillingController extends Controller
                 }
 
                 $user->increment('balance', $creditAmount);
+                $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Cryptomus)");
                 WalletTransaction::create([
                     'user_id' => $user->id,
                     'type' => 'credit',
@@ -741,6 +743,7 @@ class BillingController extends Controller
                         'reference' => $eventId,
                         'description' => "Direct Purchase: {$quantity}x Product #{$productId} (Auto-allocated)",
                     ]);
+                    $referralService->awardCommission($user, $amount, "Commission from Direct Purchase (Stripe)");
                 }
             } else {
                 // Regular Top-up

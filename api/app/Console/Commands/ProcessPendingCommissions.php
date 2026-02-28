@@ -17,7 +17,7 @@ class ProcessPendingCommissions extends Command
 
     public function handle()
     {
-        $holdDays = 14;
+        $holdDays = (int) \App\Models\Setting::getValue('referral_hold_days', 14);
         $cutoffDate = now()->subDays($holdDays);
 
         $pendingEarnings = \App\Models\ReferralEarning::where('status', 'pending')

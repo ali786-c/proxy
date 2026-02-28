@@ -40,18 +40,21 @@ class AuthController extends Controller
 
         // Link referral if provided
         if ($request->referral_code) {
-            $referrer = User::where('referral_code', $request->referral_code)->first();
-            
-            if ($referrer) {
-                // Fraud Check: Prevent self-referral via same IP
-                if ($referrer->signup_ip === $request->ip()) {
-                    \Log::warning("Self-referral blocked for IP: " . $request->ip() . " attempting to use code: " . $request->referral_code);
-                } else {
-                    \App\Models\Referral::create([
-                        'referrer_id' => $referrer->id,
-                        'referred_id' => $user->id,
-                        'ip_address'  => $request->ip(),
-                    ]);
+            // Check if referral system is enabled globally
+            if (Setting::getValue('referral_system_enabled', '1') === '1') {
+                $referrer = User::where('referral_code', $request->referral_code)->first();
+                
+                if ($referrer) {
+                    // Fraud Check: Prevent self-referral via same IP
+                    if ($referrer->signup_ip === $request->ip()) {
+                        \Log::warning("Self-referral blocked for IP: " . $request->ip() . " attempting to use code: " . $request->referral_code);
+                    } else {
+                        \App\Models\Referral::create([
+                            'referrer_id' => $referrer->id,
+                            'referred_id' => $user->id,
+                            'ip_address'  => $request->ip(),
+                        ]);
+                    }
                 }
             }
         }

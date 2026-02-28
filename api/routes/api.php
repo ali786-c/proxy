@@ -176,6 +176,11 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
         $lines = file($path);
         return implode('', array_slice($lines, -100));
     });
+
+    // Admin Referral Routes
+    Route::get('/referrals/stats', [\App\Http\Controllers\AdminController::class, 'referralStats']);
+    Route::get('/referrals/earnings', [\App\Http\Controllers\AdminController::class, 'listReferralEarnings']);
+    Route::post('/referrals/influencer-rate', [\App\Http\Controllers\AdminController::class, 'updateInfluencerRate']);
 });
 
 // Public test route removed from bottom, moved to top.
