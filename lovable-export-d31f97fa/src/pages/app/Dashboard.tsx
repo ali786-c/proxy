@@ -24,7 +24,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { useUsage, useStats } from "@/hooks/use-backend";
+import { useUsage, useStats, useProducts } from "@/hooks/use-backend";
 
 const PRODUCTS = [
   {
@@ -182,14 +182,14 @@ export default function AppDashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {PRODUCTS.slice(0, 2).map((product) => (
-            <ProductCard key={product.id} product={product} format={format} t={t} />
+          {products.slice(0, 2).map((product: any) => (
+            <ProductCard key={product.db_id} product={product} format={format} t={t} />
           ))}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          {PRODUCTS.slice(2).map((product) => (
-            <ProductCard key={product.id} product={product} format={format} t={t} />
+          {products.slice(2).map((product: any) => (
+            <ProductCard key={product.db_id} product={product} format={format} t={t} />
           ))}
         </div>
 
@@ -249,7 +249,7 @@ export default function AppDashboard() {
   );
 }
 
-function ProductCard({ product, format, t }: { product: typeof PRODUCTS[0], format: (val: number) => string, t: (key: string) => string }) {
+function ProductCard({ product, format, t }: { product: any, format: (val: number) => string, t: (key: string) => string }) {
   return (
     <Card className={`relative overflow-hidden ${product.popular ? "border-destructive ring-1 ring-destructive/20" : ""}`}>
       {product.popular && (

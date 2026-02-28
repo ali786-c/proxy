@@ -8,13 +8,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Check, Globe, Server, Wifi, Monitor, Shield, Zap } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 
-const PRODUCT_OVERVIEW = [
-  { id: "residential", name: "Residential Proxies", desc: "The cheapest residential proxies on the market", price: "€0.99", unit: "/GB", icon: Globe, color: "bg-red-50 text-red-500 dark:bg-red-500/10", link: "/signup", tab: "residential" },
-  { id: "datacenter", name: "Datacenter Proxies", desc: "Blazing fast and budget friendly IPs", price: "€0.79", unit: "/GB", icon: Server, color: "bg-blue-50 text-blue-500 dark:bg-blue-500/10", link: "/signup", tab: "datacenter" },
-  { id: "mobile", name: "Mobile Proxies", desc: "Real 3G/4G/5G mobile device connections", price: "€2.95", unit: "/GB", icon: Monitor, color: "bg-purple-50 text-purple-500 dark:bg-purple-500/10", link: "/signup", tab: "mobile" },
-  { id: "datacenter-ipv6", name: "Datacenter IPv6", desc: "Future-proof high performance IPs", price: "€0.59", unit: "/GB", icon: Server, color: "bg-green-50 text-green-600 dark:bg-green-500/10", link: "/signup", tab: "datacenter-ipv6" },
-  { id: "datacenter-unmetered", name: "Datacenter Unmetered", desc: "Unlimited bandwidth scraping IPs", price: "€19.99", unit: "/Month", icon: Zap, color: "bg-orange-50 text-orange-500 dark:bg-orange-500/10", link: "/signup", tab: "datacenter-unmetered" },
-];
+import { useProducts } from "@/hooks/use-backend";
+
+const PRODUCT_UI_METADATA: Record<string, any> = {
+  rp: { id: "residential", desc: "The cheapest residential proxies on the market", unit: "/GB", icon: Globe, color: "bg-red-50 text-red-500 dark:bg-red-500/10", link: "/signup", tab: "residential" },
+  dc: { id: "datacenter", desc: "Blazing fast and budget friendly IPs", unit: "/GB", icon: Server, color: "bg-blue-50 text-blue-500 dark:bg-blue-500/10", link: "/signup", tab: "datacenter" },
+  mp: { id: "mobile", desc: "Real 3G/4G/5G mobile device connections", unit: "/GB", icon: Monitor, color: "bg-purple-50 text-purple-500 dark:bg-purple-500/10", link: "/signup", tab: "mobile" },
+  dc_ipv6: { id: "datacenter-ipv6", desc: "Future-proof high performance IPs", unit: "/GB", icon: Server, color: "bg-green-50 text-green-600 dark:bg-green-500/10", link: "/signup", tab: "datacenter-ipv6" },
+  dc_unmetered: { id: "datacenter-unmetered", desc: "Unlimited bandwidth scraping IPs", unit: "/Month", icon: Zap, color: "bg-orange-50 text-orange-500 dark:bg-orange-500/10", link: "/signup", tab: "datacenter-unmetered" },
+};
 
 const RESIDENTIAL_PLANS = [
   { plan: "Pay as you go", gb: "1 GB", perGb: "€0.99", monthly: "—", manager: false, min: 6 },
@@ -125,6 +127,27 @@ function PricingTable({ tiers, unitLabel = "/GB", t }: { tiers: typeof PREMIUM_T
 
 export default function Pricing() {
   const { t } = useI18n();
+  const { data: backendProducts } = useProducts();
+
+  const products = (backendProducts || []).map((p: any) => {
+    const meta = PRODUCT_UI_METADATA[p.type] || {
+      id: "datacenter",
+      icon: Server,
+      unit: "/GB",
+      desc: "Professional Proxy Solutions",
+      color: "bg-blue-50 text-blue-500 dark:bg-blue-500/10",
+      link: "/signup",
+      tab: "datacenter"
+    };
+
+    return {
+      ...meta,
+      db_id: p.id,
+      name: p.name,
+      price: `€${(p.price_cents / 100).toFixed(2)}`,
+    };
+  });
+
   return (
     <>
       <SEOHead
@@ -148,8 +171,8 @@ export default function Pricing() {
       <section className="container pb-8">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">{t("page.ourProxies")}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {PRODUCT_OVERVIEW.map((p) => (
-            <Link key={p.id} to={p.link} className="group flex items-start gap-4 rounded-lg border bg-card p-5 transition-colors hover:border-primary/40">
+          {products.map((p: any) => (
+            <Link key={p.db_id} to={p.link} className="group flex items-start gap-4 rounded-lg border bg-card p-5 transition-colors hover:border-primary/40">
               <div className={`rounded-lg p-2.5 ${p.color}`}><p.icon className="h-5 w-5" /></div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-2">
