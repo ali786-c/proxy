@@ -55,10 +55,9 @@ class BillingController extends Controller
 
             $sessionData = [
                 'automatic_payment_methods' => ['enabled' => true],
-                'invoice_creation' => ['enabled' => true],
                 'line_items' => [[
                     'price_data' => [
-                        'currency' => 'usd',
+                        'currency' => 'eur',
                         'product_data' => [
                             'name' => "{$request->quantity}x {$product->name}",
                             'description' => "Direct purchase of {$request->quantity}x {$product->name} proxies",
@@ -87,7 +86,7 @@ class BillingController extends Controller
                 $sessionData['customer'] = $request->user()->stripe_customer_id;
             }
 
-            $session = Session::create($sessionData, ["stripe_version" => "2024-04-10"]);
+            $session = Session::create($sessionData);
 
             return response()->json(['url' => $session->url]);
 
@@ -137,12 +136,9 @@ class BillingController extends Controller
                 'automatic_payment_methods' => [
                     'enabled' => true,
                 ],
-                'invoice_creation' => [
-                    'enabled' => true,
-                ],
                 'line_items' => [[
                     'price_data' => [
-                        'currency' => 'usd',
+                        'currency' => 'eur',
                         'product_data' => [
                             'name' => 'Balance Top-up' . ($couponCode ? " (Promo: {$couponCode})" : ""),
                             'description' => 'Add funds to your UpgradedProxy wallet',
@@ -166,7 +162,7 @@ class BillingController extends Controller
                 $sessionData['customer'] = $request->user()->stripe_customer_id;
             }
 
-            $session = Session::create($sessionData, ["stripe_version" => "2024-04-10"]);
+            $session = Session::create($sessionData);
 
             return response()->json(['url' => $session->url]);
 
