@@ -9,11 +9,11 @@ import { Check, Globe, Server, Wifi, Monitor, Shield, Zap } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 
 const PRODUCT_OVERVIEW = [
-  { id: "residential", name: "Residential Proxies", desc: "The cheapest residential proxies on the market", price: "€0.99", unit: "/GB", icon: Globe, color: "bg-red-50 text-red-500 dark:bg-red-500/10", link: "/residential-proxies", tab: "residential" },
-  { id: "premium", name: "Premium Residential", desc: "Premium browsing for unmatched performance", price: "€2.99", unit: "/GB", icon: Shield, color: "bg-green-50 text-green-600 dark:bg-green-500/10", link: "/residential-proxies", tab: "premium" },
-  { id: "mobile", name: "Mobile Proxies", desc: "Real 3G/4G/5G mobile device connections", price: "€2.95", unit: "/GB", icon: Monitor, color: "bg-purple-50 text-purple-500 dark:bg-purple-500/10", link: "/mobile-proxies", tab: "mobile" },
-  { id: "datacenter", name: "Datacenter Proxies", desc: "Blazing fast and budget friendly IPs", price: "€0.79", unit: "/GB", icon: Server, color: "bg-blue-50 text-blue-500 dark:bg-blue-500/10", link: "/datacenter-proxies", tab: "datacenter" },
-  { id: "static", name: "Static Residential (ISP)", desc: "ISP IPs with unlimited bandwidth", price: "€2.99", unit: "/IP", icon: Wifi, color: "bg-orange-50 text-orange-500 dark:bg-orange-500/10", link: "/isp-proxies", tab: "static" },
+  { id: "residential", name: "Residential Proxies", desc: "The cheapest residential proxies on the market", price: "€0.99", unit: "/GB", icon: Globe, color: "bg-red-50 text-red-500 dark:bg-red-500/10", link: "/signup", tab: "residential" },
+  { id: "datacenter", name: "Datacenter Proxies", desc: "Blazing fast and budget friendly IPs", price: "€0.79", unit: "/GB", icon: Server, color: "bg-blue-50 text-blue-500 dark:bg-blue-500/10", link: "/signup", tab: "datacenter" },
+  { id: "mobile", name: "Mobile Proxies", desc: "Real 3G/4G/5G mobile device connections", price: "€2.95", unit: "/GB", icon: Monitor, color: "bg-purple-50 text-purple-500 dark:bg-purple-500/10", link: "/signup", tab: "mobile" },
+  { id: "datacenter-ipv6", name: "Datacenter IPv6", desc: "Future-proof high performance IPs", price: "€0.59", unit: "/GB", icon: Server, color: "bg-green-50 text-green-600 dark:bg-green-500/10", link: "/signup", tab: "datacenter-ipv6" },
+  { id: "datacenter-unmetered", name: "Datacenter Unmetered", desc: "Unlimited bandwidth scraping IPs", price: "€19.99", unit: "/Month", icon: Zap, color: "bg-orange-50 text-orange-500 dark:bg-orange-500/10", link: "/signup", tab: "datacenter-unmetered" },
 ];
 
 const RESIDENTIAL_PLANS = [
@@ -178,10 +178,10 @@ export default function Pricing() {
         <Tabs defaultValue="residential" className="w-full">
           <TabsList className="mx-auto mb-6 flex w-full max-w-2xl flex-wrap h-auto gap-1">
             <TabsTrigger value="residential" className="flex-1 min-w-[120px]">Residential</TabsTrigger>
-            <TabsTrigger value="premium" className="flex-1 min-w-[120px]">Premium</TabsTrigger>
-            <TabsTrigger value="mobile" className="flex-1 min-w-[120px]">Mobile</TabsTrigger>
             <TabsTrigger value="datacenter" className="flex-1 min-w-[120px]">Datacenter</TabsTrigger>
-            <TabsTrigger value="static" className="flex-1 min-w-[120px]">Static ISP</TabsTrigger>
+            <TabsTrigger value="mobile" className="flex-1 min-w-[120px]">Mobile</TabsTrigger>
+            <TabsTrigger value="datacenter-ipv6" className="flex-1 min-w-[120px]">Datacenter IPv6</TabsTrigger>
+            <TabsTrigger value="datacenter-unmetered" className="flex-1 min-w-[120px]">DC Unmetered</TabsTrigger>
           </TabsList>
 
           <TabsContent value="residential">
@@ -199,55 +199,23 @@ export default function Pricing() {
             </div>
           </TabsContent>
 
-          <TabsContent value="premium">
+          <TabsContent value="datacenter-ipv6">
             <div className="rounded-lg border bg-card p-6">
               <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-lg bg-green-50 p-2.5 text-green-600 dark:bg-green-500/10"><Shield className="h-5 w-5" /></div>
-                <div><h3 className="font-semibold">Premium Residential Proxies</h3><p className="text-xs text-muted-foreground">Smooth browsing with no blocks</p></div>
-              </div>
-              <PricingTable tiers={PREMIUM_TIERS} t={t} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="mobile">
-            <div className="rounded-lg border bg-card p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-lg bg-purple-50 p-2.5 text-purple-500 dark:bg-purple-500/10"><Monitor className="h-5 w-5" /></div>
-                <div><h3 className="font-semibold">{t("page.mobTitle")}</h3><p className="text-xs text-muted-foreground">Real 3G/4G/5G connections</p></div>
-              </div>
-              <PricingTable tiers={MOBILE_TIERS} t={t} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="datacenter">
-            <div className="rounded-lg border bg-card p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-lg bg-blue-50 p-2.5 text-blue-500 dark:bg-blue-500/10"><Server className="h-5 w-5" /></div>
-                <div><h3 className="font-semibold">{t("page.dcTitle")}</h3><p className="text-xs text-muted-foreground">Blazing fast, budget friendly</p></div>
+                <div className="rounded-lg bg-green-50 p-2.5 text-green-600 dark:bg-green-500/10"><Server className="h-5 w-5" /></div>
+                <div><h3 className="font-semibold">Datacenter IPv6</h3><p className="text-xs text-muted-foreground">Future-proof high performance IPs</p></div>
               </div>
               <PricingTable tiers={DATACENTER_TIERS} t={t} />
             </div>
           </TabsContent>
 
-          <TabsContent value="static">
+          <TabsContent value="datacenter-unmetered">
             <div className="rounded-lg border bg-card p-6">
               <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-lg bg-orange-50 p-2.5 text-orange-500 dark:bg-orange-500/10"><Wifi className="h-5 w-5" /></div>
-                <div><h3 className="font-semibold">{t("page.ispTitle")}</h3><p className="text-xs text-muted-foreground">ISP IPs with unlimited bandwidth</p></div>
+                <div className="rounded-lg bg-orange-50 p-2.5 text-orange-500 dark:bg-orange-500/10"><Zap className="h-5 w-5" /></div>
+                <div><h3 className="font-semibold">Datacenter Unmetered</h3><p className="text-xs text-muted-foreground">Unlimited bandwidth scraping IPs</p></div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {STATIC_TIERS.map((tier) => (
-                  <div key={tier.type} className="rounded-lg border p-5 text-center">
-                    <h4 className="font-semibold">{tier.type}</h4>
-                    <p className="mt-1 text-2xl font-bold">{tier.price}<span className="text-sm font-normal text-muted-foreground">{tier.unit}</span></p>
-                    <p className="mt-1 text-xs text-muted-foreground">{tier.desc}</p>
-                    <ul className="mt-3 space-y-1.5 text-left">
-                      {tier.features.map((f) => (<li key={f} className="flex items-center gap-2 text-xs text-muted-foreground"><Check className="h-3 w-3 text-primary shrink-0" /> {f}</li>))}
-                    </ul>
-                    <Button asChild size="sm" className="mt-4 w-full"><Link to="/signup">{t("page.buyNow")}</Link></Button>
-                  </div>
-                ))}
-              </div>
+              <PricingTable tiers={DATACENTER_TIERS} t={t} />
             </div>
           </TabsContent>
         </Tabs>

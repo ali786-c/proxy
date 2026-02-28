@@ -28,9 +28,9 @@ import { useUsage, useStats } from "@/hooks/use-backend";
 
 const PRODUCTS = [
   {
-    id: "core-residential",
-    name: "Core Residential",
-    subtitle: "100% ethical residential proxies",
+    id: "residential",
+    name: "Residential Proxies",
+    subtitle: "High-quality ethical residential proxies",
     price: "0.99",
     unit: "GB",
     discount: "BEST VALUE",
@@ -38,44 +38,12 @@ const PRODUCTS = [
     icon: Globe,
     color: "border-destructive",
     features: [
-      "Unbeatable Pricing at €0.99/GB",
+      "Unbeatable Pricing",
       "50M+ real residential IPs from around the world",
       "Free IP rotation, sticky sessions, and geo-targeting",
       "99.9% uptime with outstanding 24/7 support",
     ],
     cta: "Get Started",
-    ctaVariant: "default" as const,
-  },
-  {
-    id: "premium-residential",
-    name: "Premium Residential",
-    subtitle: "100% ethical residential proxies",
-    price: "2.99",
-    unit: "GB",
-    icon: Wifi,
-    features: [
-      "100M+ real residential IPs from around the world",
-      "Free IP rotation, sticky sessions, and geo-targeting",
-      "99.9% uptime with outstanding 24/7 support",
-      "Choose between Size, Quality and Speed Modes",
-    ],
-    cta: "See Pricing",
-    ctaVariant: "default" as const,
-  },
-  {
-    id: "static-residential",
-    name: "Static Residential",
-    subtitle: "100% ethical residential proxies",
-    price: "2.99",
-    unit: "IP",
-    icon: Layers,
-    features: [
-      "Unlimited Bandwidth",
-      "Virgin, Private and Shared IPs",
-      "99.9% uptime with outstanding 24/7 support",
-      "500 Concurrent Connections free",
-    ],
-    cta: "See Pricing",
     ctaVariant: "default" as const,
   },
   {
@@ -106,6 +74,38 @@ const PRODUCTS = [
       "No phone farms, no datacenter IPs, no worries",
       "99.9% uptime with outstanding 24/7 support",
       "Unlimited Concurrent Sessions",
+    ],
+    cta: "Get Started",
+    ctaVariant: "default" as const,
+  },
+  {
+    id: "datacenter-ipv6",
+    name: "Datacenter IPv6",
+    subtitle: "Future-proof high performance IPs",
+    price: "0.59",
+    unit: "GB",
+    icon: Server,
+    features: [
+      "Massive pool of clean IPv6 addresses",
+      "Avoid IPv4 congestion and blocks",
+      "99.9% uptime with outstanding 24/7 support",
+      "Best for scraping modern targets",
+    ],
+    cta: "Get Started",
+    ctaVariant: "default" as const,
+  },
+  {
+    id: "datacenter-unmetered",
+    name: "Datacenter (Unmetered)",
+    subtitle: "Unlimited bandwidth scraping IPs",
+    price: "19.99",
+    unit: "Month",
+    icon: Server,
+    features: [
+      "Never worry about traffic usage again",
+      "Ideal for high-bandwidth operations",
+      "99.9% uptime guarantee",
+      "Dedicated high-speed connectivity",
     ],
     cta: "Get Started",
     ctaVariant: "default" as const,
@@ -286,12 +286,12 @@ function ProductCard({ product, format, t }: { product: typeof PRODUCTS[0], form
 
         <div className="flex gap-2">
           <Button className="flex-1" asChild>
-            <Link to={`/app/proxies?type=${product.id}`}>
+            <Link to={`/app/proxies/${product.id}`}>
               {product.cta}
             </Link>
           </Button>
           <Button variant="outline" className="flex-1" asChild>
-            <Link to={`/${product.id === "core-residential" ? "residential" : product.id === "premium-residential" ? "residential" : product.id === "static-residential" ? "isp" : product.id}-proxies`}>
+            <Link to={`/app/proxies/generate`}>
               Learn More
             </Link>
           </Button>
