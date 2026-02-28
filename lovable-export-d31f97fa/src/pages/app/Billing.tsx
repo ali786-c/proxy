@@ -47,7 +47,7 @@ type PaymentMethod = "stripe" | "paypal" | "cryptomus" | "manual";
 export default function Billing() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { format } = useCurrency();
+  const { format, currency } = useCurrency();
   const { t } = useI18n();
   const [activeProduct] = useState("residential");
   const [amount, setAmount] = useState("50");
