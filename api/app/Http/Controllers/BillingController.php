@@ -104,48 +104,42 @@ class BillingController extends Controller
     public function createCheckout(Request $request)
     {
         $request->validate([
-            'amount'        => 'required|numeric|min:1',
-            'coupon_code'   => 'nullable|string',
+            'total_amount'  => 'required|numeric|min:0.01', // Final total user saw (includes VAT)
+            'net_amount'    => 'required|numeric|min:0.01', // Pre-VAT amount (credited to wallet)
             'currency_code' => 'nullable|string|max:10',
         ]);
 
-        $inputAmount     = (float) $request->amount;
-        $inputCurrency   = strtoupper($request->currency_code ?? 'EUR');
-        $couponCode      = $request->coupon_code;
+        $totalInput    = (float) $request->total_amount;   // e.g. 28.06 EUR or 30.61 USD
+        $netInput      = (float) $request->net_amount;     // e.g. 23.00 EUR or 25.09 USD (pre-VAT)
+        $inputCurrency = strtoupper($request->currency_code ?? 'EUR');
 
-        // ── Currency Conversion to EUR ────────────────────────────────────────
-        // Stripe account is EUR-based, so we always charge in EUR.
-        // Exchange rates in DB are relative to USD (i.e., EUR rate = units of currency per 1 USD).
-        // To convert: amountInEUR = inputAmount / inputCurrencyRate * eurRate
-        // where eurRate = EUR per USD (e.g., 0.92 means 1 USD = 0.92 EUR)
-        $amountInEur = $inputAmount;
+        // ── Convert to EUR ──────────────────────────────────────────────────────
+        // Exchange rates are now EUR-based: exchange_rate = "1 EUR = X units of currency"
+        // So: amount_in_eur = amount_in_currency / exchange_rate
+        //
+        // EUR itself has exchange_rate = 1.0 → no conversion needed
+        $totalInEur = $totalInput;
+        $netInEur   = $netInput;
+
         if ($inputCurrency !== 'EUR') {
-            $inputCurrencyModel = \App\Models\SupportedCurrency::where('code', $inputCurrency)->first();
-            $eurModel           = \App\Models\SupportedCurrency::where('code', 'EUR')->first();
+            $currencyModel = \App\Models\SupportedCurrency::where('code', $inputCurrency)->first();
 
-            if ($inputCurrencyModel && $eurModel) {
-                // rates are stored as: 1 USD = X units of currency
-                // So inputAmount / inputCurrencyRate = USD amount
-                // USD amount * eurRate = EUR amount
-                $usdAmount    = $inputAmount / $inputCurrencyModel->exchange_rate;
-                $amountInEur  = $usdAmount * $eurModel->exchange_rate;
+            if ($currencyModel && $currencyModel->exchange_rate > 0) {
+                // exchange_rate = 1 EUR = X units → divide to get EUR
+                $totalInEur = $totalInput / $currencyModel->exchange_rate;
+                $netInEur   = $netInput / $currencyModel->exchange_rate;
             }
-            // If currency not found in DB, fall back to treating amount as EUR
+            // If currency not found, fall back: treat as EUR
         }
 
-        // Round to 2 decimal places
-        $amountInEur    = round($amountInEur, 2);
-        $originalAmount = $amountInEur;
-        $discount       = 0;
+        // Round to 2dp
+        $totalInEur = round($totalInEur, 2);
+        $netInEur   = round($netInEur, 2);
 
-        // ── Apply Coupon (on EUR amount) ──────────────────────────────────────
-        if ($couponCode) {
-            $coupon = Coupon::where('code', $couponCode)->first();
-            if ($coupon && $coupon->isValid($amountInEur)) {
-                $discount    = $coupon->calculateDiscount($amountInEur);
-                $amountInEur = max(0, $amountInEur - $discount);
-            }
-        }
+        // ── Stripe ─────────────────────────────────────────────────────────────
+        // totalInEur is the FINAL amount that includes VAT — send directly to Stripe.
+        // NO additional VAT multiplication here.
+        $stripeAmountCents = (int) round($totalInEur * 100);
 
         $stripeSecret = Setting::getValue('stripe_secret_key') ?: config('services.stripe.secret');
         if (!$stripeSecret) {
@@ -156,8 +150,10 @@ class BillingController extends Controller
         try {
             Stripe::setApiKey($stripeSecret);
 
-            // Stripe amount is always in EUR, with 22% VAT added
-            $stripeAmount = round($amountInEur * 100 * 1.22); // cents
+            $description = 'Add funds to your UpgradedProxy wallet';
+            if ($inputCurrency !== 'EUR') {
+                $description .= " (converted from {$inputCurrency} {$totalInput} → €{$totalInEur})";
+            }
 
             $sessionData = [
                 'payment_method_types' => ['card'],
@@ -165,11 +161,10 @@ class BillingController extends Controller
                     'price_data' => [
                         'currency'     => 'eur',
                         'product_data' => [
-                            'name'        => 'Balance Top-up' . ($couponCode ? " (Promo: {$couponCode})" : ""),
-                            'description' => "Add funds to your UpgradedProxy wallet (charged in EUR)" .
-                                             ($inputCurrency !== 'EUR' ? " — converted from {$inputCurrency} {$inputAmount}" : ""),
+                            'name'        => 'Balance Top-up',
+                            'description' => $description,
                         ],
-                        'unit_amount' => $stripeAmount,
+                        'unit_amount'  => $stripeAmountCents,
                     ],
                     'quantity' => 1,
                 ]],
@@ -178,11 +173,12 @@ class BillingController extends Controller
                 'cancel_url'  => url('/') . '/app/billing?canceled=true',
                 'metadata'    => [
                     'user_id'         => $request->user()->id,
-                    'amount'          => $amountInEur,          // EUR net amount (after coupon) for wallet credit
-                    'original_amount' => $originalAmount,       // EUR pre-coupon
-                    'coupon_code'     => $couponCode,
+                    // 'amount' = net EUR credited to wallet (pre-VAT)
+                    'amount'          => $netInEur,
+                    'total_charged'   => $totalInEur,
                     'input_currency'  => $inputCurrency,
-                    'input_amount'    => $inputAmount,
+                    'input_total'     => $totalInput,
+                    'input_net'       => $netInput,
                 ],
             ];
 

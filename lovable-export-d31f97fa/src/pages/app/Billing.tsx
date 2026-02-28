@@ -238,9 +238,10 @@ export default function Billing() {
     } else if (selectedMethod === "stripe") {
       setIsSubmitting(true);
       try {
-        // Send raw numAmount + coupon code + currency code
-        // Backend converts to EUR (Stripe base currency) using stored exchange rates
-        const { url } = await clientApi.createCheckout(numAmount, appliedCoupon?.code, currency.code);
+        // totalAmount = what user sees as final total (includes VAT)
+        // netAmount = pre-VAT subtotal (what gets credited to wallet)
+        // currency.code = user's display currency (backend will convert to EUR)
+        const { url } = await clientApi.createCheckout(totalAmount, netAmount, currency.code);
         window.location.href = url;
       } catch (err: any) {
         toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
