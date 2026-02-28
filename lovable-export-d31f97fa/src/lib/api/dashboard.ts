@@ -181,8 +181,8 @@ export const clientApi = {
   // Billing
   getPlans: () => api.get("/products", z.array(PlanSchema)),
   getInvoices: () => api.get("/invoices", z.array(InvoiceSchema)),
-  createCheckout: (productId: string, amount: number, couponCode?: string) =>
-    api.post("/billing/checkout", z.object({ url: z.string() }), { product_id: productId, amount, coupon_code: couponCode }),
+  createCheckout: (amount: number, couponCode?: string) =>
+    api.post("/billing/checkout", z.object({ url: z.string() }), { amount, coupon_code: couponCode }),
   createCryptomusCheckout: (amount: number, couponCode?: string) =>
     api.post("/billing/cryptomus-checkout", z.object({ url: z.string() }), { amount, coupon_code: couponCode }),
   createProductCheckout: (productId: string, quantity: number, country?: string, session_type?: string, couponCode?: string) =>

@@ -238,7 +238,8 @@ export default function Billing() {
     } else if (selectedMethod === "stripe") {
       setIsSubmitting(true);
       try {
-        const { url } = await clientApi.createCheckout(activeProduct, numAmount, appliedCoupon?.code);
+        // Send raw numAmount + coupon code — backend applies discount and VAT
+        const { url } = await clientApi.createCheckout(numAmount, appliedCoupon?.code);
         window.location.href = url;
       } catch (err: any) {
         toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
