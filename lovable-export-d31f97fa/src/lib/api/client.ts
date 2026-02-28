@@ -47,10 +47,6 @@ async function request<T>(
 
   if (res.status === 401) {
     tokenStorage.clear();
-    // Use window.location only if we're not already on login
-    if (!window.location.pathname.includes("/login")) {
-      window.location.href = "/login";
-    }
     throw new ApiError(401, "Session expired. Please log in again.", {});
   }
 
