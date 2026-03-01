@@ -151,12 +151,12 @@ class EmailTemplateController extends Controller
         // We'll use the BaseDynamicNotification logic manually here for the test send
         try {
             Notification::route('mail', $request->email)->notify(
-                new \App\Notifications\WelcomeNotification([
-                    'user' => ['name' => 'Admin Test'],
-                    'action_url' => url('/')
+                new \App\Notifications\GenericDynamicNotification($template->key, [
+                    'user' => ['name' => 'Admin Test', 'email' => $request->email, 'ip' => '127.0.0.1'],
+                    'action_url' => url('/'),
+                    'order' => ['id' => 'ORD-TEST', 'amount' => '$99.99'],
+                    'ticket' => ['id' => 'TIC-TEST', 'subject' => 'Test Issue']
                 ])
-                // Note: Real implementation would ideally use a generic TestNotification 
-                // that accepts the specific Key to test.
             );
 
             return response()->json(['message' => "Test email sent to {$request->email}"]);
