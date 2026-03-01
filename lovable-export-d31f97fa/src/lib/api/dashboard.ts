@@ -128,10 +128,17 @@ export type CouponResponse = z.infer<typeof CouponResponseSchema>;
 export const PlanSchema = z.object({
   id: z.string(),
   name: z.string(),
+  price: z.number().optional(),
   price_cents: z.number(),
   type: z.string().optional(),
   tagline: z.string().nullable().optional(),
   features: z.array(z.string()).nullable().optional(),
+  volume_discounts: z.array(
+    z.object({
+      min_qty: z.coerce.number(),
+      price: z.coerce.number()
+    })
+  ).nullable().optional(),
 });
 export type Plan = z.infer<typeof PlanSchema>;
 

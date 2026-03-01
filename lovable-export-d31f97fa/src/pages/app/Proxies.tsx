@@ -14,8 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Copy, Download, Loader2, CreditCard, Wallet, Bitcoin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useProducts, useGenerateProxy, useProxySettings } from "@/hooks/use-backend";
+import { useProducts, useGenerateProxy } from "@/hooks/use-backend";
 import { clientApi } from "@/lib/api/dashboard";
+import evomiCountries from "@/lib/data/countries.json";
 import {
   Dialog,
   DialogContent,
@@ -75,7 +76,6 @@ fetch('https://httpbin.org/ip', { agent })
 
 export default function Proxies() {
   const { data: products } = useProducts();
-  const { data: settings } = useProxySettings();
   const generateProxy = useGenerateProxy();
 
   const [product, setProduct] = useState(""); // This will store Product ID
@@ -257,10 +257,10 @@ export default function Proxies() {
                   <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                   <SelectContent>
                     {(() => {
-                      const evomiType = TYPE_MAP[productType] || "residential";
-                      const countriesObj = settings?.data?.[evomiType]?.countries || {};
-                      return Object.entries(countriesObj).map(([code, name]: any) => (
-                        <SelectItem key={code} value={code}>{name}</SelectItem>
+                      const typeToUse = productType === "residential" ? "rp" : productType === "datacenter" ? "dc" : productType === "mobile" ? "mp" : productType;
+                      const countriesObj = (evomiCountries as Record<string, Record<string, string>>)[typeToUse] || {};
+                      return Object.entries(countriesObj).map(([code, name]) => (
+                        <SelectItem key={code} value={code}>{name as string}</SelectItem>
                       ));
                     })()}
                   </SelectContent>
@@ -320,13 +320,13 @@ export default function Proxies() {
             <div className="flex flex-wrap gap-2 pt-2">
               <Button onClick={handleGenerate} disabled={loading}>
                 {loading && !directPurchaseInfo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {loading && !directPurchaseInfo ? t("common.loading") : t("proxies.generate")}
+                {loading && !directPurchaseInfo ? t("common.loading") : "Generate"}
               </Button>
 
               {directPurchaseInfo && (
                 <Button variant="secondary" onClick={() => setShowPaymentModal(true)} disabled={loading} className="gap-2">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                  {t("common.pay")} {format(directPurchaseInfo.amount)} & {t("proxies.generate")}
+                  {t("common.pay")} {format(directPurchaseInfo.amount)} & Generate
                 </Button>
               )}
             </div>
