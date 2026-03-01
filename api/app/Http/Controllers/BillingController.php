@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use App\Helpers\CryptomusHelper;
 use App\Services\ReferralService;
+use Illuminate\Http\Request;
 
 class BillingController extends Controller
 {
