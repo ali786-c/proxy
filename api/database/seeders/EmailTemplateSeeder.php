@@ -85,6 +85,38 @@ class EmailTemplateSeeder extends Seeder
                 'format' => 'markdown',
                 'variables' => ['user.email', 'ticket.subject', 'ticket.priority', 'admin_url'],
             ],
+            [
+                'key' => 'support_ticket_opened_user',
+                'name' => 'Support Ticket Opened',
+                'subject' => 'Ticket Opened: {{ticket.subject}}',
+                'body' => "Hello {{user.name}},\n\nYour support ticket #{{ticket.id}} has been successfully opened. Our team will review it and get back to you as soon as possible.\n\n**Subject:** {{ticket.subject}}\n\n[View My Ticket]({{action_url}})",
+                'format' => 'markdown',
+                'variables' => ['user.name', 'ticket.id', 'ticket.subject', 'action_url'],
+            ],
+            [
+                'key' => 'manual_payment_accepted_user',
+                'name' => 'Manual Payment Accepted',
+                'subject' => 'Payment Confirmed: {{payment.reference}}',
+                'body' => "Hello {{user.name}},\n\nGood news! Your manual payment proof for reference **{{payment.reference}}** has been accepted. Your balance has been updated.\n\n[View My Invoices]({{action_url}})",
+                'format' => 'markdown',
+                'variables' => ['user.name', 'payment.reference', 'action_url'],
+            ],
+            [
+                'key' => 'manual_payment_rejected_user',
+                'name' => 'Manual Payment Rejected',
+                'subject' => 'Payment Status Update: {{payment.reference}}',
+                'body' => "Hello {{user.name}},\n\nUnfortunately, we were unable to verify your manual payment proof for reference **{{payment.reference}}**.\n\n**Reason:** {{reject_reason}}\n\n[Try Again / View Tickets]({{action_url}})",
+                'format' => 'markdown',
+                'variables' => ['user.name', 'payment.reference', 'reject_reason', 'action_url'],
+            ],
+            [
+                'key' => 'proxy_created_user',
+                'name' => 'Proxy Subscription Active',
+                'subject' => 'Proxy Created: {{product.name}}',
+                'body' => "Hello {{user.name}},\n\nYour proxy for **{{product.name}}** is now active and ready to use!\n\n**Order ID:** #{{order.id}}\n\n[Manage My Proxies]({{action_url}})",
+                'format' => 'markdown',
+                'variables' => ['user.name', 'product.name', 'order.id', 'action_url'],
+            ],
         ];
 
         foreach ($templates as $template) {
