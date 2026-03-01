@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { SEOHead } from "@/components/seo/SEOHead";
 import { ErrorBanner } from "@/components/shared/ErrorBanner";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useQueryClient } from "@tanstack/react-query";
 import { Copy, Download, Loader2, CreditCard, Wallet, Bitcoin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useProducts, useGenerateProxy } from "@/hooks/use-backend";
@@ -75,8 +76,19 @@ fetch('https://httpbin.org/ip', { agent })
 }
 
 export default function Proxies() {
+  const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const { data: products } = useProducts();
   const generateProxy = useGenerateProxy();
+
+  // Refresh data if user returns from a successful payment
+  useEffect(() => {
+    if (searchParams.get("success") === "true") {
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      queryClient.invalidateQueries({ queryKey: ["proxies"] }); // If you have a proxy list query
+    }
+  }, [searchParams, queryClient]);
 
   const [product, setProduct] = useState(""); // This will store Product ID
   const [productType, setProductType] = useState("residential"); // For geo-filtering

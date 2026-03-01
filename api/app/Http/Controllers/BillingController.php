@@ -66,8 +66,8 @@ class BillingController extends Controller
                     'quantity' => 1,
                 ]],
                 'mode' => 'payment',
-                'success_url' => url('/') . '/app/billing?success=true&direct=true&session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => url('/') . '/app/billing?canceled=true',
+                'success_url' => url('/') . '/app/proxies/generate?success=true&direct=true&session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => url('/') . '/app/proxies/generate?canceled=true',
                 'metadata' => [
                     'user_id' => $request->user()->id,
                     'type' => 'direct_purchase',
@@ -296,7 +296,7 @@ class BillingController extends Controller
             'amount' => (string) $totalAmount,
             'currency' => 'EUR',
             'order_id' => $orderId,
-            'url_return' => url('/') . '/app/billing?success=true&direct=true&gateway=cryptomus',
+            'url_return' => url('/') . '/app/proxies/generate?success=true&direct=true&gateway=cryptomus',
             'url_callback' => url('/') . '/api/webhook/cryptomus',
             'additional_data' => json_encode([
                 'user_id' => $request->user()->id,
@@ -439,7 +439,8 @@ class BillingController extends Controller
                         
                         if ($proxyKey) {
                             try {
-                                $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
+                                Log::info("Attempting allocation: User {$user->evomi_username}, Qty {$quantity}, Type {$product->type}");
+                                $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
                                 $order = \App\Models\Order::create([
                                     'user_id'    => $user->id,
                                     'product_id' => $product->id,
@@ -463,12 +464,23 @@ class BillingController extends Controller
                                     ]);
                                 }
                                 $fulfilled = true;
-                            } catch (\Exception $e) { Log::error("Cryptomus Fulfillment Proxy Error: " . $e->getMessage()); }
+                                Log::info("Cryptomus Direct purchase fulfilled & proxies generated for user {$user->id}");
+                            } catch (\Exception $e) { 
+                                Log::error("Cryptomus Fulfillment Proxy Error: " . $e->getMessage()); 
+                                $failReason = "Proxy generation exception: " . $e->getMessage();
+                            }
+                        } else {
+                            $failReason = "No proxy key found for type {$product->type}";
                         }
+                    } else {
+                        $failReason = "Subuser creation failed: " . ($subuserResult['message'] ?? 'Unknown');
                     }
+                } else {
+                    $failReason = "Product #{$productId} not found";
                 }
 
                 if (!$fulfilled) {
+                    Log::warning("Cryptomus Buy Fallback for User #{$userId}. Reason: {$failReason}");
                     $user->increment('balance', $amount);
                     $referralService->awardCommission($user, $amount, "Commission from Buy Fallback (Cryptomus)");
                     WalletTransaction::create([
@@ -795,6 +807,7 @@ class BillingController extends Controller
                             
                             if ($proxyKey) {
                                 try {
+                                    Log::info("Attempting Stripe allocation: User {$user->evomi_username}, Qty {$quantity}, Type {$product->type}");
                                     $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
                                     
                                     if ($allocated) {

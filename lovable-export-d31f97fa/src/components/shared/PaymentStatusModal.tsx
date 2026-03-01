@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
     Dialog,
     DialogContent,
@@ -13,6 +13,7 @@ import { CheckCircle2, XCircle, AlertCircle, ShoppingBag, CreditCard } from "luc
 
 export function PaymentStatusModal() {
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const [status, setStatus] = useState<"success" | "canceled" | "error" | null>(null);
 
@@ -44,7 +45,13 @@ export function PaymentStatusModal() {
         newParams.delete("error");
         newParams.delete("direct");
         newParams.delete("gateway");
+        newParams.delete("session_id");
         setSearchParams(newParams, { replace: true });
+
+        // If it was a successful direct purchase, make sure we are on the generator page
+        if (status === "success" && isDirect) {
+            navigate("/app/proxies/generate");
+        }
     };
 
     if (!status) return null;
