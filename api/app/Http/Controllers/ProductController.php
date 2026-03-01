@@ -14,6 +14,7 @@ class ProductController extends Controller
                 return [
                     'id'          => (string) $product->id,
                     'name'        => $product->name,
+                    'price'       => (float) $product->price,
                     'price_cents' => (int) ($product->price * 100),
                     'type'        => $product->type,
                     'tagline'     => $product->tagline,
