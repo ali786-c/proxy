@@ -184,7 +184,7 @@ export function useProducts() {
   return useQuery({
     queryKey: ["products"],
     queryFn: async () => {
-      return api.get("/products", z.array(PlanSchema));
+      return api.get(`/products?_t=${Date.now()}`, z.array(PlanSchema));
     },
   });
 }

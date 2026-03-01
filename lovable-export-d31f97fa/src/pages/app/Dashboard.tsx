@@ -28,7 +28,7 @@ import { useUsage, useStats, useProducts } from "@/hooks/use-backend";
 
 const PRODUCTS = [
   {
-    id: "residential",
+    id: "rp",
     name: "Residential Proxies",
     subtitle: "High-quality ethical residential proxies",
     price: "0.99",
@@ -47,7 +47,22 @@ const PRODUCTS = [
     ctaVariant: "default" as const,
   },
   {
-    id: "datacenter",
+    id: "isp",
+    name: "Static Residential",
+    subtitle: "100% ethical residential proxies",
+    price: "2.75",
+    unit: "IP",
+    icon: Layers,
+    features: [
+      "Unlimited Bandwidth",
+      "Virgin, Private and Shared IPs",
+      "99.9% uptime with outstanding 24/7 support",
+    ],
+    cta: "Get Started",
+    ctaVariant: "default" as const,
+  },
+  {
+    id: "dc",
     name: "Datacenter Proxies",
     subtitle: "High-Speed Affordable Datacenter IPs",
     price: "0.79",
@@ -63,7 +78,7 @@ const PRODUCTS = [
     ctaVariant: "default" as const,
   },
   {
-    id: "mobile",
+    id: "mp",
     name: "Mobile Proxies",
     subtitle: "Real human phone IPs",
     price: "2.95",
@@ -79,7 +94,7 @@ const PRODUCTS = [
     ctaVariant: "default" as const,
   },
   {
-    id: "datacenter-ipv6",
+    id: "dc_ipv6",
     name: "Datacenter IPv6",
     subtitle: "Future-proof high performance IPs",
     price: "0.59",
@@ -95,7 +110,7 @@ const PRODUCTS = [
     ctaVariant: "default" as const,
   },
   {
-    id: "datacenter-unmetered",
+    id: "dc_unmetered",
     name: "Datacenter (Unmetered)",
     subtitle: "Unlimited bandwidth scraping IPs",
     price: "19.99",
@@ -125,7 +140,10 @@ export default function AppDashboard() {
   const { t } = useI18n();
   const { data: usage } = useUsage("24h");
   const { data: stats } = useStats();
-  const { data: backendProducts } = useProducts();
+  const { data: backendProducts, error: backendProductsError } = useProducts();
+
+  console.log("DASHBOARD RENDER - backendProducts:", backendProducts);
+  console.log("DASHBOARD RENDER - backendProductsError:", backendProductsError);
 
   const products = (backendProducts || []).map((p: any) => {
     const meta = PRODUCTS.find(m => m.id === p.type) || PRODUCTS[0];
@@ -136,8 +154,43 @@ export default function AppDashboard() {
       price: p.price_cents / 100,
       subtitle: p.tagline || meta.subtitle,
       features: p.features && p.features.length > 0 ? p.features : meta.features,
+      type: p.type, // Make sure we keep the type for sorting
     };
   });
+
+  // Intelligent Sorting for layout
+  let topProducts: any[] = [];
+  let bottomProducts: any[] = [];
+
+  if (products.length > 0) {
+    // Separate Residential vs others
+    const rpProducts = products.filter((p: any) => p.type === 'rp').sort((a: any, b: any) => a.price - b.price);
+    const nonRpProducts = products.filter((p: any) => p.type !== 'rp');
+
+    if (rpProducts.length >= 2) {
+      topProducts = [rpProducts[0], rpProducts[1]];
+      // Core Residential gets the badges
+      topProducts[0] = { ...topProducts[0], popular: true, discount: "BEST VALUE" };
+      // Premium Residential loses default badges
+      topProducts[1] = { ...topProducts[1], popular: false, discount: undefined };
+
+      bottomProducts = [...rpProducts.slice(2), ...nonRpProducts];
+    } else if (rpProducts.length === 1) {
+      topProducts = [rpProducts[0], ...nonRpProducts.slice(0, 1)];
+      topProducts[0] = { ...topProducts[0], popular: true, discount: "BEST VALUE" };
+
+      if (topProducts[1]) {
+        topProducts[1] = { ...topProducts[1], popular: false, discount: undefined };
+      }
+      bottomProducts = nonRpProducts.slice(1);
+    } else {
+      topProducts = products.slice(0, 2);
+      bottomProducts = products.slice(2);
+      if (topProducts.length > 0) {
+        topProducts[0] = { ...topProducts[0], popular: true, discount: "BEST VALUE" };
+      }
+    }
+  }
 
   const balance = user?.balance ?? 0;
   const usedGb = usage?.total_bandwidth_mb ? (usage.total_bandwidth_mb / 1024).toFixed(2) : "0.00";
@@ -195,13 +248,13 @@ export default function AppDashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {products.slice(0, 2).map((product: any) => (
+          {topProducts.map((product: any) => (
             <ProductCard key={product.db_id} product={product} format={format} t={t} />
           ))}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          {products.slice(2).map((product: any) => (
+          {bottomProducts.map((product: any) => (
             <ProductCard key={product.db_id} product={product} format={format} t={t} />
           ))}
         </div>

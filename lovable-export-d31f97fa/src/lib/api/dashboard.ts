@@ -129,8 +129,9 @@ export const PlanSchema = z.object({
   id: z.string(),
   name: z.string(),
   price_cents: z.number(),
-  included_gb: z.number(),
-  features: z.array(z.string()),
+  type: z.string().optional(),
+  tagline: z.string().nullable().optional(),
+  features: z.array(z.string()).nullable().optional(),
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
