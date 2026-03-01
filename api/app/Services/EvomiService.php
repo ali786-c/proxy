@@ -21,10 +21,16 @@ class EvomiService
 
     private function http()
     {
-        return Http::withHeaders([
+        $client = Http::withHeaders([
             'X-API-KEY' => $this->apiKey,
             'Accept'    => 'application/json',
         ]);
+
+        if (app()->environment('local')) {
+            $client->withoutVerifying(); // Fix for local SSL cert issues (cURL 77)
+        }
+
+        return $client;
     }
 
     // ─── Subuser Management ─────────────────────────────────────────────────

@@ -419,8 +419,21 @@ class BillingController extends Controller
             $user = User::lockForUpdate()->find($userId);
             if (!$user) return;
 
+            // ── Step 1: Record formal invoice for transparency ──
+            \App\Models\Invoice::updateOrCreate(
+                ['stripe_invoice_id' => "CRYPTO-{$uuid}"], // Use a stable ID
+                [
+                    'user_id'     => $user->id,
+                    'amount'      => $amount,
+                    'currency'    => $data['currency'] ?? 'EUR',
+                    'status'      => 'paid',
+                    'description' => ($type === 'direct_purchase') 
+                        ? "Direct Purchase: {$metadata['quantity']}x Product #{$metadata['product_id']}"
+                        : "Wallet Top-up",
+                ]
+            );
+
             if ($type === 'direct_purchase') {
-                // Logic identical to Stripe direct fulfillment
                 $productId = $metadata['product_id'] ?? null;
                 $quantity  = (int) ($metadata['quantity'] ?? 1);
                 $country   = $metadata['country'] ?? 'US';
@@ -428,53 +441,59 @@ class BillingController extends Controller
 
                 $product = \App\Models\Product::find($productId);
                 $fulfilled = false;
+                $failReason = "Unknown failure during proxy generation";
 
                 if ($product) {
-                    $evomi = app(\App\Services\EvomiService::class);
-                    $subuserResult = $evomi->ensureSubuser($user);
-                    
-                    if ($subuserResult['success']) {
-                        $user = $user->fresh(); // CRITICAL: Refresh to get evomi_username and evomi_keys
-                        $userKeys = $user->evomi_keys ?? [];
-                        $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
+                    try {
+                        $evomi = app(\App\Services\EvomiService::class);
+                        $subuserResult = $evomi->ensureSubuser($user);
                         
-                        if ($proxyKey) {
-                            try {
+                        if ($subuserResult['success']) {
+                            $user = $user->fresh(); // Ensure we have evomi_username/keys
+                            $userKeys = $user->evomi_keys ?? [];
+                            $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
+                            
+                            if ($proxyKey) {
                                 Log::info("Attempting Cryptomus allocation: User '{$user->evomi_username}', Qty {$quantity}, Type '{$product->type}'");
                                 $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
-                                $order = \App\Models\Order::create([
-                                    'user_id'    => $user->id,
-                                    'product_id' => $product->id,
-                                    'status'     => 'active',
-                                    'expires_at' => now()->addDays(30),
-                                ]);
-
-                                $portMap = ['rp' => 1000, 'mp' => 3000, 'isp' => 3000, 'dc' => 2000];
-                                $hostMap = ['rp' => 'rp.evomi.com', 'mp' => 'mp.evomi.com', 'dc' => 'dcp.evomi.com', 'isp' => 'isp.evomi.com'];
-                                $port = $portMap[$product->type] ?? 1000;
-                                $host = $hostMap[$product->type] ?? 'gate.evomi.com';
-
-                                for ($i = 0; $i < $quantity; $i++) {
-                                    \App\Models\Proxy::create([
-                                        'order_id' => $order->id,
-                                        'host'     => $host,
-                                        'port'     => $port,
-                                        'username' => $user->evomi_username,
-                                        'password' => "{$proxyKey}_country-{$country}_session-{$sessionType}",
-                                        'country'  => $country,
+                                
+                                if ($allocated) {
+                                    $order = \App\Models\Order::create([
+                                        'user_id'    => $user->id,
+                                        'product_id' => $product->id,
+                                        'status'     => 'active',
+                                        'expires_at' => now()->addDays(30),
                                     ]);
+
+                                    $portMap = ['rp' => 1000, 'mp' => 3000, 'isp' => 3000, 'dc' => 2000];
+                                    $hostMap = ['rp' => 'rp.evomi.com', 'mp' => 'mp.evomi.com', 'dc' => 'dcp.evomi.com', 'isp' => 'isp.evomi.com'];
+                                    $port = $portMap[$product->type] ?? 1000;
+                                    $host = $hostMap[$product->type] ?? 'gate.evomi.com';
+
+                                    for ($i = 0; $i < $quantity; $i++) {
+                                        \App\Models\Proxy::create([
+                                            'order_id' => $order->id,
+                                            'host'     => $host,
+                                            'port'     => $port,
+                                            'username' => $user->evomi_username,
+                                            'password' => "{$proxyKey}_country-{$country}_session-{$sessionType}",
+                                            'country'  => $country,
+                                        ]);
+                                    }
+                                    $fulfilled = true;
+                                    Log::info("Cryptomus Direct purchase fulfilled & proxies generated for user {$user->id}");
+                                } else {
+                                    $failReason = "Provider allocation failed";
                                 }
-                                $fulfilled = true;
-                                Log::info("Cryptomus Direct purchase fulfilled & proxies generated for user {$user->id}");
-                            } catch (\Exception $e) { 
-                                Log::error("Cryptomus Fulfillment Proxy Error: " . $e->getMessage()); 
-                                $failReason = "Proxy generation exception: " . $e->getMessage();
+                            } else {
+                                $failReason = "No proxy key found for type {$product->type}";
                             }
                         } else {
-                            $failReason = "No proxy key found for type {$product->type}";
+                            $failReason = "Subuser creation failed: " . ($subuserResult['message'] ?? 'Unknown');
                         }
-                    } else {
-                        $failReason = "Subuser creation failed: " . ($subuserResult['message'] ?? 'Unknown');
+                    } catch (\Exception $e) { 
+                        Log::error("Cryptomus Fulfillment Proxy Error: " . $e->getMessage()); 
+                        $failReason = "Technical error: " . $e->getMessage();
                     }
                 } else {
                     $failReason = "Product #{$productId} not found";
@@ -489,7 +508,7 @@ class BillingController extends Controller
                         'type' => 'credit',
                         'amount' => $amount,
                         'reference' => "CRYPTO-{$uuid}",
-                        'description' => "Cryptomus Buy Fallback: Product #{$productId} (Refunded to wallet)",
+                        'description' => "Direct Purchase Fallback: Product #{$productId} (Refunded to wallet: {$failReason})",
                     ]);
                 } else {
                     WalletTransaction::create([
@@ -497,7 +516,7 @@ class BillingController extends Controller
                         'type' => 'credit',
                         'amount' => $amount,
                         'reference' => "CRYPTO-{$uuid}",
-                        'description' => "Cryptomus Direct Buy: {$quantity}x Product #{$productId}",
+                        'description' => "Direct Purchase: {$quantity}x Product #{$productId} (Auto-allocated)",
                     ]);
                     $referralService->awardCommission($user, $amount, "Commission from Direct Buy (Cryptomus)");
                 }
@@ -524,7 +543,6 @@ class BillingController extends Controller
                     'description' => 'Cryptomus Wallet Top-up' . ($couponCode ? " (Used promo: {$couponCode})" : ""),
                 ]);
             }
-
 
             WebhookLog::create([
                 'provider' => 'cryptomus',
@@ -782,6 +800,20 @@ class BillingController extends Controller
                 $user->update(['stripe_customer_id' => $session->customer]);
             }
 
+            // ── Step 1: Record formal invoice for transparency ──
+            \App\Models\Invoice::updateOrCreate(
+                ['stripe_invoice_id' => $session->id],
+                [
+                    'user_id'     => $user->id,
+                    'amount'      => $paidGross,
+                    'currency'    => $currency,
+                    'status'      => 'paid',
+                    'description' => ($type === 'direct_purchase') 
+                        ? "Direct Purchase: {$session->metadata->quantity}x Product #{$session->metadata->product_id}"
+                        : "Wallet Top-up",
+                ]
+            );
+
             if ($type === 'direct_purchase') {
                 $productId = $session->metadata->product_id;
                 $quantity  = (int) $session->metadata->quantity;
@@ -790,68 +822,65 @@ class BillingController extends Controller
                 
                 $product = \App\Models\Product::find($productId);
                 $fulfilled = false;
-                $failReason = null;
+                $failReason = "Unknown failure during proxy generation";
 
                 if ($product) {
                     // Security Check: Verify Price (Net of VAT)
                     $expectedNet = $product->price * $quantity;
                     if (abs($amount - $expectedNet) > 0.01) {
                         Log::warning("Webhook Security: Price mismatch for User #{$userId}. Paid: {$amount}, Expected: {$expectedNet}");
-                        // We still credit the amount to wallet as fallback below
-                    } else {
+                    }
+
+                    try {
                         $evomi = app(\App\Services\EvomiService::class);
                         $subuserResult = $evomi->ensureSubuser($user);
                         
                         if ($subuserResult['success']) {
-                            $user = $user->fresh(); // CRITICAL: Refresh to get evomi_username and evomi_keys
+                            $user = $user->fresh(); // Ensure we have evomi_username/keys
                             $userKeys = $user->evomi_keys ?? [];
                             $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
                             
                             if ($proxyKey) {
-                                try {
-                                    Log::info("Attempting Stripe allocation: User '{$user->evomi_username}', Qty {$quantity}, Type '{$product->type}'");
-                                    $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
-                                    
-                                    if ($allocated) {
-                                        // Create Order
-                                        $order = \App\Models\Order::create([
-                                            'user_id'    => $user->id,
-                                            'product_id' => $product->id,
-                                            'status'     => 'active',
-                                            'expires_at' => now()->addDays(30),
+                                Log::info("Attempting Stripe allocation: User '{$user->evomi_username}', Qty {$quantity}, Type '{$product->type}'");
+                                $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
+                                
+                                if ($allocated) {
+                                    $order = \App\Models\Order::create([
+                                        'user_id'    => $user->id,
+                                        'product_id' => $product->id,
+                                        'status'     => 'active',
+                                        'expires_at' => now()->addDays(30),
+                                    ]);
+
+                                    $portMap = ['rp' => 1000, 'mp' => 3000, 'isp' => 3000, 'dc' => 2000];
+                                    $hostMap = ['rp' => 'rp.evomi.com', 'mp' => 'mp.evomi.com', 'dc' => 'dcp.evomi.com', 'isp' => 'isp.evomi.com'];
+                                    $port = $portMap[$product->type] ?? 1000;
+                                    $host = $hostMap[$product->type] ?? 'gate.evomi.com';
+
+                                    for ($i = 0; $i < $quantity; $i++) {
+                                        \App\Models\Proxy::create([
+                                            'order_id' => $order->id,
+                                            'host'     => $host,
+                                            'port'     => $port,
+                                            'username' => $user->evomi_username,
+                                            'password' => "{$proxyKey}_country-{$country}_session-{$sessionType}",
+                                            'country'  => $country,
                                         ]);
-
-                                        // Create Proxies
-                                        $portMap = ['rp' => 1000, 'mp' => 3000, 'isp' => 3000, 'dc' => 2000];
-                                        $hostMap = ['rp' => 'rp.evomi.com', 'mp' => 'mp.evomi.com', 'dc' => 'dcp.evomi.com', 'isp' => 'isp.evomi.com'];
-                                        $port = $portMap[$product->type] ?? 1000;
-                                        $host = $hostMap[$product->type] ?? 'gate.evomi.com';
-
-                                        for ($i = 0; $i < $quantity; $i++) {
-                                            \App\Models\Proxy::create([
-                                                'order_id' => $order->id,
-                                                'host'     => $host,
-                                                'port'     => $port,
-                                                'username' => $user->evomi_username,
-                                                'password' => "{$proxyKey}_country-{$country}_session-{$sessionType}",
-                                                'country'  => $country,
-                                            ]);
-                                        }
-                                        $fulfilled = true;
-                                        Log::info("Direct purchase fulfilled & proxies generated for user {$user->id}");
-                                    } else {
-                                        $failReason = "Provider allocation failed";
                                     }
-                                } catch (\Exception $e) {
-                                    Log::error("Webhook Direct Fulfillment Error: " . $e->getMessage());
-                                    $failReason = "Technical error during proxy generation";
+                                    $fulfilled = true;
+                                    Log::info("Direct purchase fulfilled & proxies generated for user {$user->id}");
+                                } else {
+                                    $failReason = "Provider allocation failed";
                                 }
                             } else {
-                                $failReason = "No proxy key found for product type";
+                                $failReason = "No proxy key found for type {$product->type}";
                             }
                         } else {
-                            $failReason = "Provider account initialization failed";
+                            $failReason = "Subuser creation failed: " . ($subuserResult['message'] ?? 'Unknown');
                         }
+                    } catch (\Exception $e) {
+                        Log::error("Webhook Direct Fulfillment Error: " . $e->getMessage());
+                        $failReason = "Technical error: " . $e->getMessage();
                     }
                 } else {
                     $failReason = "Product no longer exists";
