@@ -17,7 +17,8 @@ class ProductController extends Controller
                     'price_cents' => (int) ($product->price * 100),
                     'type'        => $product->type,
                     'tagline'     => $product->tagline,
-                    'features'    => $product->features,
+                    'features'         => $product->features,
+                    'volume_discounts' => $product->volume_discounts,
                 ];
             });
             return response()->json($products);
@@ -42,6 +43,9 @@ class ProductController extends Controller
             'tagline'          => 'nullable|string|max:255',
             'features'         => 'nullable|array',
             'features.*'       => 'string',
+            'volume_discounts' => 'nullable|array',
+            'volume_discounts.*.min_qty' => 'required|integer|min:1',
+            'volume_discounts.*.price'   => 'required|numeric|min:0',
         ]);
 
         $product = Product::create($validated);
@@ -61,6 +65,9 @@ class ProductController extends Controller
             'tagline'          => 'nullable|string|max:255',
             'features'         => 'nullable|array',
             'features.*'       => 'string',
+            'volume_discounts' => 'nullable|array',
+            'volume_discounts.*.min_qty' => 'required|integer|min:1',
+            'volume_discounts.*.price'   => 'required|numeric|min:0',
         ]);
 
         $product->update($validated);

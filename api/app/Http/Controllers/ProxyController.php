@@ -31,7 +31,20 @@ class ProxyController extends Controller
 
         $user    = $request->user()->fresh();
         $product = Product::findOrFail($request->product_id);
-        $totalCost = $product->price * $request->quantity;
+
+        $unitPrice = $product->price;
+
+        if (!empty($product->volume_discounts) && is_array($product->volume_discounts)) {
+            $discounts = collect($product->volume_discounts)->sortByDesc('min_qty');
+            foreach ($discounts as $discount) {
+                if ($request->quantity >= $discount['min_qty']) {
+                    $unitPrice = $discount['price'];
+                    break;
+                }
+            }
+        }
+
+        $totalCost = $unitPrice * $request->quantity;
 
         if ($user->balance < $totalCost) {
             return response()->json([
