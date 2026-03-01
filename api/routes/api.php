@@ -197,7 +197,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/email-templates', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'index']);
     Route::get('/email-templates/{id}', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'show']);
     Route::put('/email-templates/{id}', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'update']);
-    Route::post('/email-templates/{id}/preview', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'preview']);
+    Route::match(['GET', 'POST'], '/email-templates/{id}/preview', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'preview']);
     Route::post('/email-templates/{id}/test', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'testSend']);
 });
 
