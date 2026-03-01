@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 
 import { SEOHead } from "@/components/seo/SEOHead";
@@ -93,6 +93,28 @@ export default function Proxies() {
   const { gateways } = usePaymentConfig();
   const { format } = useCurrency();
   const { t } = useI18n();
+
+  const selectedProductData = (products ?? []).find((p: any) => p.id.toString() === product);
+
+  const liveCostInfo = useMemo(() => {
+    if (!selectedProductData) return null;
+    let unitPrice = Number(selectedProductData.price);
+    const discounts = selectedProductData.volume_discounts || [];
+
+    const sorted = [...discounts].sort((a: any, b: any) => b.min_qty - a.min_qty);
+    for (const d of sorted) {
+      if (quantity >= d.min_qty) {
+        unitPrice = Number(d.price);
+        break;
+      }
+    }
+
+    const basePrice = Number(selectedProductData.price);
+    const total = unitPrice * quantity;
+    const isDiscounted = unitPrice < basePrice;
+
+    return { unitPrice, total, isDiscounted, basePrice };
+  }, [selectedProductData, quantity]);
 
   const handleGenerate = useCallback(async () => {
     setError(null);
@@ -273,7 +295,29 @@ export default function Proxies() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            {liveCostInfo && (
+              <div className="flex items-center justify-between bg-muted/50 p-4 rounded-md border border-border/50">
+                <div>
+                  <p className="text-sm font-medium">Estimated Cost</p>
+                  <p className="text-xs text-muted-foreground">
+                    {quantity} {productType === "isp" ? "IPs" : productType === "dc_unmetered" ? "Months" : "GB"} @ {format(liveCostInfo.unitPrice)}/ea
+                    {liveCostInfo.isDiscounted && (
+                      <span className="line-through text-muted-foreground/50 ml-2">{format(liveCostInfo.basePrice)}</span>
+                    )}
+                  </p>
+                </div>
+                <div className="text-right flex flex-col items-end">
+                  <p className="text-lg font-bold text-primary">{format(liveCostInfo.total)}</p>
+                  {liveCostInfo.isDiscounted && (
+                    <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-200 mt-1 text-[10px] px-1.5 py-0 h-4">
+                      Volume Discount
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button onClick={handleGenerate} disabled={loading}>
                 {loading && !directPurchaseInfo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {loading && !directPurchaseInfo ? t("common.loading") : t("proxies.generate")}

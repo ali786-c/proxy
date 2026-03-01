@@ -43,6 +43,12 @@ const ProductSchema = z.object({
   evomi_product_id: z.string().nullable().optional(),
   tagline: z.string().nullable().optional(),
   features: z.array(z.string()).nullable().optional(),
+  volume_discounts: z.array(
+    z.object({
+      min_qty: z.coerce.number(),
+      price: z.coerce.number()
+    })
+  ).nullable().optional(),
 });
 
 const PaginatedProductSchema = z.object({
@@ -73,6 +79,7 @@ type FormData = {
   evomi_product_id: string;
   tagline: string;
   features: string[];
+  volume_discounts: { min_qty: number; price: number }[];
 };
 
 const EMPTY_FORM: FormData = {
@@ -84,7 +91,8 @@ const EMPTY_FORM: FormData = {
   is_active: true,
   evomi_product_id: "",
   tagline: "",
-  features: []
+  features: [],
+  volume_discounts: []
 };
 
 export default function AdminProducts() {
@@ -112,7 +120,8 @@ export default function AdminProducts() {
           is_active: Boolean(p.is_active),
           evomi_product_id: p.evomi_product_id,
           tagline: p.tagline || "",
-          features: p.features || []
+          features: p.features || [],
+          volume_discounts: p.volume_discounts || []
         }))
       };
     },
@@ -165,7 +174,8 @@ export default function AdminProducts() {
       is_active: p.is_active,
       evomi_product_id: p.evomi_product_id || "",
       tagline: p.tagline || "",
-      features: p.features || []
+      features: p.features || [],
+      volume_discounts: p.volume_discounts || []
     });
     setModalOpen(true);
   };
@@ -184,7 +194,8 @@ export default function AdminProducts() {
       is_active: form.is_active,
       evomi_product_id: form.evomi_product_id,
       tagline: form.tagline,
-      features: form.features
+      features: form.features,
+      volume_discounts: form.volume_discounts.length > 0 ? form.volume_discounts : null
     });
   };
 
@@ -388,6 +399,68 @@ export default function AdminProducts() {
                     onClick={() => {
                       const newFeats = form.features.filter((_, i) => i !== idx);
                       setForm({ ...form, features: newFeats });
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2 border rounded-md p-3">
+              <div className="flex justify-between items-center">
+                <Label>Volume Discounts</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setForm({ ...form, volume_discounts: [...form.volume_discounts, { min_qty: 100, price: 0.99 }] })}
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add Tier
+                </Button>
+              </div>
+              {form.volume_discounts.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No volume discounts added. Pricing is flat-rate.</p>
+              )}
+              {form.volume_discounts.map((discount, idx) => (
+                <div key={`discount-${idx}`} className="flex items-center gap-2">
+                  <div className="grid grid-cols-2 gap-2 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-16">Min Qty:</span>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={discount.min_qty}
+                        onChange={(e) => {
+                          const newDiscounts = [...form.volume_discounts];
+                          newDiscounts[idx].min_qty = Number(e.target.value);
+                          setForm({ ...form, volume_discounts: newDiscounts });
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-12">Price:</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={discount.price}
+                        onChange={(e) => {
+                          const newDiscounts = [...form.volume_discounts];
+                          newDiscounts[idx].price = Number(e.target.value);
+                          setForm({ ...form, volume_discounts: newDiscounts });
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-destructive"
+                    onClick={() => {
+                      const newDiscounts = form.volume_discounts.filter((_, i) => i !== idx);
+                      setForm({ ...form, volume_discounts: newDiscounts });
                     }}
                   >
                     <X className="h-4 w-4" />
