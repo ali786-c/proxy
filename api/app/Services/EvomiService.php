@@ -27,7 +27,8 @@ class EvomiService
         ]);
 
         if (app()->environment('local')) {
-            $client->withoutVerifying(); // Fix for local SSL cert issues (cURL 77)
+            // withoutVerifying() returns a NEW instance — must be reassigned
+            $client = $client->withoutVerifying();
         }
 
         return $client;
@@ -275,17 +276,26 @@ class EvomiService
         );
 
         if ($created) {
-            $keys = $this->extractKeys($result);
+            $actualUsername = $result['data']['username'] ?? $newUsername;
+
+            // The CREATE response does NOT include proxy_keys/products.
+            // We must fetch the subuser data SEPARATELY to get the actual keys.
+            $subuserData = $this->getSubuserData($actualUsername);
+            $keys = $subuserData ? $this->extractKeys($subuserData) : [];
+
+            Log::info('ensureSubuser: created successfully', [
+                'username'    => $actualUsername,
+                'keys_found'  => array_keys($keys),
+                'raw_data_ok' => !empty($subuserData),
+            ]);
+
             $user->update([
-                'evomi_username'   => $result['data']['username'] ?? $newUsername,
-                'evomi_subuser_id' => $result['data']['username'] ?? $newUsername, // use username as ID
+                'evomi_username'   => $actualUsername,
+                'evomi_subuser_id' => $actualUsername,
                 'evomi_keys'       => $keys,
             ]);
             $user->refresh();
-            Log::info('ensureSubuser: created successfully', [
-                'username' => $result['data']['username'] ?? $newUsername,
-                'keys'     => array_keys($keys),
-            ]);
+
             return ['success' => true, 'keys' => $keys];
         }
 
