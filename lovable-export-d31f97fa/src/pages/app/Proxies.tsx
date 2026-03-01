@@ -267,10 +267,6 @@ export default function Proxies() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>City (optional)</Label>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Any" />
-              </div>
 
               <div className="space-y-2">
                 <Label>Session Type</Label>
