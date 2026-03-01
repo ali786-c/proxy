@@ -23,6 +23,7 @@ import {
   Package,
   Shield,
   FileText,
+  Mail,
   Bell,
   Home,
   Wifi,
