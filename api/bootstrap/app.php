@@ -26,10 +26,5 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('referral:process-pending')->daily();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderHtmlWhen(function ($request, $e) {
-            if ($request->is('api/*')) {
-                return false;
-            }
-            return $request->expectsJson();
-        });
+        //
     })->create();
