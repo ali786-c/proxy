@@ -434,12 +434,13 @@ class BillingController extends Controller
                     $subuserResult = $evomi->ensureSubuser($user);
                     
                     if ($subuserResult['success']) {
-                        $userKeys = $user->fresh()->evomi_keys ?? [];
+                        $user = $user->fresh(); // CRITICAL: Refresh to get evomi_username and evomi_keys
+                        $userKeys = $user->evomi_keys ?? [];
                         $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
                         
                         if ($proxyKey) {
                             try {
-                                Log::info("Attempting allocation: User {$user->evomi_username}, Qty {$quantity}, Type {$product->type}");
+                                Log::info("Attempting Cryptomus allocation: User '{$user->evomi_username}', Qty {$quantity}, Type '{$product->type}'");
                                 $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
                                 $order = \App\Models\Order::create([
                                     'user_id'    => $user->id,
@@ -802,12 +803,13 @@ class BillingController extends Controller
                         $subuserResult = $evomi->ensureSubuser($user);
                         
                         if ($subuserResult['success']) {
-                            $userKeys = $user->fresh()->evomi_keys ?? [];
+                            $user = $user->fresh(); // CRITICAL: Refresh to get evomi_username and evomi_keys
+                            $userKeys = $user->evomi_keys ?? [];
                             $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
                             
                             if ($proxyKey) {
                                 try {
-                                    Log::info("Attempting Stripe allocation: User {$user->evomi_username}, Qty {$quantity}, Type {$product->type}");
+                                    Log::info("Attempting Stripe allocation: User '{$user->evomi_username}', Qty {$quantity}, Type '{$product->type}'");
                                     $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
                                     
                                     if ($allocated) {
