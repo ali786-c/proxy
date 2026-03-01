@@ -12,117 +12,261 @@ class EmailTemplateSeeder extends Seeder
      */
     public function run(): void
     {
+        $htmlBase = <<<'HTML'
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email</title>
+</head>
+<body style="margin:0; padding:0; background:#f4f6f9; font-family: Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f6f9; padding:28px 14px;">
+    <tr>
+      <td align="center">
+        <!-- Main container -->
+        <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0"
+               style="width:640px; max-width:640px; background:#ffffff; border-radius:14px; overflow:hidden; box-shadow:0 10px 34px rgba(0,0,0,0.07);">
+          <!-- ===== HEADER START ===== -->
+          <tr>
+            <td style="background:#25935f; padding:22px 26px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="left" style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="vertical-align:middle; padding-right:10px;">
+                          <svg width="30" height="30" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="UpgradedProxy" role="img" style="display:block;">
+                            <path fill="#ffffff" d="M12 18l20-10 20 10-20 10-20-10z"/>
+                            <path fill="#ffffff" opacity="0.92" d="M12 30l20-10 20 10-20 10-20-10z"/>
+                            <path fill="#ffffff" opacity="0.85" d="M12 42l20-10 20 10-20 10-20-10z"/>
+                          </svg>
+                        </td>
+                        <td style="vertical-align:middle;">
+                          <div style="color:#ffffff; font-size:18px; font-weight:800; letter-spacing:0.2px; line-height:1;">
+                            {{app.name}}
+                          </div>
+                          <div style="color:#e6fff5; font-size:12px; margin-top:4px; letter-spacing:0.3px;">
+                            Secure • Fast • Reliable
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <div style="color:#e6fff5; font-size:12px; line-height:1.4; text-align:right;">
+                      Need help? <a href="mailto:support@upgraderproxy.com" style="color:#ffffff; text-decoration:underline;">support@upgraderproxy.com</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- ===== HEADER END ===== -->
+          <!-- ===== CONTENT AREA ===== -->
+          <tr>
+            <td style="padding:36px 28px;">
+                [[CONTENT]]
+            </td>
+          </tr>
+          <!-- ===== FOOTER START ===== -->
+          <tr>
+            <td style="background:#0b1220; padding:26px 28px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="left" style="vertical-align:top;">
+                    <div style="color:#ffffff; font-size:14px; font-weight:800; letter-spacing:0.2px;">
+                      {{app.name}}
+                    </div>
+                    <div style="color:#a7b0c0; font-size:12px; line-height:1.7; margin-top:6px;">
+                      Premium proxy infrastructure built for scale, speed & reliability.
+                    </div>
+                  </td>
+                  <td align="right" style="vertical-align:top;">
+                    <div style="font-size:12px; line-height:1.9;">
+                      <a href="{{app.url}}" style="color:#5eead4; text-decoration:none;">Website</a><br/>
+                      <a href="{{app.url}}/login" style="color:#5eead4; text-decoration:none;">Login</a><br/>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);">
+                    <div style="color:#7f8aa3; font-size:11px; line-height:1.7;">
+                      © {{year}} {{app.name}}. All rights reserved.
+                      &nbsp;•&nbsp;
+                      <a href="{{app.url}}/unsubscribe" style="color:#7f8aa3; text-decoration:underline;">Unsubscribe</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- ===== FOOTER END ===== -->
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+HTML;
+
         $templates = [
             [
                 'key' => 'welcome_user',
                 'name' => 'User Welcome Email',
                 'subject' => 'Welcome to {{app.name}}!',
-                'body' => "# Welcome, {{user.name}}!\n\nWe are excited to have you on board. Your account has been successfully created.\n\n[Go to Dashboard]({{action_url}})\n\nIf you have any questions, feel free to reply to this email.\n\nBest regards,\nThe {{app.name}} Team",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'app.name', 'action_url'],
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">Welcome, {{user.name}}!</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">We are excited to have you on board. Your account has been successfully created and you can now explore our premium proxy network.</p>
+                             <a href="{{action_url}}" style="display:inline-block; background:#25935f; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">Go to Dashboard</a>',
+                'variables' => ['user.name', 'app.name', 'action_url', 'year'],
             ],
             [
                 'key' => 'reset_password_user',
                 'name' => 'Password Reset Request',
                 'subject' => 'Reset Your Password - {{app.name}}',
-                'body' => "# Password Reset\n\nHello {{user.name}},\n\nYou are receiving this email because we received a password reset request for your account.\n\n[Reset Password]({{action_url}})\n\nThis password reset link will expire in 60 minutes.\n\nIf you did not request a password reset, no further action is required.",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'app.name', 'action_url'],
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">Password Reset</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">Hello {{user.name}}, you are receiving this email because we received a password reset request for your account.</p>
+                             <a href="{{action_url}}" style="display:inline-block; background:#25935f; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">Reset Password</a>
+                             <p style="margin:20px 0 0; font-size:12px; color:#64748b;">This password reset link will expire in 60 minutes.</p>',
+                'variables' => ['user.name', 'app.name', 'action_url', 'year'],
             ],
             [
                 'key' => 'password_changed_user',
                 'name' => 'Password Changed Confirmation',
                 'subject' => 'Your password has been changed',
-                'body' => "Hello {{user.name}},\n\nThis is a confirmation that your password for {{app.name}} has been successfully changed.\n\nIf you did not perform this action, please contact support immediately.",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'app.name'],
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">Security Alert</h2>
+                             <p style="margin:0; font-size:14px; color:#334155; line-height:1.7;">Hello {{user.name}}, this is a confirmation that your password for {{app.name}} has been successfully changed.<br><br>If you did not perform this action, please contact support immediately.</p>',
+                'variables' => ['user.name', 'app.name', 'year'],
             ],
             [
                 'key' => 'order_confirmation_user',
                 'name' => 'Order Confirmation',
                 'subject' => 'Order Confirmation #{{order.id}}',
-                'body' => "# Thank you for your order!\n\nHello {{user.name}},\n\nYour order #{{order.id}} for **{{order.amount}}** has been processed successfully.\n\n[View Order Details]({{action_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'order.id', 'order.amount', 'app.name', 'action_url'],
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">Thank you for your order!</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">Hello {{user.name}}, your order #{{order.id}} for <strong>{{order.amount}}</strong> has been processed successfully.</p>
+                             <a href="{{action_url}}" style="display:inline-block; background:#25935f; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">View Order Details</a>',
+                'variables' => ['user.name', 'order.id', 'order.amount', 'app.name', 'action_url', 'year'],
             ],
             [
                 'key' => 'support_ticket_reply_user',
                 'name' => 'Support Ticket Reply',
                 'subject' => 'Re: [Ticket #{{ticket.id}}] {{ticket.subject}}',
-                'body' => "Hello {{user.name}},\n\nA member of our support team has replied to your ticket #{{ticket.id}}.\n\n**Reply:**\n{{reply_content}}\n\n[View Ticket]({{action_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'ticket.id', 'ticket.subject', 'reply_content', 'action_url'],
-            ],
-            [
-                'key' => 'admin_new_user',
-                'name' => 'Admin: New User Registration',
-                'subject' => '[Admin] New User Registered: {{user.email}}',
-                'body' => "A new user has just registered on {{app.name}}.\n\n- **Name:** {{user.name}}\n- **Email:** {{user.email}}\n- **IP:** {{user.ip}}\n\n[View User in Admin]({{admin_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'user.email', 'user.ip', 'app.name', 'admin_url'],
-            ],
-            [
-                'key' => 'admin_new_order',
-                'name' => 'Admin: New Order Received',
-                'subject' => '[Admin] New Order Alert! #{{order.id}}',
-                'body' => "A new order has been placed.\n\n- **User:** {{user.email}}\n- **Amount:** {{order.amount}}\n- **Order ID:** {{order.id}}\n\n[View Order]({{admin_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.email', 'order.id', 'order.amount', 'admin_url'],
-            ],
-            [
-                'key' => 'admin_manual_payment',
-                'name' => 'Admin: Manual Payment Submitted',
-                'subject' => '[Admin] Manual Payment Proof Submitted',
-                'body' => "A user has submitted proof for a manual payment.\n\n- **User:** {{user.email}}\n- **Reference:** {{payment.reference}}\n\n[Verify Payment]({{admin_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.email', 'payment.reference', 'admin_url'],
-            ],
-            [
-                'key' => 'admin_new_ticket',
-                'name' => 'Admin: New Support Ticket',
-                'subject' => '[Admin] New Support Ticket: {{ticket.subject}}',
-                'body' => "A new support ticket has been opened.\n\n- **User:** {{user.email}}\n- **Subject:** {{ticket.subject}}\n- **Priority:** {{ticket.priority}}\n\n[View Ticket]({{admin_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.email', 'ticket.subject', 'ticket.priority', 'admin_url'],
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">Support Reply</h2>
+                             <p style="margin:0 0 16px; font-size:14px; color:#334155; line-height:1.7;">Hello {{user.name}}, a member of our support team has replied to your ticket #{{ticket.id}}.</p>
+                             <div style="background:#f8fafc; padding:20px; border-radius:8px; border-left:4px solid #25935f; margin-bottom:20px;">
+                                <p style="margin:0; font-size:14px; color:#334155; font-style:italic;">"{{reply_content}}"</p>
+                             </div>
+                             <a href="{{action_url}}" style="display:inline-block; background:#25935f; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">View Ticket</a>',
+                'variables' => ['user.name', 'ticket.id', 'ticket.subject', 'reply_content', 'action_url', 'year'],
             ],
             [
                 'key' => 'support_ticket_opened_user',
                 'name' => 'Support Ticket Opened',
                 'subject' => 'Ticket Opened: {{ticket.subject}}',
-                'body' => "Hello {{user.name}},\n\nYour support ticket #{{ticket.id}} has been successfully opened. Our team will review it and get back to you as soon as possible.\n\n**Subject:** {{ticket.subject}}\n\n[View My Ticket]({{action_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'ticket.id', 'ticket.subject', 'action_url'],
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">Ticket Created</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">Hello {{user.name}}, Your support ticket #{{ticket.id}} has been successfully opened. Our team will review it and get back to you soon.</p>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155;"><strong>Subject:</strong> {{ticket.subject}}</p>
+                             <a href="{{action_url}}" style="display:inline-block; background:#25935f; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">View My Ticket</a>',
+                'variables' => ['user.name', 'ticket.id', 'ticket.subject', 'action_url', 'year'],
             ],
             [
                 'key' => 'manual_payment_accepted_user',
                 'name' => 'Manual Payment Accepted',
                 'subject' => 'Payment Confirmed: {{payment.reference}}',
-                'body' => "Hello {{user.name}},\n\nGood news! Your manual payment proof for reference **{{payment.reference}}** has been accepted. Your balance has been updated.\n\n[View My Invoices]({{action_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'payment.reference', 'action_url'],
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">Payment Accepted</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">Hello {{user.name}}, Good news! Your manual payment proof for reference <strong>{{payment.reference}}</strong> has been accepted. Your balance has been updated.</p>
+                             <a href="{{action_url}}" style="display:inline-block; background:#25935f; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">View My Invoices</a>',
+                'variables' => ['user.name', 'payment.reference', 'action_url', 'year'],
             ],
             [
                 'key' => 'manual_payment_rejected_user',
                 'name' => 'Manual Payment Rejected',
                 'subject' => 'Payment Status Update: {{payment.reference}}',
-                'body' => "Hello {{user.name}},\n\nUnfortunately, we were unable to verify your manual payment proof for reference **{{payment.reference}}**.\n\n**Reason:** {{reject_reason}}\n\n[Try Again / View Tickets]({{action_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'payment.reference', 'reject_reason', 'action_url'],
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#e11d48;">Payment Rejected</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">Hello {{user.name}}, Unfortunately, we were unable to verify your manual payment proof for reference <strong>{{payment.reference}}</strong>.</p>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155;"><strong>Reason:</strong> {{reject_reason}}</p>
+                             <a href="{{action_url}}" style="display:inline-block; background:#25935f; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">Try Again / View Tickets</a>',
+                'variables' => ['user.name', 'payment.reference', 'reject_reason', 'action_url', 'year'],
             ],
             [
                 'key' => 'proxy_created_user',
                 'name' => 'Proxy Subscription Active',
                 'subject' => 'Proxy Created: {{product.name}}',
-                'body' => "Hello {{user.name}},\n\nYour proxy for **{{product.name}}** is now active and ready to use!\n\n**Order ID:** #{{order.id}}\n\n[Manage My Proxies]({{action_url}})",
-                'format' => 'markdown',
-                'variables' => ['user.name', 'product.name', 'order.id', 'action_url'],
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">Proxy Ready</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">Hello {{user.name}}, Your proxy for <strong>{{product.name}}</strong> is now active and ready to use!</p>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155;"><strong>Order ID:</strong> #{{order.id}}</p>
+                             <a href="{{action_url}}" style="display:inline-block; background:#25935f; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">Manage My Proxies</a>',
+                'variables' => ['user.name', 'product.name', 'order.id', 'action_url', 'year'],
+            ],
+            // ADMIN TEMPLATES
+            [
+                'key' => 'admin_new_user',
+                'name' => 'Admin: New User Registration',
+                'subject' => '[Admin] New User Registered: {{user.email}}',
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">New User Alert</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">A new user has just registered on {{app.name}}.</p>
+                             <ul style="margin:0 0 20px; padding:0; list-style:none; font-size:14px; color:#334155;">
+                                <li><strong>Name:</strong> {{user.name}}</li>
+                                <li><strong>Email:</strong> {{user.email}}</li>
+                                <li><strong>IP:</strong> {{user.ip}}</li>
+                             </ul>
+                             <a href="{{admin_url}}" style="display:inline-block; background:#0f172a; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">View User in Admin</a>',
+                'variables' => ['user.name', 'user.email', 'user.ip', 'app.name', 'admin_url', 'year'],
+            ],
+            [
+                'key' => 'admin_new_order',
+                'name' => 'Admin: New Order Received',
+                'subject' => '[Admin] New Order Alert! #{{order.id}}',
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">New Order Alert</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">A new order has been placed.</p>
+                             <ul style="margin:0 0 20px; padding:0; list-style:none; font-size:14px; color:#334155;">
+                                <li><strong>User:</strong> {{user.email}}</li>
+                                <li><strong>Amount:</strong> {{order.amount}}</li>
+                                <li><strong>Order ID:</strong> {{order.id}}</li>
+                             </ul>
+                             <a href="{{admin_url}}" style="display:inline-block; background:#0f172a; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">View Order</a>',
+                'variables' => ['user.email', 'order.id', 'order.amount', 'admin_url', 'year'],
+            ],
+            [
+                'key' => 'admin_manual_payment',
+                'name' => 'Admin: Manual Payment Submitted',
+                'subject' => '[Admin] Manual Payment Proof Submitted',
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">Manual Payment Proof</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">A user has submitted proof for a manual payment.</p>
+                             <ul style="margin:0 0 20px; padding:0; list-style:none; font-size:14px; color:#334155;">
+                                <li><strong>User:</strong> {{user.email}}</li>
+                                <li><strong>Reference:</strong> {{payment.reference}}</li>
+                             </ul>
+                             <a href="{{admin_url}}" style="display:inline-block; background:#0f172a; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">Verify Payment</a>',
+                'variables' => ['user.email', 'payment.reference', 'admin_url', 'year'],
+            ],
+            [
+                'key' => 'admin_new_ticket',
+                'name' => 'Admin: New Support Ticket',
+                'subject' => '[Admin] New Support Ticket: {{ticket.subject}}',
+                'content' => '<h2 style="margin:0 0 16px; font-size:20px; color:#0f172a;">New Ticket Alert</h2>
+                             <p style="margin:0 0 20px; font-size:14px; color:#334155; line-height:1.7;">A new support ticket has been opened.</p>
+                             <ul style="margin:0 0 20px; padding:0; list-style:none; font-size:14px; color:#334155;">
+                                <li><strong>User:</strong> {{user.email}}</li>
+                                <li><strong>Subject:</strong> {{ticket.subject}}</li>
+                                <li><strong>Priority:</strong> {{ticket.priority}}</li>
+                             </ul>
+                             <a href="{{admin_url}}" style="display:inline-block; background:#0f172a; color:#ffffff; padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px;">View Ticket</a>',
+                'variables' => ['user.email', 'ticket.subject', 'ticket.priority', 'admin_url', 'year'],
             ],
         ];
 
-        foreach ($templates as $template) {
+        foreach ($templates as $t) {
+            $body = str_replace('[[CONTENT]]', $t['content'], $htmlBase);
             \App\Models\EmailTemplate::updateOrCreate(
-                ['key' => $template['key']],
-                $template
+                ['key' => $t['key']],
+                [
+                    'name' => $t['name'],
+                    'subject' => $t['subject'],
+                    'body' => $body,
+                    'format' => 'html',
+                    'variables' => $t['variables'],
+                ]
             );
         }
     }
