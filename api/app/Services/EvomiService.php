@@ -269,7 +269,7 @@ class EvomiService
 
         $result = $this->createSubUser($newUsername, $user->email);
 
-        // Evomi returns status 201 with data.username (NOT data.id)
+        // Evomi returns status 201 with data.username and data.products
         $created = $result && (
             ($result['status'] ?? 0) === 201 ||
             isset($result['data']['username'])
@@ -278,15 +278,15 @@ class EvomiService
         if ($created) {
             $actualUsername = $result['data']['username'] ?? $newUsername;
 
-            // The CREATE response does NOT include proxy_keys/products.
-            // We must fetch the subuser data SEPARATELY to get the actual keys.
-            $subuserData = $this->getSubuserData($actualUsername);
-            $keys = $subuserData ? $this->extractKeys($subuserData) : [];
+            // Extract keys directly from the create response (data.products)
+            // NOTE: Evomi's GET /sub_users/{username} endpoint does not exist (404)
+            // The create response includes all proxy_keys in data.products
+            $keys = $this->extractKeys($result);
 
             Log::info('ensureSubuser: created successfully', [
-                'username'    => $actualUsername,
-                'keys_found'  => array_keys($keys),
-                'raw_data_ok' => !empty($subuserData),
+                'username'   => $actualUsername,
+                'keys_found' => array_keys($keys),
+                'key_count'  => count($keys),
             ]);
 
             $user->update([
