@@ -99,10 +99,6 @@ export default function Proxies() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [proxies, setProxies] = useState<any[]>([]);
-  const [directPurchaseInfo, setDirectPurchaseInfo] = useState<{ productId: number; amount: number } | null>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showManualCrypto, setShowManualCrypto] = useState(false);
-  const { gateways } = usePaymentConfig();
   const { format } = useCurrency();
   const { t } = useI18n();
 
@@ -130,7 +126,6 @@ export default function Proxies() {
 
   const handleGenerate = useCallback(async () => {
     setError(null);
-    setDirectPurchaseInfo(null);
     if (!product) {
       setError("Please select a product.");
       return;
@@ -148,12 +143,8 @@ export default function Proxies() {
       setProxies(result.proxies || []);
       toast({ title: "Proxies Generated", description: `${result.proxies?.length || 0} proxies ready.` });
     } catch (err: any) {
-      if (err.status === 402 && err.body?.can_direct_purchase) {
-        setDirectPurchaseInfo({
-          productId: err.body.product_id,
-          amount: err.body.total_cost,
-        });
-        setError(`Insufficient balance. You need ${format(err.body.total_cost)} to generate these proxies.`);
+      if (err.status === 402) {
+        setError("Insufficient balance. Please top up your wallet to continue.");
       } else {
         setError(err.message || "Failed to generate proxies.");
       }
@@ -162,34 +153,7 @@ export default function Proxies() {
     }
   }, [product, quantity, country, sessionType, generateProxy]);
 
-  const handleDirectPurchase = async (method: "stripe" | "cryptomus") => {
-    if (!directPurchaseInfo) return;
-    setLoading(true);
-    try {
-      if (method === "cryptomus") {
-        const { url } = await clientApi.createCryptomusProductCheckout(
-          directPurchaseInfo.productId.toString(),
-          quantity,
-          country || undefined,
-          sessionType
-        );
-        window.location.href = url;
-      } else {
-        const { url } = await clientApi.createProductCheckout(
-          directPurchaseInfo.productId.toString(),
-          quantity,
-          country || undefined,
-          sessionType
-        );
-        window.location.href = url;
-      }
-    } catch (err: any) {
-      toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-      setShowPaymentModal(false);
-    }
-  };
+
 
   const copyAll = useCallback(() => {
     const text = proxies.map(formatProxyLine).join("\n");
@@ -327,14 +291,16 @@ export default function Proxies() {
 
             <div className="flex flex-wrap gap-2 pt-2">
               <Button onClick={handleGenerate} disabled={loading}>
-                {loading && !directPurchaseInfo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {loading && !directPurchaseInfo ? t("common.loading") : "Generate"}
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {loading ? t("common.loading") : "Generate"}
               </Button>
 
-              {directPurchaseInfo && (
-                <Button variant="secondary" onClick={() => setShowPaymentModal(true)} disabled={loading} className="gap-2">
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                  {t("common.pay")} {format(directPurchaseInfo.amount)} & Generate
+              {error && (error.toLowerCase().includes("insufficient balance") || error.toLowerCase().includes("low balance")) && (
+                <Button variant="destructive" asChild className="gap-2">
+                  <Link to="/app/billing">
+                    <CreditCard className="h-4 w-4" />
+                    Add Credit
+                  </Link>
                 </Button>
               )}
             </div>
@@ -436,90 +402,6 @@ export default function Proxies() {
         )}
       </div>
 
-      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Select Payment Method</DialogTitle>
-            <DialogDescription>
-              Choose how you want to pay for these proxies.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {gateways.stripe && (
-              <Button
-                variant="outline"
-                className="flex items-center justify-between p-6 h-auto"
-                onClick={() => handleDirectPurchase("stripe")}
-                disabled={loading}
-              >
-                <div className="flex items-center gap-3 text-left">
-                  <CreditCard className="h-6 w-6 text-primary" />
-                  <div>
-                    <div className="font-semibold">Credit/Debit Card</div>
-                    <div className="text-xs text-muted-foreground">Secure via Stripe</div>
-                  </div>
-                </div>
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">+VAT</Badge>
-              </Button>
-            )}
-
-            {gateways.cryptomus && (
-              <Button
-                variant="outline"
-                className="flex items-center justify-between p-6 h-auto"
-                onClick={() => handleDirectPurchase("cryptomus")}
-                disabled={loading}
-              >
-                <div className="flex items-center gap-3 text-left">
-                  <Bitcoin className="h-6 w-6 text-primary" />
-                  <div>
-                    <div className="font-semibold">Cryptocurrency</div>
-                    <div className="text-xs text-muted-foreground">Automated via Cryptomus</div>
-                  </div>
-                </div>
-                <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-200">VAT-FREE</Badge>
-              </Button>
-            )}
-
-            {gateways.crypto && (
-              <Button
-                variant="outline"
-                className="flex items-center justify-between p-6 h-auto"
-                onClick={() => {
-                  setShowPaymentModal(false);
-                  setShowManualCrypto(true);
-                }}
-                disabled={loading}
-              >
-                <div className="flex items-center gap-3 text-left">
-                  <Bitcoin className="h-6 w-6 text-orange-500" />
-                  <div>
-                    <div className="font-semibold">Binance Pay / Manual</div>
-                    <div className="text-xs text-muted-foreground">Send ID & Upload Proof</div>
-                  </div>
-                </div>
-                <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 border-orange-200">VAT-FREE</Badge>
-              </Button>
-            )}
-
-            {!gateways.stripe && !gateways.cryptomus && !gateways.crypto && (
-              <p className="text-center text-sm text-muted-foreground italic">
-                No payment gateways are currently configured.
-              </p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <ManualCryptoDialog
-        open={showManualCrypto}
-        onOpenChange={setShowManualCrypto}
-        defaultAmount={directPurchaseInfo?.amount.toString()}
-        onSuccess={() => {
-          // Maybe refresh proxies or something? 
-          // Actually admin needs to approve first, so just toast is enough (handled in dialog)
-        }}
-      />
     </>
   );
 }

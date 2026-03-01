@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\WalletTransaction;
 use App\Models\UsageLog;
 use App\Models\UptimeRecord;
+use App\Models\FulfillmentLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -403,5 +404,17 @@ class AdminController extends Controller
         ]);
 
         return response()->json(['message' => 'Earning status updated successfully']);
+    }
+
+    /**
+     * GET /admin/fulfillment-logs - List granular fulfillment logs for debugging.
+     */
+    public function fulfillmentLogs(Request $request)
+    {
+        $logs = FulfillmentLog::with('user:id,name,email')
+            ->latest()
+            ->paginate(50);
+
+        return response()->json($logs);
     }
 }

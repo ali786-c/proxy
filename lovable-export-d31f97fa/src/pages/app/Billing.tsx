@@ -526,50 +526,6 @@ export default function Billing() {
                     >
                       {isCurrent ? "Active Product" : "Select Product"}
                     </Button>
-                    {!isCurrent && (
-                      <div className="flex flex-col gap-2">
-                        {gateways.stripe && (
-                          <Button
-                            variant="secondary"
-                            className="w-full gap-2"
-                            disabled={isSubmitting}
-                            onClick={async () => {
-                              setIsSubmitting(true);
-                              try {
-                                const { url } = await clientApi.createProductCheckout(plan.id, 1);
-                                window.location.href = url;
-                              } catch (err: any) {
-                                toast({ title: "Purchase Error", description: err.message, variant: "destructive" });
-                              } finally {
-                                setIsSubmitting(false);
-                              }
-                            }}
-                          >
-                            <CreditCard className="h-4 w-4" /> Buy with Card
-                          </Button>
-                        )}
-                        {gateways.cryptomus && (
-                          <Button
-                            variant="outline"
-                            className="w-full gap-2 border-primary/20 hover:border-primary/50"
-                            disabled={isSubmitting}
-                            onClick={async () => {
-                              setIsSubmitting(true);
-                              try {
-                                const { url } = await clientApi.createCryptomusProductCheckout(plan.id, 1);
-                                window.location.href = url;
-                              } catch (err: any) {
-                                toast({ title: "Purchase Error", description: err.message, variant: "destructive" });
-                              } finally {
-                                setIsSubmitting(false);
-                              }
-                            }}
-                          >
-                            <Bitcoin className="h-4 w-4 text-orange-500" /> Buy with Crypto
-                          </Button>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </CardContent>
               </Card>

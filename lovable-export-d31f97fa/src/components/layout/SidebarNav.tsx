@@ -350,6 +350,7 @@ export function SidebarNav() {
       items: [
         { title: "Fraud Detection", url: "/admin/fraud-detection", icon: ShieldAlert },
         { title: "SLA Monitoring", url: "/admin/sla-monitoring", icon: Activity },
+        { title: "Fulfillment Monitor", url: "/admin/fulfillment-logs", icon: Activity },
       ],
     },
     {

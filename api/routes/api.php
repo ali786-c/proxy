@@ -112,6 +112,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/logs',           [\App\Http\Controllers\AdminController::class, 'logs']);
     Route::get('/invoices',       [\App\Http\Controllers\BillingController::class, 'adminInvoices']);
     Route::get('/payment-gateways', [\App\Http\Controllers\BillingController::class, 'gatewayStatus']);
+    Route::get('/fulfillment-logs', [\App\Http\Controllers\AdminController::class, 'fulfillmentLogs']);
     
     // Admin crypto management
     Route::get('/crypto/pending', [\App\Http\Controllers\BillingController::class, 'adminPendingCrypto']);

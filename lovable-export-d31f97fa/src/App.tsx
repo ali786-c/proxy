@@ -89,6 +89,7 @@ const AdminSLAMonitoring = lazy(() => import("./pages/admin/SLAMonitoring"));
 const AdminCurrencies = lazy(() => import("./pages/admin/Currencies"));
 const AdminManualPayments = lazy(() => import("./pages/admin/ManualPayments"));
 const AdminReferrals = lazy(() => import("./pages/admin/Referrals"));
+const AdminFulfillmentLogs = lazy(() => import("./pages/admin/FulfillmentLogs"));
 
 const queryClient = new QueryClient();
 
@@ -199,6 +200,7 @@ const App = () => (
                             <Route path="currencies" element={<AdminCurrencies />} />
                             <Route path="manual-payments" element={<AdminManualPayments />} />
                             <Route path="referrals" element={<AdminReferrals />} />
+                            <Route path="fulfillment-logs" element={<AdminFulfillmentLogs />} />
                           </Route>
 
                           <Route path="*" element={<NotFound />} />

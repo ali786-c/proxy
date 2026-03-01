@@ -49,10 +49,6 @@ class ProxyController extends Controller
         if ($user->balance < $totalCost) {
             return response()->json([
                 'message' => 'Insufficient balance.',
-                'total_cost' => $totalCost,
-                'balance' => $user->balance,
-                'can_direct_purchase' => true,
-                'product_id' => $product->id,
             ], 402);
         }
 
