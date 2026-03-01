@@ -322,6 +322,7 @@ export function SidebarNav() {
       label: "Content",
       items: [
         { title: "Blog / Auto-Post", url: "/admin/blog", icon: FileText },
+        { title: "Email Templates", url: "/admin/email-templates", icon: Mail },
       ],
     },
     {

@@ -90,6 +90,7 @@ const AdminCurrencies = lazy(() => import("./pages/admin/Currencies"));
 const AdminManualPayments = lazy(() => import("./pages/admin/ManualPayments"));
 const AdminReferrals = lazy(() => import("./pages/admin/Referrals"));
 const AdminFulfillmentLogs = lazy(() => import("./pages/admin/FulfillmentLogs"));
+const AdminEmailTemplates = lazy(() => import("./pages/admin/AdminEmailTemplates"));
 
 const queryClient = new QueryClient();
 
@@ -201,6 +202,7 @@ const App = () => (
                             <Route path="manual-payments" element={<AdminManualPayments />} />
                             <Route path="referrals" element={<AdminReferrals />} />
                             <Route path="fulfillment-logs" element={<AdminFulfillmentLogs />} />
+                            <Route path="email-templates" element={<AdminEmailTemplates />} />
                           </Route>
 
                           <Route path="*" element={<NotFound />} />
