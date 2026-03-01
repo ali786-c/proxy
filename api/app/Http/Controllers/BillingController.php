@@ -414,61 +414,88 @@ class BillingController extends Controller
             return;
         }
 
+        Log::info("START Cryptomus Fulfillment for User #{$userId}, UUID: {$uuid}");
+
         $referralService = app(ReferralService::class);
-        DB::transaction(function () use ($userId, $amount, $uuid, $type, $metadata, $data, $referralService) {
-            $user = User::lockForUpdate()->find($userId);
-            if (!$user) return;
 
-            // ── Step 1: Record formal invoice for transparency ──
-            \App\Models\Invoice::updateOrCreate(
-                ['stripe_invoice_id' => "CRYPTO-{$uuid}"], // Use a stable ID
-                [
-                    'user_id'     => $user->id,
-                    'amount'      => $amount,
-                    'currency'    => $data['currency'] ?? 'EUR',
-                    'status'      => 'paid',
-                    'description' => ($type === 'direct_purchase') 
-                        ? "Direct Purchase: {$metadata['quantity']}x Product #{$metadata['product_id']}"
-                        : "Wallet Top-up",
-                ]
-            );
+        // ══════════════════════════════════════════════════════════════
+        // STAGE 1: COMMIT PAYMENT RECORD (Isolated — never rolls back)
+        // ══════════════════════════════════════════════════════════════
+        try {
+            DB::transaction(function () use ($userId, $amount, $uuid, $type, $metadata, $data) {
+                $user = User::lockForUpdate()->find($userId);
+                if (!$user) return;
 
-            if ($type === 'direct_purchase') {
-                $productId = $metadata['product_id'] ?? null;
-                $quantity  = (int) ($metadata['quantity'] ?? 1);
-                $country   = $metadata['country'] ?? 'US';
-                $sessionType = $metadata['session_type'] ?? 'rotating';
+                // Permanently record the invoice
+                \App\Models\Invoice::updateOrCreate(
+                    ['stripe_invoice_id' => "CRYPTO-{$uuid}"],
+                    [
+                        'user_id'     => $user->id,
+                        'amount'      => $amount,
+                        'currency'    => $data['currency'] ?? 'EUR',
+                        'status'      => 'paid',
+                        'description' => ($type === 'direct_purchase')
+                            ? "Direct Purchase: " . ($metadata['quantity'] ?? '?') . "x Product #" . ($metadata['product_id'] ?? '?')
+                            : 'Wallet Top-up',
+                    ]
+                );
 
-                $product = \App\Models\Product::find($productId);
-                $fulfilled = false;
-                $failReason = "Unknown failure during proxy generation";
+                // Mark as processed
+                WebhookLog::updateOrCreate(
+                    ['event_id' => $uuid],
+                    ['provider' => 'cryptomus']
+                );
+            });
+            Log::info("STAGE 1 OK: Cryptomus Invoice committed for User #{$userId}, UUID: {$uuid}");
+        } catch (\Exception $e) {
+            Log::error("STAGE 1 FAILED for Cryptomus User #{$userId}. Error: " . $e->getMessage());
+            return;
+        }
 
-                if ($product) {
-                    try {
-                        $evomi = app(\App\Services\EvomiService::class);
-                        $subuserResult = $evomi->ensureSubuser($user);
-                        
-                        if ($subuserResult['success']) {
-                            $user = $user->fresh(); // Ensure we have evomi_username/keys
-                            $userKeys = $user->evomi_keys ?? [];
-                            $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
-                            
-                            if ($proxyKey) {
-                                Log::info("Attempting Cryptomus allocation: User '{$user->evomi_username}', Qty {$quantity}, Type '{$product->type}'");
-                                $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
-                                
-                                if ($allocated) {
+        // ══════════════════════════════════════════════════════════════
+        // STAGE 2 & 3: PRODUCT DELIVERY — independent of Stage 1.
+        // ══════════════════════════════════════════════════════════════
+        $user = User::find($userId);
+        if (!$user) return;
+
+        if ($type === 'direct_purchase') {
+            $productId   = $metadata['product_id'] ?? null;
+            $quantity    = (int) ($metadata['quantity'] ?? 1);
+            $country     = $metadata['country'] ?? 'US';
+            $sessionType = $metadata['session_type'] ?? 'rotating';
+
+            $product    = \App\Models\Product::find($productId);
+            $fulfilled  = false;
+            $failReason = 'Unknown failure';
+
+            // ── STAGE 2: Attempt Proxy Provisioning ──
+            if ($product) {
+                try {
+                    $evomi         = app(\App\Services\EvomiService::class);
+                    $subuserResult = $evomi->ensureSubuser($user);
+
+                    if ($subuserResult['success']) {
+                        $user     = $user->fresh();
+                        $userKeys = $user->evomi_keys ?? [];
+                        $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
+
+                        if ($proxyKey) {
+                            Log::info("STAGE 2 Cryptomus: Allocating for User '{$user->evomi_username}', Qty {$quantity}, Type '{$product->type}'");
+                            $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
+
+                            if ($allocated) {
+                                DB::transaction(function () use ($user, $product, $quantity, $proxyKey, $country, $sessionType) {
+                                    $portMap = ['rp' => 1000, 'mp' => 3000, 'isp' => 3000, 'dc' => 2000];
+                                    $hostMap = ['rp' => 'rp.evomi.com', 'mp' => 'mp.evomi.com', 'dc' => 'dcp.evomi.com', 'isp' => 'isp.evomi.com'];
+                                    $port = $portMap[$product->type] ?? 1000;
+                                    $host = $hostMap[$product->type] ?? 'gate.evomi.com';
+
                                     $order = \App\Models\Order::create([
                                         'user_id'    => $user->id,
                                         'product_id' => $product->id,
                                         'status'     => 'active',
                                         'expires_at' => now()->addDays(30),
                                     ]);
-
-                                    $portMap = ['rp' => 1000, 'mp' => 3000, 'isp' => 3000, 'dc' => 2000];
-                                    $hostMap = ['rp' => 'rp.evomi.com', 'mp' => 'mp.evomi.com', 'dc' => 'dcp.evomi.com', 'isp' => 'isp.evomi.com'];
-                                    $port = $portMap[$product->type] ?? 1000;
-                                    $host = $hostMap[$product->type] ?? 'gate.evomi.com';
 
                                     for ($i = 0; $i < $quantity; $i++) {
                                         \App\Models\Proxy::create([
@@ -480,76 +507,81 @@ class BillingController extends Controller
                                             'country'  => $country,
                                         ]);
                                     }
-                                    $fulfilled = true;
-                                    Log::info("Cryptomus Direct purchase fulfilled & proxies generated for user {$user->id}");
-                                } else {
-                                    $failReason = "Provider allocation failed";
-                                }
+                                });
+                                $fulfilled = true;
+                                Log::info("STAGE 2 OK Cryptomus: {$quantity}x proxies created for User #{$user->id}");
                             } else {
-                                $failReason = "No proxy key found for type {$product->type}";
+                                $failReason = "Evomi allocation returned false — check reseller balance/limits in Evomi dashboard.";
                             }
                         } else {
-                            $failReason = "Subuser creation failed: " . ($subuserResult['message'] ?? 'Unknown');
+                            $failReason = "No proxy key for type '{$product->type}'. Keys available: " . implode(', ', array_keys($user->evomi_keys ?? []));
                         }
-                    } catch (\Exception $e) { 
-                        Log::error("Cryptomus Fulfillment Proxy Error: " . $e->getMessage()); 
-                        $failReason = "Technical error: " . $e->getMessage();
+                    } else {
+                        $failReason = "Subuser init failed: " . ($subuserResult['error'] ?? 'Unknown');
                     }
-                } else {
-                    $failReason = "Product #{$productId} not found";
-                }
-
-                if (!$fulfilled) {
-                    Log::warning("Cryptomus Buy Fallback for User #{$userId}. Reason: {$failReason}");
-                    $user->increment('balance', $amount);
-                    $referralService->awardCommission($user, $amount, "Commission from Buy Fallback (Cryptomus)");
-                    WalletTransaction::create([
-                        'user_id' => $user->id,
-                        'type' => 'credit',
-                        'amount' => $amount,
-                        'reference' => "CRYPTO-{$uuid}",
-                        'description' => "Direct Purchase Fallback: Product #{$productId} (Refunded to wallet: {$failReason})",
-                    ]);
-                } else {
-                    WalletTransaction::create([
-                        'user_id' => $user->id,
-                        'type' => 'credit',
-                        'amount' => $amount,
-                        'reference' => "CRYPTO-{$uuid}",
-                        'description' => "Direct Purchase: {$quantity}x Product #{$productId} (Auto-allocated)",
-                    ]);
-                    $referralService->awardCommission($user, $amount, "Commission from Direct Buy (Cryptomus)");
+                } catch (\Exception $e) {
+                    $failReason = "Exception: " . $e->getMessage();
+                    Log::error("STAGE 2 EXCEPTION Cryptomus for User #{$userId}: " . $e->getMessage());
                 }
             } else {
-                // Regular Top-up
-                $originalAmount = (float) ($metadata['original_amount'] ?? $amount);
-                $couponCode = $metadata['coupon_code'] ?? null;
-                $creditAmount = $couponCode ? $originalAmount : $amount;
-
-                if ($couponCode) {
-                    $coupon = Coupon::where('code', $couponCode)->first();
-                    if ($coupon) {
-                        $coupon->increment('used_count');
-                    }
-                }
-
-                $user->increment('balance', $creditAmount);
-                $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Cryptomus)");
-                WalletTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'credit',
-                    'amount' => $creditAmount,
-                    'reference' => "CRYPTO-{$uuid}",
-                    'description' => 'Cryptomus Wallet Top-up' . ($couponCode ? " (Used promo: {$couponCode})" : ""),
-                ]);
+                $failReason = "Product #{$productId} not found in database";
             }
 
-            WebhookLog::create([
-                'provider' => 'cryptomus',
-                'event_id' => $uuid,
-            ]);
-        });
+            // ── STAGE 3: Result Dispatcher ──
+            if ($fulfilled) {
+                DB::transaction(function () use ($user, $amount, $uuid, $quantity, $productId, $referralService) {
+                    WalletTransaction::create([
+                        'user_id'     => $user->id,
+                        'type'        => 'credit',
+                        'amount'      => $amount,
+                        'reference'   => "CRYPTO-{$uuid}",
+                        'description' => "Direct Purchase: {$quantity}x Product #{$productId} — Proxies generated",
+                    ]);
+                    $referralService->awardCommission($user, $amount, "Commission from Direct Purchase (Cryptomus)");
+                });
+                Log::info("STAGE 3 OK Cryptomus: Direct purchase complete for User #{$userId}");
+            } else {
+                Log::warning("STAGE 3 FALLBACK Cryptomus for User #{$userId}. Crediting wallet. Reason: {$failReason}");
+                DB::transaction(function () use ($user, $amount, $uuid, $productId, $failReason, $referralService) {
+                    $user->increment('balance', $amount);
+                    WalletTransaction::create([
+                        'user_id'     => $user->id,
+                        'type'        => 'credit',
+                        'amount'      => $amount,
+                        'reference'   => "CRYPTO-{$uuid}",
+                        'description' => "Direct Purchase Fallback — Amount refunded to wallet. Product #{$productId}. Reason: {$failReason}",
+                    ]);
+                    $referralService->awardCommission($user, $amount, "Commission from Direct Purchase Fallback (Cryptomus)");
+                });
+            }
+        } else {
+            // Regular Wallet Top-up
+            $originalAmount = (float) ($metadata['original_amount'] ?? $amount);
+            $couponCode     = $metadata['coupon_code'] ?? null;
+            $creditAmount   = $couponCode ? $originalAmount : $amount;
+
+            if ($couponCode) {
+                $coupon = Coupon::where('code', $couponCode)->first();
+                if ($coupon) $coupon->increment('used_count');
+            }
+
+            DB::transaction(function () use ($user, $creditAmount, $amount, $couponCode, $uuid, $referralService) {
+                $user->increment('balance', $creditAmount);
+                WalletTransaction::create([
+                    'user_id'     => $user->id,
+                    'type'        => 'credit',
+                    'amount'      => $creditAmount,
+                    'reference'   => "CRYPTO-{$uuid}",
+                    'description' => 'Cryptomus Wallet Top-up' . ($couponCode ? " (Used promo: {$couponCode})" : ''),
+                ]);
+                $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Cryptomus)");
+            });
+        }
+
+        Log::info("CRYPTOMUS FULFILLMENT COMPLETE for User #{$userId}, UUID: {$uuid}. Type: {$type}");
     }
+
+
 
     /**
      * Verify a completed Stripe Checkout Session when user returns to success URL.
@@ -769,93 +801,107 @@ class BillingController extends Controller
             return;
         }
 
-        // Detailed logging for cPanel debugging
         Log::info("START Fulfilling payment for User #{$userId}, Reference: {$eventId}");
 
         $type           = isset($metadata['type']) ? $metadata['type'] : ($metadata->type ?? 'topup');
         $amount         = (float) (isset($metadata['amount']) ? $metadata['amount'] : ($metadata->amount ?? 0));
         $originalAmount = (float) (isset($metadata['original_amount']) ? $metadata['original_amount'] : ($metadata->original_amount ?? $amount));
         $couponCode     = isset($metadata['coupon_code']) ? $metadata['coupon_code'] : ($metadata->coupon_code ?? null);
-        
         $paidGross      = isset($session->amount_total) ? $session->amount_total / 100 : 0;
         $currency       = strtoupper($session->currency ?? 'EUR');
 
+        // ══════════════════════════════════════════════════════════════
+        // STAGE 1: COMMIT PAYMENT RECORD (Isolated — never rolls back)
+        // Permanently record the payment before touching any external API.
+        // ══════════════════════════════════════════════════════════════
         try {
-            DB::transaction(function () use ($userId, $amount, $originalAmount, $couponCode, $paidGross, $eventId, $type, $session, $currency, $referralService) {
+            DB::transaction(function () use ($userId, $couponCode, $paidGross, $eventId, $type, $session, $currency) {
                 $user = User::lockForUpdate()->find($userId);
-                if (!$user) {
-                    throw new \Exception("User #{$userId} not found during DB transaction.");
+                if (!$user) return;
+
+                // Track coupon usage
+                if ($couponCode) {
+                    $coupon = Coupon::where('code', $couponCode)->first();
+                    if ($coupon) $coupon->increment('used_count');
                 }
 
-            // Track coupon usage
-            if ($couponCode) {
-                $coupon = Coupon::where('code', $couponCode)->first();
-                if ($coupon) {
-                    $coupon->increment('used_count');
+                // Save Stripe Customer ID if missing
+                if (!$user->stripe_customer_id && $session->customer) {
+                    $user->update(['stripe_customer_id' => $session->customer]);
                 }
-            }
 
-            // Save Customer ID if missing
-            if (!$user->stripe_customer_id && $session->customer) {
-                $user->update(['stripe_customer_id' => $session->customer]);
-            }
+                // Permanently record the invoice
+                \App\Models\Invoice::updateOrCreate(
+                    ['stripe_invoice_id' => $session->id],
+                    [
+                        'user_id'     => $user->id,
+                        'amount'      => $paidGross,
+                        'currency'    => $currency,
+                        'status'      => 'paid',
+                        'description' => ($type === 'direct_purchase')
+                            ? "Direct Purchase: " . ($session->metadata->quantity ?? '?') . "x Product #" . ($session->metadata->product_id ?? '?')
+                            : 'Wallet Top-up',
+                    ]
+                );
 
-            // ── Step 1: Record formal invoice for transparency ──
-            \App\Models\Invoice::updateOrCreate(
-                ['stripe_invoice_id' => $session->id],
-                [
-                    'user_id'     => $user->id,
-                    'amount'      => $paidGross,
-                    'currency'    => $currency,
-                    'status'      => 'paid',
-                    'description' => ($type === 'direct_purchase') 
-                        ? "Direct Purchase: {$session->metadata->quantity}x Product #{$session->metadata->product_id}"
-                        : "Wallet Top-up",
-                ]
-            );
+                // Mark as processed so webhook doesn't double-process
+                WebhookLog::updateOrCreate(
+                    ['event_id' => $eventId],
+                    ['provider' => 'stripe']
+                );
+            });
+            Log::info("STAGE 1 OK: Invoice & WebhookLog committed for User #{$userId}, Ref: {$eventId}");
+        } catch (\Exception $e) {
+            Log::error("STAGE 1 FAILED for User #{$userId}. Error: " . $e->getMessage());
+            // Cannot even log the payment — stop here. Something is fundamentally broken (e.g., DB is down).
+            return;
+        }
 
-            if ($type === 'direct_purchase') {
-                $productId = $session->metadata->product_id;
-                $quantity  = (int) $session->metadata->quantity;
-                $country   = $session->metadata->country ?? 'US';
-                $sessionType = $session->metadata->session_type ?? 'rotating';
-                
-                $product = \App\Models\Product::find($productId);
-                $fulfilled = false;
-                $failReason = "Unknown failure during proxy generation";
+        // ══════════════════════════════════════════════════════════════
+        // STAGE 2 & 3: PRODUCT DELIVERY — fully independent of Stage 1.
+        // A failure here will NEVER roll back the invoice above.
+        // ══════════════════════════════════════════════════════════════
+        $user = User::find($userId);
+        if (!$user) return;
 
-                if ($product) {
-                    // Security Check: Verify Price (Net of VAT)
-                    $expectedNet = $product->price * $quantity;
-                    if (abs($amount - $expectedNet) > 0.01) {
-                        Log::warning("Webhook Security: Price mismatch for User #{$userId}. Paid: {$amount}, Expected: {$expectedNet}");
-                    }
+        if ($type === 'direct_purchase') {
+            $productId   = isset($metadata['product_id'])   ? $metadata['product_id']   : ($metadata->product_id   ?? null);
+            $quantity    = (int) (isset($metadata['quantity'])    ? $metadata['quantity']    : ($metadata->quantity    ?? 1));
+            $country     = isset($metadata['country'])      ? $metadata['country']      : ($metadata->country      ?? 'US');
+            $sessionType = isset($metadata['session_type']) ? $metadata['session_type'] : ($metadata->session_type ?? 'rotating');
 
-                    try {
-                        $evomi = app(\App\Services\EvomiService::class);
-                        $subuserResult = $evomi->ensureSubuser($user);
-                        
-                        if ($subuserResult['success']) {
-                            $user = $user->fresh(); // Ensure we have evomi_username/keys
-                            $userKeys = $user->evomi_keys ?? [];
-                            $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
-                            
-                            if ($proxyKey) {
-                                Log::info("Attempting Stripe allocation: User '{$user->evomi_username}', Qty {$quantity}, Type '{$product->type}'");
-                                $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
-                                
-                                if ($allocated) {
+            $product    = \App\Models\Product::find($productId);
+            $fulfilled  = false;
+            $failReason = 'Unknown failure';
+
+            // ── STAGE 2: Attempt Proxy Provisioning ──
+            if ($product) {
+                try {
+                    $evomi         = app(\App\Services\EvomiService::class);
+                    $subuserResult = $evomi->ensureSubuser($user);
+
+                    if ($subuserResult['success']) {
+                        $user     = $user->fresh();
+                        $userKeys = $user->evomi_keys ?? [];
+                        $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
+
+                        if ($proxyKey) {
+                            Log::info("STAGE 2: Allocating for User '{$user->evomi_username}', Qty {$quantity}, Type '{$product->type}'");
+                            $allocated = $evomi->allocateBandwidth($user->evomi_username, $quantity * 1024, $product->type);
+
+                            if ($allocated) {
+                                DB::transaction(function () use ($user, $product, $quantity, $proxyKey, $country, $sessionType) {
+                                    $portMap = ['rp' => 1000, 'mp' => 3000, 'isp' => 3000, 'dc' => 2000];
+                                    $hostMap = ['rp' => 'rp.evomi.com', 'mp' => 'mp.evomi.com', 'dc' => 'dcp.evomi.com', 'isp' => 'isp.evomi.com'];
+                                    $port = $portMap[$product->type] ?? 1000;
+                                    $host = $hostMap[$product->type] ?? 'gate.evomi.com';
+
                                     $order = \App\Models\Order::create([
                                         'user_id'    => $user->id,
                                         'product_id' => $product->id,
                                         'status'     => 'active',
                                         'expires_at' => now()->addDays(30),
                                     ]);
-
-                                    $portMap = ['rp' => 1000, 'mp' => 3000, 'isp' => 3000, 'dc' => 2000];
-                                    $hostMap = ['rp' => 'rp.evomi.com', 'mp' => 'mp.evomi.com', 'dc' => 'dcp.evomi.com', 'isp' => 'isp.evomi.com'];
-                                    $port = $portMap[$product->type] ?? 1000;
-                                    $host = $hostMap[$product->type] ?? 'gate.evomi.com';
 
                                     for ($i = 0; $i < $quantity; $i++) {
                                         \App\Models\Proxy::create([
@@ -867,83 +913,77 @@ class BillingController extends Controller
                                             'country'  => $country,
                                         ]);
                                     }
-                                    $fulfilled = true;
-                                    Log::info("Direct purchase fulfilled & proxies generated for user {$user->id}");
-                                } else {
-                                    $failReason = "Provider allocation failed";
-                                }
+                                });
+                                $fulfilled = true;
+                                Log::info("STAGE 2 OK: {$quantity}x proxies created for User #{$user->id}");
                             } else {
-                                $failReason = "No proxy key found for type {$product->type}";
+                                $failReason = "Evomi allocation returned false — check reseller balance/limits in Evomi dashboard.";
                             }
                         } else {
-                            $failReason = "Subuser creation failed: " . ($subuserResult['message'] ?? 'Unknown');
+                            $failReason = "No proxy key for type '{$product->type}'. Available keys: " . implode(', ', array_keys($user->evomi_keys ?? []));
                         }
-                    } catch (\Exception $e) {
-                        Log::error("Webhook Direct Fulfillment Error: " . $e->getMessage());
-                        $failReason = "Technical error: " . $e->getMessage();
+                    } else {
+                        $failReason = "Subuser init failed: " . ($subuserResult['error'] ?? 'Unknown');
                     }
-                } else {
-                    $failReason = "Product no longer exists";
-                }
-
-                if (!$fulfilled) {
-                    // FALLBACK: Credit user wallet if direct fulfillment failed
-                    $user->increment('balance', $amount);
-                    $referralService->awardCommission($user, $amount, "Commission from Buy Fallback (Stripe)");
-                    WalletTransaction::create([
-                        'user_id' => $user->id,
-                        'type' => 'credit',
-                        'amount' => $amount,
-                        'reference' => $eventId,
-                        'description' => "Direct Purchase Fallback: Product #{$productId} (Refunded to wallet: {$failReason})",
-                    ]);
-                    Log::warning("Direct purchase fulfillment failed for User #{$userId}. Credited to wallet instead. Reason: {$failReason}");
-                } else {
-                    WalletTransaction::create([
-                        'user_id' => $user->id,
-                        'type' => 'credit',
-                        'amount' => $amount,
-                        'reference' => $eventId,
-                        'description' => "Direct Purchase: {$quantity}x Product #{$productId} (Auto-allocated)",
-                    ]);
-                    $referralService->awardCommission($user, $amount, "Commission from Direct Purchase (Stripe)");
+                } catch (\Exception $e) {
+                    $failReason = "Exception: " . $e->getMessage();
+                    Log::error("STAGE 2 EXCEPTION for User #{$userId}: " . $e->getMessage());
                 }
             } else {
-                // Regular Top-up
-                $creditAmount = $originalAmount ?: $amount;
-                
-                if ($creditAmount > 0) {
-                    $user->increment('balance', $creditAmount);
-                    Log::info("Credited wallet for User #{$userId}: +{$currency} {$creditAmount} (Ref: {$eventId})");
-                    
-                    $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Stripe)");
-
-                    WalletTransaction::create([
-                        'user_id' => $user->id,
-                        'type'    => 'credit',
-                        'amount'  => $creditAmount,
-                        'reference' => $eventId,
-                        'description' => 'Stripe Wallet Top-up' . ($couponCode && !empty($couponCode) ? " (Used promo: {$couponCode})" : ""),
-                    ]);
-
-                } else {
-                    Log::warning("Zero amount top-up for User #{$userId}. Amount: {$amount}, Original: {$originalAmount}");
-                }
+                $failReason = "Product #{$productId} not found in database";
             }
 
-            WebhookLog::create([
-                'provider' => 'stripe',
-                'event_id' => $eventId,
-            ]);
-        });
-        Log::info("SUCCESSfully fulfilled payment for User #{$userId}, Reference: {$eventId}");
-    } catch (\Exception $e) {
-        Log::error("CRITICAL Transaction Failed for User #{$userId}, Reference: {$eventId}. Error: " . $e->getMessage());
-        Log::error($e->getTraceAsString());
-        // Rethrow to let the caller know it failed
-        throw $e;
+            // ── STAGE 3: Result Dispatcher ──
+            if ($fulfilled) {
+                DB::transaction(function () use ($user, $amount, $eventId, $quantity, $productId, $referralService) {
+                    WalletTransaction::create([
+                        'user_id'     => $user->id,
+                        'type'        => 'credit',
+                        'amount'      => $amount,
+                        'reference'   => $eventId,
+                        'description' => "Direct Purchase: {$quantity}x Product #{$productId} — Proxies generated",
+                    ]);
+                    $referralService->awardCommission($user, $amount, "Commission from Direct Purchase (Stripe)");
+                });
+                Log::info("STAGE 3 OK: Direct purchase complete for User #{$userId}");
+            } else {
+                // Guaranteed wallet refund — this MUST succeed
+                Log::warning("STAGE 3 FALLBACK for User #{$userId}. Crediting wallet. Reason: {$failReason}");
+                DB::transaction(function () use ($user, $amount, $eventId, $productId, $failReason, $referralService) {
+                    $user->increment('balance', $amount);
+                    WalletTransaction::create([
+                        'user_id'     => $user->id,
+                        'type'        => 'credit',
+                        'amount'      => $amount,
+                        'reference'   => $eventId,
+                        'description' => "Direct Purchase Fallback: Amount refunded to wallet. Product #{$productId}. Reason: {$failReason}",
+                    ]);
+                    $referralService->awardCommission($user, $amount, "Commission from Direct Purchase Fallback (Stripe)");
+                });
+            }
+        } else {
+            // ── Regular Wallet Top-up ──
+            $creditAmount = $originalAmount ?: $amount;
+            if ($creditAmount > 0) {
+                DB::transaction(function () use ($user, $creditAmount, $amount, $couponCode, $eventId, $currency, $userId, $referralService) {
+                    $user->increment('balance', $creditAmount);
+                    Log::info("Wallet top-up for User #{$userId}: +{$currency} {$creditAmount} (Ref: {$eventId})");
+                    WalletTransaction::create([
+                        'user_id'     => $user->id,
+                        'type'        => 'credit',
+                        'amount'      => $creditAmount,
+                        'reference'   => $eventId,
+                        'description' => 'Stripe Wallet Top-up' . ($couponCode && !empty($couponCode) ? " (Used promo: {$couponCode})" : ''),
+                    ]);
+                    $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Stripe)");
+                });
+            } else {
+                Log::warning("Zero amount top-up for User #{$userId}. Amount: {$amount}, Original: {$originalAmount}");
+            }
+        }
+
+        Log::info("FULFILLMENT COMPLETE for User #{$userId}, Reference: {$eventId}. Type: {$type}");
     }
-}
 
     protected function fulfillSetup($session)
     {
