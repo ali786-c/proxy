@@ -99,9 +99,6 @@ Route::post('/newsletters', function() {
 Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'publicIndex']);
 Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show']);
 
-// Temporarily public for manual verification (Phase 3)
-Route::match(['GET', 'POST'], '/admin/email-templates/{id}/preview', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'preview']);
-
 // ─────────────────────────────────────────────
 // Admin Routes
 // ─────────────────────────────────────────────
@@ -200,6 +197,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::get('/email-templates', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'index']);
     Route::get('/email-templates/{id}', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'show']);
     Route::put('/email-templates/{id}', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'update']);
+    Route::match(['GET', 'POST'], '/email-templates/{id}/preview', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'preview']);
     Route::post('/email-templates/{id}/test', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'testSend']);
 });
 
