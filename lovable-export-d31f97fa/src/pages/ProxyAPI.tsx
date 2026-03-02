@@ -5,10 +5,10 @@ import { InternalLinks } from "@/components/seo/InternalLinks";
 import { useI18n } from "@/contexts/I18nContext";
 
 const FAQ_ITEMS = [
-  { question: "What is the UpgradedProxy API?", answer: "Our REST API lets you programmatically manage proxy configurations, rotate IPs, check usage, and control your entire proxy infrastructure." },
-  { question: "What can I do with the proxy API?", answer: "You can create and manage proxy users, configure geo-targeting, rotate IPs on demand, monitor bandwidth, manage authentication credentials, and retrieve performance metrics." },
-  { question: "What authentication does the API use?", answer: "The API uses Bearer token authentication. Generate your API key from the proxy dashboard." },
-  { question: "Is there a rate limit on API calls?", answer: "Standard plans allow up to 1,000 API requests per minute. Enterprise plans offer custom rate limits." },
+  { question: "What is the UpgradedProxy API?", answer: "Our REST API lets you programmatically manage proxy configurations, check balance, and generate proxy credentials in real time." },
+  { question: "What can I do with the proxy API?", answer: "You can check your balance, list proxy products, generate fresh proxy credentials, view your active orders, and monitor your API activity logs." },
+  { question: "What authentication does the API use?", answer: "The API uses X-API-KEY or Bearer token authentication. Generate your hashed API key from the dashboard." },
+  { question: "Is there a rate limit on API calls?", answer: "Standard plans allow up to 1,000 API requests per minute. Our systems also support Idempotency-Key headers for safe retry logic." },
   { question: "Do you provide API client libraries?", answer: "We provide official client libraries for Python, Node.js, Go, and PHP, along with REST API documentation." },
 ];
 
@@ -40,7 +40,7 @@ export default function ProxyAPI() {
             <h2 className="text-2xl font-bold">{t("page.howItWorks")}</h2>
             <p className="mt-3 text-muted-foreground">Authenticate with your API key and make standard REST calls to manage every aspect of your proxy setup.</p>
             <div className="mt-4 rounded-md border bg-muted/50 p-4">
-              <code className="text-xs text-muted-foreground">GET /api/v1/proxies<br />POST /api/v1/proxies/rotate<br />GET /api/v1/usage/bandwidth<br />PUT /api/v1/settings/geo-target</code>
+              <code className="text-xs text-muted-foreground">GET /v1/me/balance<br />GET /v1/products<br />POST /v1/proxies/generate<br />GET /v1/proxies<br />GET /v1/logs</code>
             </div>
           </div>
           <div>
@@ -59,7 +59,7 @@ export default function ProxyAPI() {
       <section className="border-t bg-muted/30 py-12">
         <div className="container">
           <h2 className="text-2xl font-bold">{t("page.authSecurity")}</h2>
-          <p className="mt-3 max-w-2xl text-muted-foreground">Generate API keys from your proxy dashboard. Include your key as a Bearer token in the Authorization header. All API traffic is encrypted over HTTPS.</p>
+          <p className="mt-3 max-w-2xl text-muted-foreground">Generate API keys from your proxy dashboard. Include your key as an <code>X-API-KEY</code> or <code>Bearer token</code> in the heades. All API traffic is encrypted over HTTPS. Supports idempotency keys for reliable transaction handling.</p>
         </div>
       </section>
 

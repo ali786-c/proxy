@@ -47,17 +47,12 @@ const QUICK_START = [
 ];
 
 const ENDPOINTS = [
-  { method: "POST", path: "/proxy/generate", desc: "Generate proxy credentials" },
-  { method: "GET", path: "/me/usage", desc: "Get bandwidth usage stats" },
-  { method: "GET", path: "/me/ip-allowlist", desc: "List IP allowlist entries" },
-  { method: "POST", path: "/me/ip-allowlist", desc: "Add IP to allowlist" },
-  { method: "DELETE", path: "/me/ip-allowlist/:id", desc: "Remove IP from allowlist" },
-  { method: "GET", path: "/me/api-keys", desc: "List API keys" },
-  { method: "POST", path: "/me/api-keys", desc: "Create API key" },
-  { method: "DELETE", path: "/me/api-keys/:id", desc: "Revoke API key" },
-  { method: "GET", path: "/me/subscription", desc: "Get current subscription" },
-  { method: "GET", path: "/me/invoices", desc: "List invoices" },
-  { method: "GET", path: "/me/events", desc: "Get recent events" },
+  { method: "GET", path: "/me/balance", desc: "Check your current account balance" },
+  { method: "GET", path: "/products", desc: "List available proxy products (searchable)" },
+  { method: "POST", path: "/proxies/generate", desc: "Generate proxy credentials (Atomic & Idempotent)" },
+  { method: "GET", path: "/proxies", desc: "List your active proxy orders" },
+  { method: "GET", path: "/proxies/:id", desc: "Get detailed proxy list for a specific order" },
+  { method: "GET", path: "/logs", desc: "View your API activity audit logs" },
 ];
 
 const PROXY_TYPES = [
@@ -213,8 +208,8 @@ export default function Docs() {
       <section className="container pb-10 border-t pt-10">
         <h2 className="text-xl font-bold mb-4">REST API Endpoints</h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Base URL: <code className="rounded bg-muted px-1 py-0.5">https://api.upgradedproxy.com/v1</code> · 
-          Authentication: <code className="rounded bg-muted px-1 py-0.5">Authorization: Bearer YOUR_API_KEY</code>
+          Base URL: <code className="rounded bg-muted px-1 py-0.5">http://localhost/api/v1</code> ·
+          Authentication: <code className="rounded bg-muted px-1 py-0.5">X-API-KEY: YOUR_API_KEY</code>
         </p>
         <Card>
           <CardContent className="p-0">
