@@ -7,6 +7,14 @@ All changes are logged here in reverse chronological order (newest first).
 
 ## 2026-03-02
 
+### Feature: Dedicated User Management System 👥🚀
+- **Transition from Side-Panel:** Replaced the limited `Sheet` (side drawer) with a dedicated full-page user management dashboard.
+- **Admin Capabilities:**
+    - **Overview:** View detailed profile info, real-time balance, and adjust funds (Top-up/Deduct) with reason logging.
+    - **Product/Proxy Management:** List user-specific orders. Admins can now manually assign new products/proxies or delete existing ones.
+    - **Security Console:** Direct admin-led password resets, role switching (Admin/Client), and instant account banning/unbanning.
+- **Improved UX:** Full-page layout with Tabs (Overview, Proxies, Security) for a premium administrative experience.
+
 ### Feature: Functional Audit Log with IP & Geo Tracking 🛡️📜
 - **Real-Time Tracking:** Implemented automated logging of admin IP addresses, User Agents, and Geolocation (Country/City) using `ip-api.com`.
 - **Backend Infrastructure:** 
