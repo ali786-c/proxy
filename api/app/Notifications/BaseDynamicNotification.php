@@ -30,7 +30,30 @@ abstract class BaseDynamicNotification extends Notification
      */
     public function via($notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
+    }
+
+    /**
+     * Get the array representation of the notification for database storage.
+     */
+    public function toDatabase($notifiable): array
+    {
+        $service = app(EmailTemplateService::class);
+        $render = $service->render($this->templateKey, $this->templateData);
+
+        // Determine type based on template key prefix
+        $type = 'alert';
+        if (str_contains($this->templateKey, 'payment')) $type = 'payment';
+        if (str_contains($this->templateKey, 'support') || str_contains($this->templateKey, 'ticket')) $type = 'support';
+        if (str_contains($this->templateKey, 'security') || str_contains($this->templateKey, 'login')) $type = 'security';
+        if (str_contains($this->templateKey, 'promo')) $type = 'promo';
+
+        return [
+            'type'    => $type,
+            'title'   => $render['subject'],
+            'message' => strip_tags($render['html']), // Simple text for the menu
+            'data'    => $this->templateData,
+        ];
     }
 
     /**

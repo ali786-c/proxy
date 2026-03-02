@@ -7,7 +7,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Bell, Check, CreditCard, AlertTriangle, Shield, Gift, MessageSquare } from "lucide-react";
+import { Bell, Check, CreditCard, AlertTriangle, Shield, Gift, MessageSquare, Loader2 } from "lucide-react";
+import { useNotifications } from "@/hooks/use-backend";
 
 export interface Notification {
   id: string;
@@ -26,28 +27,27 @@ const ICON_MAP = {
   support: MessageSquare,
 };
 
-const MOCK_NOTIFICATIONS: Notification[] = [
-  { id: "n1", type: "payment", title: "Payment Received", message: "$50.00 added to your balance via Stripe.", read: false, time: "2 min ago" },
-  { id: "n2", type: "alert", title: "Usage Warning", message: "You've used 80% of your daily bandwidth quota.", read: false, time: "15 min ago" },
-  { id: "n3", type: "security", title: "New Login Detected", message: "Login from 203.0.113.42 (United States).", read: false, time: "1 hr ago" },
-  { id: "n4", type: "support", title: "Ticket Updated", message: "Support replied to TK-1001: Cannot connect to residential pool.", read: true, time: "2 hr ago" },
-  { id: "n5", type: "promo", title: "New Coupon Available", message: "Use WELCOME20 for 20% off your next top-up!", read: true, time: "1 day ago" },
-  { id: "n6", type: "payment", title: "Auto Top-Up Triggered", message: "Balance fell below $5. Auto-charged $50 via Stripe.", read: true, time: "2 days ago" },
-];
-
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const { data: notifications = [], isLoading: loading, markRead: markReadMutation, markAllRead: markAllReadMutation } = useNotifications();
   const [open, setOpen] = useState(false);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n: Notification) => !n.read).length;
 
-  const markAllRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, []);
+  const markAllRead = useCallback(async () => {
+    try {
+      await markAllReadMutation.mutateAsync();
+    } catch (error) {
+      console.error("Failed to mark all read:", error);
+    }
+  }, [markAllReadMutation]);
 
-  const markRead = useCallback((id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  }, []);
+  const markRead = useCallback(async (id: string) => {
+    try {
+      await markReadMutation.mutateAsync(id);
+    } catch (error) {
+      console.error("Failed to mark as read:", error);
+    }
+  }, [markReadMutation]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -71,12 +71,16 @@ export function NotificationCenter() {
           )}
         </div>
         <ScrollArea className="max-h-80">
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : notifications.length === 0 ? (
             <p className="p-4 text-center text-sm text-muted-foreground">No notifications</p>
           ) : (
             <div className="divide-y">
               {notifications.map((n) => {
-                const Icon = ICON_MAP[n.type];
+                const Icon = ICON_MAP[n.type] || Bell;
                 return (
                   <button
                     key={n.id}

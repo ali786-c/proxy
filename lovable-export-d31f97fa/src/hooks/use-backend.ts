@@ -629,3 +629,31 @@ export function use2FARecoveryCodes(enabled: boolean = false) {
     enabled: enabled,
   });
 }
+
+export function useNotifications() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      return api.get("/notifications", z.array(z.any()));
+    },
+    refetchInterval: 1000 * 60, // Poll every 1 min
+  });
+
+  const markRead = useMutation({
+    mutationFn: async (id: string) => {
+      return api.post(`/notifications/${id}/read`, MessageSchema);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  const markAllRead = useMutation({
+    mutationFn: async () => {
+      return api.post("/notifications/mark-read", MessageSchema);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  return { ...query, markRead, markAllRead };
+}

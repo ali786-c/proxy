@@ -87,6 +87,11 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::post('/api_keys',        [\App\Http\Controllers\ApiKeyController::class, 'store']);
     Route::delete('/api_keys/{id}', [\App\Http\Controllers\ApiKeyController::class, 'destroy']);
 
+    // Notifications
+    Route::get('/notifications',            [\App\Http\Controllers\NotificationController::class, 'index']);
+    Route::post('/notifications/mark-read', [\App\Http\Controllers\NotificationController::class, 'markAllRead']);
+    Route::post('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markRead']);
+
     // Coupon validation
     Route::post('/coupons/validate', [\App\Http\Controllers\CouponController::class, 'validateCoupon']);
     Route::get('/me/usage',          [\App\Http\Controllers\AuthController::class, 'usage']);
