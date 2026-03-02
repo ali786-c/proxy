@@ -7,12 +7,32 @@ All changes are logged here in reverse chronological order (newest first).
 
 ## 2026-03-02
 
-### Critical Fixes & Hardening 🛠️
+### Feature: Functional Audit Log with IP & Geo Tracking 🛡️📜
+- **Real-Time Tracking:** Implemented automated logging of admin IP addresses, User Agents, and Geolocation (Country/City) using `ip-api.com`.
+- **Backend Infrastructure:** 
+    - Added tracking columns to `admin_logs` table via migration.
+    - Created a centralized `AdminLog::log()` helper to standardize activity recording.
+- **Extended Auditing:** Integrated triggers across:
+    - **Settings:** Tracks system configuration changes.
+    - **Support:** Logs admin replies and ticket status updates.
+    - **Email Templates:** Records creation, updates, and deletions of templates.
+    - **Admin Actions:** Balance updates, user bans, role changes, and referral adjustments.
+- **Frontend Revamp:** Updated `Audit.tsx` with a real-time dashboard, Location pins, and readable "Meta" details.
+
+### Security & Admin UX Hardening 🔐
+- **Admin 2FA Fix:** Resolved persistence issues with the 2FA toggle by implementing boolean casting in `SettingsController`.
+- **Personal Security:** Added dedicated "Profile" and "Security" routes for admins to manage their own 2FA and credentials.
+- **Access Control:** Restricted admin accounts from accessing user-side dashboard routes to prevent cross-account leakage.
+
+### System Stability & AI 🤖
+- **Gemini AI Reliability:** Optimized blog automation to fallback to `gemini-1.5-flash` for better stability and quota management.
+- **Changelog Maintenance:** Updated `CHANGELOG.md` to reflect all major architectural and security updates.
+
+### Critical Fixes & Hardening (Earlier) 🛠️
 - **Manual Payment Fix:** Resolved `Class 'App\Http\Controllers\Request' does not exist` error in `BillingController`.
-- **Frontend Stability:** Fixed a `ReferenceError: SEOHead is not defined` on the Forgot Password page by adding missing imports in `ForgotPassword.tsx`.
-- **Password Reset Logic:** Fixed a variable mismatch (`reset_url` vs `action_url`) between the controller and the dynamic templates.
-- **Frontend Build**: Performed a complete production build (`npm run build`) and deployed to `htdocs/`.
-- **Git Synchronization:** Performed a comprehensive push of all source and build changes to GitHub.
+- **Frontend Stability:** Fixed a `ReferenceError: SEOHead is not defined` on the Forgot Password page.
+- **Password Reset Logic:** Fixed a variable mismatch (`reset_url` vs `action_url`) in dynamic templates.
+- **Build & Push**: Completed fresh production builds and synchronized all changes to GitHub.
 
 ## 2026-03-01
 
