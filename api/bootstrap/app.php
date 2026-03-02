@@ -18,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'banned' => \App\Http\Middleware\CheckBanned::class,
+            'api_key' => \App\Http\Middleware\AuthenticateApiKey::class,
+            'api_log' => \App\Http\Middleware\ApiLogger::class,
         ]);
     })
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {

@@ -17,14 +17,23 @@ class ApiKeyController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate(['key_name' => 'required|string|max:255']);
+        $request->validate([
+            'key_name' => 'required|string|max:255',
+            'abilities' => 'nullable|array'
+        ]);
+
+        $plainTextKey = 'uproxy_' . Str::random(40);
 
         $apiKey = ApiKey::create([
             'user_id' => $request->user()->id,
             'key_name' => $request->key_name,
-            'api_key' => 'uproxy_' . Str::random(40),
+            'key_hash' => ApiKey::hash($plainTextKey),
+            'abilities' => $request->abilities ?? ['*'], // Default to all permissions for now
             'is_active' => true,
         ]);
+
+        // We return the plain text key ONLY once
+        $apiKey->plain_text_key = $plainTextKey;
 
         return response()->json($apiKey, 201);
     }

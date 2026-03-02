@@ -1,5 +1,19 @@
 <?php
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+ 
+Route::prefix('v1')->middleware(['api_key', 'api_log', 'banned'])->group(function () {
+    Route::get('/me/balance', [\App\Http\Controllers\Api\V1\ProxyApiController::class, 'balance'])->name('api.v1.balance');
+    Route::get('/products',   [\App\Http\Controllers\Api\V1\ProxyApiController::class, 'products'])->name('api.v1.products');
+    
+    Route::post('/proxies/generate', [\App\Http\Controllers\Api\V1\ProxyApiController::class, 'generate'])->name('api.v1.proxies.generate');
+    Route::get('/proxies',           [\App\Http\Controllers\Api\V1\ProxyApiController::class, 'orders'])->name('api.v1.proxies.list');
+    Route::get('/proxies/{id}',      [\App\Http\Controllers\Api\V1\ProxyApiController::class, 'proxyDetail'])->name('api.v1.proxies.detail');
+    Route::get('/logs',              [\App\Http\Controllers\Api\V1\ProxyApiController::class, 'logs'])->name('api.v1.logs');
+});
+
+
 // Debug routes removed from public space for security. Moving to admin group.
 
 
@@ -199,4 +213,3 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/email-templates/{id}/test', [\App\Http\Controllers\Api\Admin\EmailTemplateController::class, 'testSend']);
 });
 
-// Public test route removed from bottom, moved to top.
