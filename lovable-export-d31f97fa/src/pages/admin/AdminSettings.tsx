@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Globe, Mail, Shield, Save } from "lucide-react";
+import { Globe, Mail, Save } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function AdminSettings() {
@@ -142,31 +142,6 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Shield className="h-5 w-5" /> Security</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">2FA Required for Admin</p>
-                <p className="text-xs text-muted-foreground">Force all admins to use two-factor authentication</p>
-              </div>
-              <Switch
-                checked={form.admin_2fa_required === "1" || form.admin_2fa_required === true}
-                onCheckedChange={(v) => updateField("admin_2fa_required", v)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Rate Limiting</p>
-                <p className="text-xs text-muted-foreground">Limit API requests per minute to prevent abuse</p>
-              </div>
-              <Switch
-                checked={form.rate_limiting_enabled === "1" || form.rate_limiting_enabled === true}
-                onCheckedChange={(v) => updateField("rate_limiting_enabled", v)}
-              />
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </>
   );
