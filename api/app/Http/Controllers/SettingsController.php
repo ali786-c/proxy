@@ -73,6 +73,11 @@ class SettingsController extends Controller
         $settings = $request->only($this->allowedKeys);
 
         foreach ($settings as $key => $value) {
+            // Explicitly cast boolean values to "1" or "0" for the database
+            if (is_bool($value)) {
+                $value = $value ? '1' : '0';
+            }
+
             Setting::updateOrCreate(
                 ['key' => $key],
                 ['value' => is_array($value) ? json_encode($value) : $value]
