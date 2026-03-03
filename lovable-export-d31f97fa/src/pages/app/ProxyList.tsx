@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy, Download, Search, LayoutGrid, List as ListIcon, Loader2, Plus, Eye, Check, Terminal } from "lucide-react";
+import { Copy, Download, Search, LayoutGrid, List as ListIcon, Loader2, Plus, Eye, Check, Terminal, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -263,108 +263,142 @@ export default function ProxyList() {
             </div>
 
             <Dialog open={!!selectedProxy} onOpenChange={() => setSelectedProxy(null)}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Terminal className="h-5 w-5 text-primary" />
-                            Proxy Details
-                        </DialogTitle>
-                        <DialogDescription>
-                            Credentials and integration snippets for your {selectedProxy?.product_name || 'proxy'}.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {selectedProxy && (
-                        <div className="space-y-6 pt-4">
-                            {/* Credentials Grid */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5 p-3 rounded-lg border bg-muted/30">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Host:Port</p>
-                                    <div className="flex items-center justify-between">
-                                        <code className="text-sm">{selectedProxy.host}:{selectedProxy.port}</code>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                                            navigator.clipboard.writeText(`${selectedProxy.host}:${selectedProxy.port}`);
-                                            toast({ title: "Copied", description: "Host:Port copied." });
-                                        }}>
-                                            <Copy className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
+                <DialogContent className="max-w-2xl bg-card border-border/50 shadow-2xl overflow-hidden p-0">
+                    <div className="relative h-2 bg-primary"></div>
+                    <div className="p-6 space-y-6">
+                        <DialogHeader className="pt-2">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                                    <Terminal className="h-6 w-6 text-primary" />
                                 </div>
-                                <div className="space-y-1.5 p-3 rounded-lg border bg-muted/30">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Country</p>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg">{selectedProxy.country === 'US' ? '🇺🇸' : selectedProxy.country === 'GB' ? '🇬🇧' : '🌐'}</span>
-                                        <span className="text-sm font-medium">{selectedProxy.country}</span>
-                                    </div>
-                                </div>
-                                <div className="space-y-1.5 p-3 rounded-lg border bg-muted/30">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Username</p>
-                                    <div className="flex items-center justify-between">
-                                        <code className="text-sm truncate mr-2">{selectedProxy.username}</code>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                                            navigator.clipboard.writeText(selectedProxy.username);
-                                            toast({ title: "Copied", description: "Username copied." });
-                                        }}>
-                                            <Copy className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="space-y-1.5 p-3 rounded-lg border bg-muted/30">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Password</p>
-                                    <div className="flex items-center justify-between">
-                                        <code className="text-sm truncate mr-2">{selectedProxy.password}</code>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                                            navigator.clipboard.writeText(selectedProxy.password);
-                                            toast({ title: "Copied", description: "Password copied." });
-                                        }}>
-                                            <Copy className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
+                                <div className="text-left">
+                                    <DialogTitle className="text-xl font-bold tracking-tight">Proxy Integration</DialogTitle>
+                                    <DialogDescription className="text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[10px] uppercase font-bold px-1.5 py-0">
+                                            {selectedProxy?.product_name || 'Proxy Batch'}
+                                        </Badge>
+                                        Credentials & Snippets
+                                    </DialogDescription>
                                 </div>
                             </div>
+                        </DialogHeader>
 
-                            {/* Snippets */}
-                            <Tabs defaultValue="curl">
-                                <TabsList className="grid w-full grid-cols-3">
-                                    <TabsTrigger value="curl">cURL</TabsTrigger>
-                                    <TabsTrigger value="python">Python</TabsTrigger>
-                                    <TabsTrigger value="node">Node.js</TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="curl" className="mt-4">
-                                    <SnippetBlock code={generateCurl(selectedProxy)} />
-                                </TabsContent>
-                                <TabsContent value="python" className="mt-4">
-                                    <SnippetBlock code={generatePython(selectedProxy)} />
-                                </TabsContent>
-                                <TabsContent value="node" className="mt-4">
-                                    <SnippetBlock code={generateNode(selectedProxy)} />
-                                </TabsContent>
-                            </Tabs>
-                        </div>
-                    )}
+                        {selectedProxy && (
+                            <div className="space-y-6">
+                                {/* Credentials Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <CredentialCard
+                                        label="Host:Port"
+                                        value={`${selectedProxy.host}:${selectedProxy.port}`}
+                                        icon={<Globe className="h-3.5 w-3.5" />}
+                                    />
+                                    <CredentialCard
+                                        label="Country"
+                                        value={selectedProxy.country}
+                                        subValue={selectedProxy.country === 'US' ? 'United States' : selectedProxy.country === 'GB' ? 'United Kingdom' : 'Global'}
+                                        icon={<span>{selectedProxy.country === 'US' ? '🇺🇸' : selectedProxy.country === 'GB' ? '🇬🇧' : '🌐'}</span>}
+                                    />
+                                    <CredentialCard
+                                        label="Username"
+                                        value={selectedProxy.username}
+                                        icon={<Search className="h-3.5 w-3.5" />}
+                                    />
+                                    <CredentialCard
+                                        label="Password"
+                                        value={selectedProxy.password}
+                                        icon={<Check className="h-3.5 w-3.5" />}
+                                    />
+                                </div>
+
+                                {/* Integration Tabs */}
+                                <div className="space-y-4">
+                                    <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70">Integration Snippets</h4>
+                                    <Tabs defaultValue="curl" className="w-full">
+                                        <TabsList className="w-full bg-muted/50 p-1 rounded-xl h-11">
+                                            <TabsTrigger value="curl" className="flex-1 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">cURL</TabsTrigger>
+                                            <TabsTrigger value="python" className="flex-1 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Python</TabsTrigger>
+                                            <TabsTrigger value="node" className="flex-1 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Node.js</TabsTrigger>
+                                        </TabsList>
+                                        <div className="mt-4 ring-1 ring-border/50 rounded-2xl overflow-hidden shadow-inner">
+                                            <TabsContent value="curl" className="m-0 border-none">
+                                                <SnippetBlock code={generateCurl(selectedProxy)} />
+                                            </TabsContent>
+                                            <TabsContent value="python" className="m-0 border-none">
+                                                <SnippetBlock code={generatePython(selectedProxy)} />
+                                            </TabsContent>
+                                            <TabsContent value="node" className="m-0 border-none">
+                                                <SnippetBlock code={generateNode(selectedProxy)} />
+                                            </TabsContent>
+                                        </div>
+                                    </Tabs>
+                                </div>
+
+                                <div className="flex justify-end pt-2">
+                                    <Button variant="outline" onClick={() => setSelectedProxy(null)} className="rounded-xl px-8 border-border/50 hover:bg-muted/50">
+                                        Close Details
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </>
     );
 }
 
+function CredentialCard({ label, value, subValue, icon }: { label: string, value: string, subValue?: string, icon: React.ReactNode }) {
+    return (
+        <div className="group relative p-4 rounded-2xl border border-border/50 bg-muted/20 hover:bg-muted/40 hover:border-primary/30 transition-all duration-300 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-muted-foreground/70 font-bold text-[10px] uppercase tracking-wider">
+                    {icon}
+                    {label}
+                </div>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => {
+                        navigator.clipboard.writeText(value);
+                        toast({ title: "Copied", description: `${label} copied.` });
+                    }}
+                >
+                    <Copy className="h-3.5 w-3.5" />
+                </Button>
+            </div>
+            <div className="flex flex-col">
+                <code className="text-sm font-mono font-medium truncate tracking-tight text-foreground select-all">
+                    {value}
+                </code>
+                {subValue && (
+                    <span className="text-[10px] text-muted-foreground font-medium mt-1">{subValue}</span>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function SnippetBlock({ code }: { code: string }) {
     return (
         <div className="relative group">
-            <pre className="p-4 rounded-lg bg-black/90 text-green-400 text-xs font-mono overflow-x-auto leading-relaxed border border-white/10 max-h-[250px]">
+            <div className="absolute top-3 right-3 z-10">
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 gap-2 bg-background/50 backdrop-blur-md border border-border/50 hover:bg-background/80 transition-all opacity-0 group-hover:opacity-100"
+                    onClick={() => {
+                        navigator.clipboard.writeText(code);
+                        toast({ title: "Copied", description: "Code snippet copied." });
+                    }}
+                >
+                    <Copy className="h-3.5 w-3.5" />
+                    Copy
+                </Button>
+            </div>
+            <pre className="p-6 bg-muted/30 font-mono text-xs leading-relaxed overflow-x-auto selection:bg-primary/30 min-h-[160px] max-h-[300px]">
                 {code}
             </pre>
-            <Button
-                variant="outline"
-                size="icon"
-                className="absolute top-2 right-2 h-8 w-8 bg-black/50 border-white/10 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => {
-                    navigator.clipboard.writeText(code);
-                    toast({ title: "Copied", description: "Code snippet copied." });
-                }}
-            >
-                <Copy className="h-4 w-4 text-white" />
-            </Button>
         </div>
     );
 }
