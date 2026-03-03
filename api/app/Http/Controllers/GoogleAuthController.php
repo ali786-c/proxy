@@ -18,17 +18,9 @@ class GoogleAuthController extends Controller
      */
     public function redirectToGoogle()
     {
-        try {
-            Log::info('Google Login: Hit redirect route');
-            $url = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
-            Log::info('Google Login: Redirecting to ' . $url);
-            return response()->json(['url' => $url]);
-        } catch (\Exception $e) {
-            Log::error('Google Login Redirect Error: ' . $e->getMessage(), [
-                'stack' => $e->getTraceAsString()
-            ]);
-            return response()->json(['error' => 'Server error', 'message' => $e->getMessage()], 500);
-        }
+        return response()->json([
+            'url' => Socialite::driver('google')->stateless()->redirect()->getTargetUrl()
+        ]);
     }
 
     /**
@@ -40,15 +32,8 @@ class GoogleAuthController extends Controller
     public function handleGoogleCallback(Request $request)
     {
         try {
-            Log::info('Google Auth Callback: Start', [
-                'code' => $request->query('code') ? 'present' : 'missing',
-                'ip' => $request->ip()
-            ]);
-            
             // Frontend passes the 'code' obtained from Google
             $googleUser = Socialite::driver('google')->stateless()->user();
-            
-            Log::info('Google Auth Callback: User retrieved', ['email' => $googleUser->email]);
             
             $user = User::where('google_id', $googleUser->id)
                         ->orWhere('email', $googleUser->email)
