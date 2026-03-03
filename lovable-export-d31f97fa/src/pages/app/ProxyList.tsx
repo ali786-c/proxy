@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Copy, Download, Search, LayoutGrid, List as ListIcon, Loader2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { useOrders } from "@/hooks/use-backend";
 import { toast } from "@/hooks/use-toast";
 import { formatProxyLine } from "@/lib/utils";
@@ -43,6 +44,8 @@ export default function ProxyList() {
                 ...p,
                 product_name: order.product?.name || "Unknown",
                 expires_at: order.expires_at,
+                bandwidth_used: order.bandwidth_used || 0,
+                bandwidth_total: order.bandwidth_total || 0,
             }))
         );
     }, [orders]);
@@ -149,6 +152,7 @@ export default function ProxyList() {
                                             <TableHead>Location</TableHead>
                                             <TableHead>Host:Port</TableHead>
                                             <TableHead>Auth</TableHead>
+                                            <TableHead>Usage</TableHead>
                                             <TableHead>Expires</TableHead>
                                             <TableHead className="text-right">Action</TableHead>
                                         </TableRow>
@@ -167,6 +171,15 @@ export default function ProxyList() {
                                                 <TableCell className="font-mono text-xs">{p.host}:{p.port}</TableCell>
                                                 <TableCell className="font-mono text-xs max-w-[150px] truncate" title={`${p.username}:${p.password}`}>
                                                     {p.username}:{p.password}
+                                                </TableCell>
+                                                <TableCell className="min-w-[120px]">
+                                                    <div className="space-y-1">
+                                                        <div className="flex justify-between text-[10px] font-medium">
+                                                            <span>{p.bandwidth_used >= 1024 ? (p.bandwidth_used / 1024).toFixed(2) + ' GB' : Math.round(p.bandwidth_used) + ' MB'}</span>
+                                                            <span className="text-muted-foreground">{p.bandwidth_total >= 1024 ? (p.bandwidth_total / 1024).toFixed(2) + ' GB' : Math.round(p.bandwidth_total) + ' MB'}</span>
+                                                        </div>
+                                                        <Progress value={Math.min(100, (p.bandwidth_used / (p.bandwidth_total || 1)) * 100)} className="h-1" />
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline" className="text-[10px] font-normal">
@@ -198,6 +211,13 @@ export default function ProxyList() {
                                         </div>
                                         <div className="font-mono text-xs p-2 bg-muted rounded truncate">
                                             {p.host}:{p.port}
+                                        </div>
+                                        <div className="space-y-1.5 pt-1">
+                                            <div className="flex justify-between text-[10px] font-medium">
+                                                <span>Used: {p.bandwidth_used >= 1024 ? (p.bandwidth_used / 1024).toFixed(2) + ' GB' : Math.round(p.bandwidth_used) + ' MB'}</span>
+                                                <span className="text-muted-foreground">Limit: {p.bandwidth_total >= 1024 ? (p.bandwidth_total / 1024).toFixed(2) + ' GB' : Math.round(p.bandwidth_total) + ' MB'}</span>
+                                            </div>
+                                            <Progress value={Math.min(100, (p.bandwidth_used / (p.bandwidth_total || 1)) * 100)} className="h-1" />
                                         </div>
                                         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                                             <span>Expires: {new Date(p.expires_at).toLocaleDateString()}</span>

@@ -53,37 +53,50 @@ class ProxyController extends Controller
         }
 
         try {
-            // ── Step 1: Ensure subuser is initialized ──────────────────────
-            $subuserResult = $this->evomi->ensureSubuser($user);
+            // ── Step 1: Create Order (Pending) ──────────────────────────
+            $bandwidthTotal = $request->quantity * 1024; // MB
+            $order = Order::create([
+                'user_id'         => $user->id,
+                'product_id'      => $product->id,
+                'status'          => 'pending',
+                'bandwidth_total' => $bandwidthTotal,
+                'expires_at'      => now()->addDays(30),
+            ]);
+
+            // ── Step 2: Ensure order-specific subuser ───────────────────
+            $subuserResult = $this->evomi->ensureOrderSubuser($order);
 
             if (!$subuserResult['success']) {
+                $order->update(['status' => 'failed']);
                 return response()->json(['message' => $subuserResult['error']], 503);
             }
 
-            $user    = $user->fresh(); // Refresh after potential update
-            $userKeys = $user->evomi_keys ?? [];
+            $order    = $order->fresh();
+            $userKeys = $order->evomi_keys ?? [];
 
-            // ── Step 2: Get the proxy key for this product type ────────────
+            // ── Step 3: Get the proxy key for this product type ────────────
             $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
 
             if (!$proxyKey) {
-                Log::error('ProxyController: no proxy key found', [
-                    'user_id'      => $user->id,
+                Log::error('ProxyController: no proxy key found for order', [
+                    'order_id'     => $order->id,
                     'product_type' => $product->type,
                     'available_keys' => array_keys($userKeys),
                 ]);
-                return response()->json(['message' => "No proxy key found for type '{$product->type}'. Keys available: " . implode(', ', array_keys($userKeys))], 400);
+                $order->update(['status' => 'failed']);
+                return response()->json(['message' => "No proxy key found for type '{$product->type}' in this batch."], 400);
             }
 
-            // ── Step 3: Allocate bandwidth on Evomi side ───────────────────
-            $evomiResult = $this->evomi->allocateBandwidth($user->evomi_username, $request->quantity * 1024, $product->type);
+            // ── Step 4: Allocate bandwidth on Evomi side ───────────────────
+            $evomiResult = $this->evomi->allocateBandwidth($order->evomi_username, $bandwidthTotal, $product->type);
 
             if (!$evomiResult) {
-                return response()->json(['message' => 'Failed to allocate bandwidth on provider side. Check logs.'], 503);
+                $order->update(['status' => 'failed']);
+                return response()->json(['message' => 'Failed to allocate bandwidth on provider side. Batch marked as failed.'], 503);
             }
 
-            // ── Step 4: Deduct balance + create order + save proxies ───────
-            $orderData = DB::transaction(function () use ($user, $product, $totalCost, $request, $proxyKey) {
+            // ── Step 5: Deduct balance + finalize order + save proxies ───────
+            $orderData = DB::transaction(function () use ($user, $product, $totalCost, $request, $proxyKey, $order) {
 
                 $user->balance -= $totalCost;
                 $user->save();
@@ -92,15 +105,10 @@ class ProxyController extends Controller
                     'user_id'     => $user->id,
                     'type'        => 'debit',
                     'amount'      => $totalCost,
-                    'description' => "Purchase: {$request->quantity}x {$product->name}",
+                    'description' => "Purchase: {$request->quantity}x {$product->name} (Batch #{$order->id})",
                 ]);
 
-                $order = Order::create([
-                    'user_id'    => $user->id,
-                    'product_id' => $product->id,
-                    'status'     => 'active',
-                    'expires_at' => now()->addDays(30),
-                ]);
+                $order->update(['status' => 'active']);
 
                 $portMap = [
                     'rp'  => 1000,
@@ -128,7 +136,7 @@ class ProxyController extends Controller
                         'order_id' => $order->id,
                         'host'     => $host,
                         'port'     => $port,
-                        'username' => $user->evomi_username,
+                        'username' => $order->evomi_username,
                         'password' => $password,
                         'country'  => $country,
                     ]);
@@ -216,6 +224,21 @@ class ProxyController extends Controller
         }
 
         $orders = $query->latest()->get();
+
+        // Enrich with real-time usage stats from Evomi
+        $orders->each(function ($order) {
+            if ($order->evomi_username) {
+                $cacheKey = "usage_order_{$order->id}";
+                $usage = \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function () use ($order) {
+                    return $this->evomi->getUsage($order->evomi_username);
+                });
+
+                // Evomi returns usage in MB usually
+                $order->bandwidth_used = (float) ($usage['data']['usage'] ?? 0);
+            } else {
+                $order->bandwidth_used = 0;
+            }
+        });
 
         return response()->json($orders);
     }

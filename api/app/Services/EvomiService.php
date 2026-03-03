@@ -302,4 +302,40 @@ class EvomiService
         Log::error('ensureSubuser: failed to create subuser on Evomi', ['result' => $result]);
         return ['success' => false, 'error' => 'Failed to initialize proxy account with provider. Please try again or contact support.'];
     }
+
+    /**
+     * Ensure an order has an associated Evomi subuser.
+     */
+    public function ensureOrderSubuser(\App\Models\Order $order): array
+    {
+        if ($order->evomi_username && !empty($order->evomi_keys)) {
+            return ['success' => true, 'keys' => $order->evomi_keys];
+        }
+
+        $user = $order->user;
+        $orderUsername = 'ord_' . $order->id . '_' . strtolower(Str::random(6));
+        Log::info('ensureOrderSubuser: creating new subuser for order', ['order_id' => $order->id, 'username' => $orderUsername]);
+
+        $result = $this->createSubUser($orderUsername, $user->email);
+
+        $created = $result && (
+            ($result['status'] ?? 0) === 201 ||
+            isset($result['data']['username'])
+        );
+
+        if ($created) {
+            $actualUsername = $result['data']['username'] ?? $orderUsername;
+            $keys = $this->extractKeys($result);
+
+            $order->update([
+                'evomi_username' => $actualUsername,
+                'evomi_keys' => $keys,
+            ]);
+
+            return ['success' => true, 'keys' => $keys];
+        }
+
+        Log::error('ensureOrderSubuser: failed to create subuser for order', ['order_id' => $order->id, 'result' => $result]);
+        return ['success' => false, 'error' => 'Failed to initialize proxy batch with provider.'];
+    }
 }

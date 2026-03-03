@@ -138,10 +138,11 @@ class ProxyApiController extends ApiBaseController
 
                 // Create Order (Pending)
                 $order = Order::create([
-                    'user_id'    => $user->id,
-                    'product_id' => $product->id,
-                    'status'     => 'pending',
-                    'expires_at' => now()->addDays(30),
+                    'user_id'         => $user->id,
+                    'product_id'      => $product->id,
+                    'status'          => 'pending',
+                    'bandwidth_total' => $request->quantity * 1024, // MB
+                    'expires_at'      => now()->addDays(30),
                 ]);
 
                 return [
@@ -158,14 +159,14 @@ class ProxyApiController extends ApiBaseController
             $order    = $preStep['order'];
             $totalCost = $preStep['totalCost'];
 
-            $subuserResult = $this->evomi->ensureSubuser($user);
+            $subuserResult = $this->evomi->ensureOrderSubuser($order);
             if (!$subuserResult['success']) {
                 $this->handleProvisioningFailure($order, $user, $totalCost, 'Subuser setup failed: ' . ($subuserResult['error'] ?? 'Unknown Error'));
                 return $this->sendError($subuserResult['error'] ?? 'Provider setup failed', 'provider_setup_failed', 503);
             }
 
-            $user     = $user->fresh(); // get updated evomi_keys if any
-            $userKeys = $user->evomi_keys ?? [];
+            $order    = $order->fresh();
+            $userKeys = $order->evomi_keys ?? [];
             $proxyKey = $userKeys[$product->type] ?? ($userKeys['residential'] ?? null);
 
             if (!$proxyKey) {
@@ -174,7 +175,7 @@ class ProxyApiController extends ApiBaseController
             }
 
             // Allocate Bandwidth
-            $evomiResult = $this->evomi->allocateBandwidth($user->evomi_username, $request->quantity * 1024, $product->type);
+            $evomiResult = $this->evomi->allocateBandwidth($order->evomi_username, $order->bandwidth_total, $product->type);
             if (!$evomiResult) {
                 $this->handleProvisioningFailure($order, $user, $totalCost, 'Bandwidth allocation failed on provider.');
                 return $this->sendError('Failed to allocate bandwidth on provider.', 'provider_allocation_failed', 503);
@@ -199,7 +200,7 @@ class ProxyApiController extends ApiBaseController
                         'order_id' => $order->id,
                         'host'     => $host,
                         'port'     => $port,
-                        'username' => $user->evomi_username,
+                        'username' => $order->evomi_username,
                         'password' => "{$proxyKey}_country-{$country}_session-{$sessionType}",
                         'country'  => $country,
                     ]);

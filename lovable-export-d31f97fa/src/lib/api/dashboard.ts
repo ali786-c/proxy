@@ -123,7 +123,7 @@ export const CouponResponseSchema = z.object({
 });
 export type CouponResponse = z.infer<typeof CouponResponseSchema>;
 
-// ── Plans ────────────────────────────────────────────
+// ── Plans & Orders ───────────────────────────────────
 
 export const PlanSchema = z.object({
   id: z.string(),
@@ -141,6 +141,20 @@ export const PlanSchema = z.object({
   ).nullable().optional(),
 });
 export type Plan = z.infer<typeof PlanSchema>;
+
+export const ProxyOrderSchema = z.object({
+  id: z.coerce.string(),
+  product_id: z.coerce.string(),
+  evomi_order_id: z.string().nullable().optional(),
+  evomi_username: z.string().nullable().optional(),
+  bandwidth_total: z.coerce.number().optional(),
+  bandwidth_used: z.coerce.number().optional(),
+  status: z.string(),
+  expires_at: z.string(),
+  product: PlanSchema.optional(),
+  proxies: z.array(GeneratedProxySchema).optional(),
+});
+export type ProxyOrder = z.infer<typeof ProxyOrderSchema>;
 
 export const TopUpSettingsSchema = z.object({
   enabled: z.boolean(),
@@ -166,7 +180,7 @@ export const clientApi = {
   generateProxies: (input: ProxyGenerateInput) =>
     api.post("/proxies/generate", ProxyGenerateResponseSchema, input),
   getOrders: (type?: string) =>
-    api.get(`/proxies${type ? `?type=${type}` : ""}`, z.array(z.any())),
+    api.get(`/proxies${type ? `?type=${type}` : ""}`, z.array(ProxyOrderSchema)),
 
   // IP Allowlist
   getAllowlist: () => api.get("/allowlist", z.array(AllowlistEntrySchema)),

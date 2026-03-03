@@ -6,8 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    protected $fillable = ['user_id', 'product_id', 'evomi_order_id', 'status', 'expires_at'];
-    protected $casts = ['expires_at' => 'datetime'];
+    protected $fillable = ['user_id', 'product_id', 'evomi_order_id', 'evomi_username', 'evomi_keys', 'bandwidth_total', 'status', 'expires_at'];
+    protected $casts = [
+        'expires_at' => 'datetime',
+        'evomi_keys' => 'array',
+    ];
 
     public function user() { return $this->belongsTo(User::class); }
     public function product() { return $this->belongsTo(Product::class); }
