@@ -8,11 +8,18 @@ class ApiKey extends Model
 {
     protected $fillable = ['user_id', 'key_name', 'key_hash', 'abilities', 'is_active', 'last_used_at'];
     
+    protected $appends = ['name'];
+
     protected $casts = [
         'abilities' => 'array',
         'is_active' => 'boolean',
         'last_used_at' => 'datetime',
     ];
+
+    public function getNameAttribute()
+    {
+        return $this->key_name;
+    }
 
     public function user() 
     { 

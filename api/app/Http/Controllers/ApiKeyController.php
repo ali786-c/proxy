@@ -17,6 +17,11 @@ class ApiKeyController extends Controller
 
     public function store(Request $request)
     {
+        // Support both 'name' (frontend) and 'key_name' (backend)
+        if ($request->has('name') && !$request->has('key_name')) {
+            $request->merge(['key_name' => $request->name]);
+        }
+
         $request->validate([
             'key_name' => 'required|string|max:255',
             'abilities' => 'nullable|array'
@@ -25,14 +30,15 @@ class ApiKeyController extends Controller
         $plainTextKey = 'uproxy_' . Str::random(40);
 
         $apiKey = ApiKey::create([
-            'user_id' => $request->user()->id,
-            'key_name' => $request->key_name,
-            'key_hash' => ApiKey::hash($plainTextKey),
-            'abilities' => $request->abilities ?? ['*'], // Default to all permissions for now
+            'user_id'   => $request->user()->id,
+            'key_name'  => $request->key_name,
+            'key_hash'  => ApiKey::hash($plainTextKey),
+            'abilities' => $request->abilities ?? ['*'],
             'is_active' => true,
         ]);
 
-        // We return the plain text key ONLY once
+        // Add 'name' to the response for frontend compatibility
+        $apiKey->name = $apiKey->key_name;
         $apiKey->plain_text_key = $plainTextKey;
 
         return response()->json($apiKey, 201);

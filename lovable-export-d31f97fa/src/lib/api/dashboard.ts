@@ -182,7 +182,13 @@ export const clientApi = {
   // API Keys
   getApiKeys: () => api.get("/api_keys", z.array(ApiKeySchema)),
   createApiKey: (data: { name: string; allowed_countries?: string[]; daily_gb_cap?: number; daily_request_cap?: number; allowed_scopes?: string[] }) =>
-    api.post("/api_keys", ApiKeyCreateResponseSchema, data),
+    api.post("/api_keys", ApiKeyCreateResponseSchema, {
+      key_name: data.name,
+      allowed_countries: data.allowed_countries,
+      daily_gb_cap: data.daily_gb_cap,
+      daily_request_cap: data.daily_request_cap,
+      abilities: data.allowed_scopes,
+    }),
   revokeApiKey: (id: string) =>
     api.delete(`/api_keys/${encodeURIComponent(id)}`, MessageSchema),
 
