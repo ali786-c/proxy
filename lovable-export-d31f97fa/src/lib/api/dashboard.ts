@@ -92,9 +92,9 @@ export const ApiKeySchema = z.object({
 export type ApiKey = z.infer<typeof ApiKeySchema>;
 
 export const ApiKeyCreateResponseSchema = z.object({
-  id: z.string(),
+  id: z.coerce.string(),
   name: z.string(),
-  key: z.string(), // full key shown once
+  plain_text_key: z.string(), // match backend exactly
 });
 
 // ── Invoices ─────────────────────────────────────────

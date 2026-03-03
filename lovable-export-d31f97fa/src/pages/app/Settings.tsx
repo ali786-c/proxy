@@ -189,7 +189,7 @@ function ApiKeysPanel() {
         allowed_scopes: scopes,
       });
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
-      setNewKeyResult(result.key);
+      setNewKeyResult(result.plain_text_key);
       setName("");
       setCountries("");
       setGbCap("");
