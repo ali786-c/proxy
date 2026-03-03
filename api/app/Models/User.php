@@ -50,6 +50,9 @@ class User extends Authenticatable
         'remember_token',
         'two_factor_secret',
         'two_factor_recovery_codes',
+        'evomi_username',
+        'evomi_subuser_id',
+        'evomi_keys',
     ];
 
     /**

@@ -12,6 +12,11 @@ class Order extends Model
         'evomi_keys' => 'array',
     ];
 
+    protected $hidden = [
+        'evomi_username',
+        'evomi_keys',
+    ];
+
     public function user() { return $this->belongsTo(User::class); }
     public function product() { return $this->belongsTo(Product::class); }
     public function proxies() { return $this->hasMany(Proxy::class); }

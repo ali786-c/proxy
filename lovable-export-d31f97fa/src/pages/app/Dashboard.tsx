@@ -193,7 +193,12 @@ export default function AppDashboard() {
   }
 
   const balance = user?.balance ?? 0;
-  const usedGb = usage?.total_bandwidth_mb ? (usage.total_bandwidth_mb / 1024).toFixed(2) : "0.00";
+  const usedMb = stats?.bandwidth_used ?? 0;
+  const totalMb = stats?.bandwidth_total ?? 0;
+
+  const usedGb = (usedMb / 1024).toFixed(2);
+  const totalGb = (totalMb / 1024).toFixed(2);
+  const remainingGb = Math.max(0, totalMb - usedMb) / 1024;
 
   return (
     <>
@@ -220,8 +225,8 @@ export default function AppDashboard() {
                 <Activity className="h-6 w-6 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">{t("dashboard.usedLast24h")}</p>
-                <p className="text-2xl font-bold">{usedGb} GB</p>
+                <p className="text-sm text-muted-foreground font-medium">Used / Total Bandwidth</p>
+                <p className="text-2xl font-bold">{usedGb} / {totalGb} GB</p>
               </div>
             </CardContent>
           </Card>

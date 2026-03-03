@@ -292,6 +292,28 @@ class ProxyApiController extends ApiBaseController
             ->latest()
             ->paginate($perPage);
 
+        // Enrich with usage stats using optimized bulk lookup
+        $allBalances = $this->evomi->getSubuserBalances();
+        $typeMap = [
+            'rp'  => 'residential',
+            'mp'  => 'mobile',
+            'dc'  => 'dataCenter',
+            'isp' => 'static',
+        ];
+
+        foreach ($orders->items() as $order) {
+            $username = $order->evomi_username;
+            if ($username && isset($allBalances[$username])) {
+                $balances = $allBalances[$username];
+                $typeCode = $order->product->type;
+                $evomiType = $typeMap[$typeCode] ?? $typeCode;
+                $currentBalance = (float) ($balances[$evomiType] ?? ($balances[$typeCode] ?? 0));
+                $order->bandwidth_used = max(0, (float) $order->bandwidth_total - $currentBalance);
+            } else {
+                $order->bandwidth_used = 0;
+            }
+        }
+
         return $this->sendSuccess($orders->items(), 'Orders retrieved successfully.', 200, [
             'pagination' => [
                 'total'        => $orders->total(),

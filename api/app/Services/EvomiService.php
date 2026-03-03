@@ -162,6 +162,52 @@ class EvomiService
     }
 
     /**
+     * List all subusers. Useful for bulk balance checks.
+     */
+    public function listSubusers()
+    {
+        try {
+            $response = $this->http()->get("{$this->baseUrl}/reseller/subusers");
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            Log::error('Evomi API Exception (ListSubusers): ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get a map of username => [type => balance] for all active subusers.
+     */
+    public function getSubuserBalances()
+    {
+        $cacheKey = 'evomi_all_balances';
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function () {
+            $data = $this->listSubusers();
+            $map = [];
+
+            if ($data && isset($data['data']) && is_array($data['data'])) {
+                foreach ($data['data'] as $subuser) {
+                    $username = $subuser['username'] ?? null;
+                    if ($username) {
+                        $balances = [];
+                        $products = $subuser['products'] ?? [];
+                        foreach ($products as $type => $info) {
+                            $balances[$type] = (float) ($info['balance'] ?? 0);
+                        }
+                        $map[$username] = $balances;
+                    }
+                }
+            }
+            return $map;
+        });
+    }
+
+    /**
      * Fetch global proxy settings (countries, cities, etc.)
      */
     public function getProxySettings()

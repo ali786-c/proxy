@@ -255,31 +255,43 @@ class AuthController extends Controller
         $user = $request->user();
         $cacheKey = "user_stats_{$user->id}";
 
-        return Cache::remember($cacheKey, 300, function () use ($user) {
-            $activeOrders = Order::where('user_id', $user->id)
+        return Cache::remember($cacheKey, 60, function () use ($user) {
+            $orders = Order::where('user_id', $user->id)
                 ->where('status', 'active')
-                ->count();
+                ->with('product')
+                ->get();
 
+            $activeOrders = $orders->count();
             $totalOrders = Order::where('user_id', $user->id)->count();
 
             $totalSpent = \App\Models\WalletTransaction::where('user_id', $user->id)
                 ->where('type', 'debit')
                 ->sum('amount');
 
-            // --- Bandwidth Stats from Evomi ---
-            $bandwidthTotal = 0;
+            // --- Bandwidth Stats from Evomi (Aggregated from Orders) ---
+            $bandwidthTotal = $orders->sum('bandwidth_total');
             $bandwidthUsed  = 0;
 
-            if ($user->evomi_username) {
-                $evomi = app(EvomiService::class);
-                $data  = $evomi->getSubuserData($user->evomi_username);
-                
-                if ($data && isset($data['data']['products'])) {
-                    // Evomi returns products as key => data object
-                    foreach ($data['data']['products'] as $type => $product) {
-                        $bandwidthTotal += (float) ($product['balance'] ?? 0);
-                        $bandwidthUsed  += (float) ($product['usage'] ?? 0);
-                    }
+            $evomi = app(EvomiService::class);
+            $allBalances = $evomi->getSubuserBalances();
+            
+            $typeMap = [
+                'rp'  => 'residential',
+                'mp'  => 'mobile',
+                'dc'  => 'dataCenter',
+                'isp' => 'static',
+            ];
+
+            foreach ($orders as $order) {
+                $username = $order->evomi_username;
+                if ($username && isset($allBalances[$username])) {
+                    $balances = $allBalances[$username];
+                    $typeCode = $order->product->type;
+                    $evomiType = $typeMap[$typeCode] ?? $typeCode;
+                    $currentBalance = (float) ($balances[$evomiType] ?? ($balances[$typeCode] ?? 0));
+                    
+                    $orderUsed = max(0, (float) $order->bandwidth_total - $currentBalance);
+                    $bandwidthUsed += $orderUsed;
                 }
             }
 
@@ -288,8 +300,8 @@ class AuthController extends Controller
                 'active_proxies'   => $activeOrders,
                 'total_orders'     => $totalOrders,
                 'total_spent'      => (float) $totalSpent,
-                'bandwidth_total'  => $bandwidthTotal,
-                'bandwidth_used'   => $bandwidthUsed,
+                'bandwidth_total'  => (float) $bandwidthTotal,
+                'bandwidth_used'   => (float) $bandwidthUsed,
                 'bandwidth_unit'   => 'MB',
             ];
         });

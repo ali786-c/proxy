@@ -225,16 +225,34 @@ class ProxyController extends Controller
 
         $orders = $query->latest()->get();
 
-        // Enrich with real-time usage stats from Evomi
-        $orders->each(function ($order) {
-            if ($order->evomi_username) {
-                $cacheKey = "usage_order_{$order->id}";
-                $usage = \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function () use ($order) {
-                    return $this->evomi->getUsage($order->evomi_username);
-                });
+        // Optimized: Fetch all balances once per minute instead of per-order
+        $allBalances = $this->evomi->getSubuserBalances();
 
-                // Evomi returns usage in MB usually
-                $order->bandwidth_used = (float) ($usage['data']['usage'] ?? 0);
+        // Enrich with usage stats
+        $orders->each(function ($order) use ($allBalances) {
+            $username = $order->evomi_username;
+            if ($username && isset($allBalances[$username])) {
+                $balances = $allBalances[$username];
+                
+                // Map our product type code to Evomi's balance keys if needed
+                $typeCode = $order->product->type; // e.g., 'rp'
+                
+                // Evomi balances typically use internal names like 'residential', 'static', etc.
+                // But our extractKeys during creation mapped them to codes. 
+                // Let's check both just in case.
+                $typeMap = [
+                    'rp'  => 'residential',
+                    'mp'  => 'mobile',
+                    'dc'  => 'dataCenter',
+                    'isp' => 'static',
+                ];
+                
+                $evomiType = $typeMap[$typeCode] ?? $typeCode;
+                $currentBalance = (float) ($balances[$evomiType] ?? ($balances[$typeCode] ?? 0));
+
+                // Usage = Total Allocated - Current Balance
+                $used = max(0, (float) $order->bandwidth_total - $currentBalance);
+                $order->bandwidth_used = $used;
             } else {
                 $order->bandwidth_used = 0;
             }
