@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, ShieldCheck, Smartphone } from "lucide-react";
+import { toast } from "sonner";
+import { authApi } from "@/lib/api/auth";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const loginSchema = z.object({
@@ -72,11 +74,16 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
-    const { error } = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (error) {
-      console.error("Google sign-in error:", error);
+    try {
+      const { url } = await authApi.googleRedirect();
+      if (url) {
+        window.location.href = url;
+      } else {
+        toast.error("Could not initialize Google login.");
+      }
+    } catch (err: any) {
+      console.error("Google login error:", err);
+      toast.error(err.message || "An error occurred during Google login.");
     }
   };
 

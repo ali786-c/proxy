@@ -21,6 +21,7 @@ interface AuthContextValue extends AuthState {
   login: (data: LoginInput) => Promise<any>;
   verify2fa: (code: string) => Promise<User>;
   signup: (data: SignupInput) => Promise<User>;
+  handleGoogleCallback: (code: string) => Promise<any>;
   logout: () => Promise<void>;
   clearError: () => void;
   isAuthenticated: boolean;
@@ -145,6 +146,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const handleGoogleCallback = useCallback(async (code: string) => {
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      const referralCode = localStorage.getItem("referral_code") || undefined;
+      const response = await authApi.googleCallback(code, referralCode);
+
+      if ('requires_2fa' in response && response.requires_2fa) {
+        setState((s) => ({
+          ...s,
+          isLoading: false,
+          is2FAPending: true,
+          challengeToken: response.challenge_token,
+        }));
+        return { requires_2fa: true };
+      }
+
+      if ('user' in response && 'token' in response) {
+        const { user, token } = response;
+        tokenStorage.set(token);
+        // Clear referral after successful use
+        localStorage.removeItem("referral_code");
+        setState((s) => ({ ...s, user, isLoading: false, error: null, is2FAPending: false, challengeToken: null }));
+        return user;
+      }
+
+      throw new Error("Invalid response from server");
+    } catch (err: any) {
+      const message = err?.message ?? "Google authentication failed.";
+      setState((s) => ({ ...s, isLoading: false, error: message }));
+      throw err;
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -165,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         verify2fa,
         signup,
+        handleGoogleCallback,
         logout,
         clearError,
         isAuthenticated: !!state.user,

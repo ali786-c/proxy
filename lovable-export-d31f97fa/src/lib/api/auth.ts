@@ -8,6 +8,7 @@ export const UserSchema = z.object({
   role: z.enum(["client", "admin", "banned"]),
   balance: z.number().default(0),
   referral_code: z.string().nullable().optional(),
+  avatar: z.string().nullable().optional(),
   is_2fa_enabled: z.boolean().default(false),
 });
 
@@ -66,4 +67,7 @@ export const authApi = {
   logout: () => api.post("/auth/logout", MessageSchema),
   verify2fa: (data: { challenge_token: string; code: string }) =>
     api.post("/auth/2fa/verify", AuthResponseSchema, data),
+  googleRedirect: () => api.get("/auth/google/redirect", z.object({ url: z.string() })),
+  googleCallback: (code: string, referralCode?: string) =>
+    api.get(`/auth/google/callback?code=${code}${referralCode ? `&referral_code=${referralCode}` : ""}`, AuthResponseSchema),
 };

@@ -241,6 +241,7 @@ class AuthController extends Controller
             'role'          => $user->role,
             'balance'       => (float) $user->balance,
             'referral_code' => $user->referral_code,
+            'avatar'        => $user->avatar,
             'created_at'    => $user->created_at,
         ]);
     }
@@ -335,6 +336,7 @@ class AuthController extends Controller
             'role'          => $user->role,
             'balance'       => (float) $user->balance,
             'referral_code' => $user->referral_code,
+            'avatar'        => $user->avatar,
             'is_2fa_enabled'=> $user->hasTwoFactorEnabled(),
         ];
     }
