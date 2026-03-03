@@ -18,8 +18,17 @@ class GoogleAuthController extends Controller
      */
     public function redirectToGoogle()
     {
-        $url = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
-        return response()->json(['url' => $url]);
+        try {
+            Log::info('Google Login: Hit redirect route');
+            $url = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
+            Log::info('Google Login: Redirecting to ' . $url);
+            return response()->json(['url' => $url]);
+        } catch (\Exception $e) {
+            Log::error('Google Login Redirect Error: ' . $e->getMessage(), [
+                'stack' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Server error', 'message' => $e->getMessage()], 500);
+        }
     }
 
     /**
