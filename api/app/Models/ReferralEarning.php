@@ -9,6 +9,8 @@ class ReferralEarning extends Model
     protected $fillable = [
         'referrer_id',
         'referred_id',
+        'invoice_id',
+        'transaction_id',
         'amount',
         'description',
         'status',

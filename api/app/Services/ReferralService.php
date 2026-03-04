@@ -19,7 +19,7 @@ class ReferralService
      * @param float $amount The amount of the transaction
      * @param string $description Description for the earning record
      */
-    public function awardCommission(User $user, float $amount, string $description = 'Referral Commission')
+    public function awardCommission(User $user, float $amount, string $description = 'Referral Commission', $sourceId = null, string $sourceType = 'invoice')
     {
         try {
             // Check if referral system is enabled globally
@@ -49,14 +49,16 @@ class ReferralService
                 return;
             }
 
-            DB::transaction(function () use ($referrer, $user, $commissionAmount, $description) {
+            DB::transaction(function () use ($referrer, $user, $commissionAmount, $description, $sourceId, $sourceType) {
                 // Create earning record (Status is pending by default for security)
                 ReferralEarning::create([
-                    'referrer_id' => $referrer->id,
-                    'referred_id' => $user->id,
-                    'amount'      => $commissionAmount,
-                    'description' => $description,
-                    'status'      => 'pending',
+                    'referrer_id'    => $referrer->id,
+                    'referred_id'    => $user->id,
+                    'invoice_id'     => $sourceType === 'invoice' ? $sourceId : null,
+                    'transaction_id' => $sourceType === 'transaction' ? $sourceId : null,
+                    'amount'         => $commissionAmount,
+                    'description'    => $description,
+                    'status'         => 'pending',
                 ]);
 
                 Log::info("Recorded {$commissionAmount} PENDING commission for User #{$referrer->id} from User #{$user->id}");

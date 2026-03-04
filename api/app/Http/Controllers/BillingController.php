@@ -526,14 +526,14 @@ class BillingController extends Controller
         DB::transaction(function () use ($user, $creditAmount, $amount, $couponCode, $uuid, $referralService, $fulfillmentLog) {
             $fulfillmentLog->update(['stage' => 3, 'status' => 'success']);
             $user->increment('balance', $creditAmount);
-            WalletTransaction::create([
+            $transaction = WalletTransaction::create([
                 'user_id'     => $user->id,
                 'type'        => 'credit',
                 'amount'      => $creditAmount,
                 'reference'   => "CRYPTO-{$uuid}",
                 'description' => 'Cryptomus Wallet Top-up' . ($couponCode ? " (Used promo: {$couponCode})" : ''),
             ]);
-            $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Cryptomus)");
+            $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Cryptomus)", $transaction->id, 'transaction');
         });
 
         Log::info("CRYPTOMUS FULFILLMENT COMPLETE for User #{$userId}, UUID: {$uuid}. Type: {$type}");
@@ -878,14 +878,14 @@ class BillingController extends Controller
                 $fulfillmentLog->update(['stage' => 3, 'status' => 'success']);
                 $user->increment('balance', $creditAmount);
                 Log::info("Wallet top-up for User #{$userId}: +{$currency} {$creditAmount} (Ref: {$eventId})");
-                WalletTransaction::create([
+                $transaction = WalletTransaction::create([
                     'user_id'     => $user->id,
                     'type'        => 'credit',
                     'amount'      => $creditAmount,
                     'reference'   => $eventId,
                     'description' => 'Stripe Wallet Top-up' . ($couponCode && !empty($couponCode) ? " (Used promo: {$couponCode})" : ''),
                 ]);
-                $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Stripe)");
+                $referralService->awardCommission($user, $amount, "Commission from Wallet Top-up (Stripe)", $transaction->id, 'transaction');
             });
         } else {
             Log::warning("Zero amount top-up for User #{$userId}. Amount: {$amount}, Original: {$originalAmount}");
@@ -1004,13 +1004,17 @@ class BillingController extends Controller
                 $user->balance += $pending->amount;
                 $user->save();
 
-                WalletTransaction::create([
+                $transaction = WalletTransaction::create([
                     'user_id' => $user->id,
                     'type' => 'credit',
                     'amount' => $pending->amount,
                     'reference' => "CRYPTO-" . ($pending->txid ?: $pending->binance_id ?: $pending->id),
                     'description' => "Crypto Top-up ({$pending->currency})",
                 ]);
+
+                // Award Referral Commission
+                $referralService = app(ReferralService::class);
+                $referralService->awardCommission($user, $pending->amount, "Commission from Crypto Top-up", $transaction->id, 'transaction');
 
                 // --- NEW: Trigger Payment Accepted Email ---
                 try {
@@ -1388,15 +1392,15 @@ class BillingController extends Controller
                 $user->increment('balance', $amount);
                 
                 $referralService = app(ReferralService::class);
-                $referralService->awardCommission($user, $amount, "Commission from Auto Top-up (Stripe)");
 
-                WalletTransaction::create([
+                $transaction = WalletTransaction::create([
                     'user_id' => $user->id,
                     'amount' => $amount,
                     'type' => 'credit',
                     'description' => "Auto Top-up: Saved Card charged successfully.",
                     'reference' => $pi->id
                 ]);
+                $referralService->awardCommission($user, $amount, "Commission from Auto Top-up (Stripe)", $transaction->id, 'transaction');
                 Log::info("Auto Top-up successful for User #{$user->id}. Transaction: {$pi->id}");
                 return true;
             }

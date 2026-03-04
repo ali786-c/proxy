@@ -126,7 +126,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = useCallback(async (data: SignupInput) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
-      const response = await authApi.signup(data);
+      const referralCode = localStorage.getItem("referral_code");
+      const signupData = referralCode ? { ...data, referral_code: referralCode } : data;
+
+      const response = await authApi.signup(signupData);
       if ('requires_2fa' in response && response.requires_2fa) {
         throw new Error("Registration should not redirect to 2FA challenge");
       }
@@ -135,6 +138,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { user, token } = response;
         tokenStorage.set(token);
         setState({ user, isLoading: false, error: null, is2FAPending: false, challengeToken: null });
+
+        // Clean up referral code after successful signup
+        if (referralCode) {
+          localStorage.removeItem("referral_code");
+        }
+
         return user;
       }
 

@@ -12,6 +12,7 @@ use App\Models\FulfillmentLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AdminController extends Controller
 {
@@ -567,15 +568,52 @@ class AdminController extends Controller
 
         $earning = \App\Models\ReferralEarning::findOrFail($id);
         $oldStatus = $earning->status;
-        $earning->status = $request->status;
-        $earning->save();
+        $newStatus = $request->status;
 
-        AdminLog::log(
-            'update_referral_earning_status',
-            "Referral earning #{$id} status changed from {$oldStatus} to {$request->status}"
-        );
+        if ($oldStatus === $newStatus) {
+            return response()->json(['message' => 'Status is already ' . $newStatus]);
+        }
 
-        return response()->json(['message' => 'Earning status updated successfully']);
+        DB::transaction(function () use ($earning, $newStatus, $oldStatus, $id) {
+            $earning->update(['status' => $newStatus]);
+
+            if ($newStatus === 'completed' && $oldStatus !== 'completed') {
+                $referrer = User::lockForUpdate()->find($earning->referrer_id);
+                if ($referrer) {
+                    $referrer->increment('balance', $earning->amount);
+                    
+                    WalletTransaction::create([
+                        'user_id'     => $referrer->id,
+                        'type'        => 'credit',
+                        'amount'      => $earning->amount,
+                        'reference'   => 'REF-RELEASE-MANUAL-' . strtoupper(Str::random(8)),
+                        'description' => 'Manual Release: ' . $earning->description,
+                    ]);
+                }
+            } elseif ($oldStatus === 'completed' && $newStatus !== 'completed') {
+                // Reverse the credit if we move back from completed
+                $referrer = User::lockForUpdate()->find($earning->referrer_id);
+                if ($referrer) {
+                    $referrer->decrement('balance', $earning->amount);
+                    
+                    WalletTransaction::create([
+                        'user_id'     => $referrer->id,
+                        'type'        => 'debit',
+                        'amount'      => $earning->amount,
+                        'reference'   => 'REF-REVERSAL-' . strtoupper(Str::random(8)),
+                        'description' => 'Reversal of Referral Commission: ' . $earning->description,
+                    ]);
+                }
+            }
+
+            AdminLog::log(
+                'update_referral_earning_status',
+                "Referral earning #{$id} status changed from {$oldStatus} to {$newStatus}",
+                $earning->referrer_id
+            );
+        });
+
+        return response()->json(['message' => 'Earning status updated successfully', 'data' => $earning]);
     }
 
     /**

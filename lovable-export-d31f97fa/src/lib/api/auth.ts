@@ -52,6 +52,7 @@ export const signupSchema = z.object({
     .string()
     .min(8, "Password must be at least 8 characters"),
   password_confirmation: z.string(),
+  referral_code: z.string().optional(),
 }).refine((d) => d.password === d.password_confirmation, {
   message: "Passwords do not match",
   path: ["password_confirmation"],
