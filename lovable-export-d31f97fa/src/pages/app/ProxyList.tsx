@@ -368,7 +368,7 @@ function CredentialCard({ label, value, subValue, icon }: { label: string, value
                 </Button>
             </div>
             <div className="flex flex-col">
-                <code className="text-sm font-mono font-medium truncate tracking-tight text-foreground select-all">
+                <code className="text-sm font-mono font-medium break-all tracking-tight text-foreground select-all">
                     {value}
                 </code>
                 {subValue && (
@@ -396,7 +396,7 @@ function SnippetBlock({ code }: { code: string }) {
                     Copy
                 </Button>
             </div>
-            <pre className="p-6 bg-muted/30 font-mono text-xs leading-relaxed overflow-x-auto selection:bg-primary/30 min-h-[160px] max-h-[300px]">
+            <pre className="p-6 bg-muted/30 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all selection:bg-primary/30 min-h-[120px] max-h-[400px]">
                 {code}
             </pre>
         </div>
