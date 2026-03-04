@@ -82,6 +82,10 @@ const AdminStatsSchema = z.object({
   bandwidth_30d_gb: z.number(),
   uptime: z.number(),
   error_rate: z.number(),
+  user_growth_pct: z.number(),
+  proxy_growth_pct: z.number(),
+  revenue_growth_pct: z.number(),
+  bandwidth_growth_pct: z.number(),
   recent_sales: z.array(z.object({
     user: z.string(),
     amount: z.number(),
@@ -104,13 +108,13 @@ export default function AdminDashboard() {
 
   const kpi = {
     total_users: stats?.total_users ?? 0,
-    users_change: 0,
+    users_change: stats?.user_growth_pct ?? 0,
     active_subs: stats?.total_active_proxies ?? 0,
-    subs_change: 0,
+    subs_change: stats?.proxy_growth_pct ?? 0,
     revenue_30d: (stats?.total_revenue ?? 0) * 100, // back to cents for display
-    revenue_change: 0,
+    revenue_change: stats?.revenue_growth_pct ?? 0,
     bandwidth_30d_gb: stats?.bandwidth_30d_gb ?? 0,
-    bandwidth_change: 0,
+    bandwidth_change: stats?.bandwidth_growth_pct ?? 0,
     error_rate: stats?.error_rate ?? 0.1,
     active_proxies: stats?.total_active_proxies ?? 0,
     uptime: stats?.uptime ?? 99.99,

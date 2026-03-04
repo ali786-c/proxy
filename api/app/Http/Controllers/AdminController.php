@@ -339,6 +339,42 @@ class AdminController extends Controller
                 return $item;
             });
 
+        // Growth Calculations
+        $now = now();
+        $thirtyDaysAgo = $now->copy()->subDays(30);
+        $sixtyDaysAgo = $now->copy()->subDays(60);
+
+        // 1. User Growth
+        $usersCurrent = User::where('created_at', '>=', $thirtyDaysAgo)->count();
+        $usersPrevious = User::where('created_at', '>=', $sixtyDaysAgo)
+                             ->where('created_at', '<', $thirtyDaysAgo)
+                             ->count();
+        $userGrowthPct = $usersPrevious > 0 ? round((($usersCurrent - $usersPrevious) / $usersPrevious) * 100, 1) : ($usersCurrent > 0 ? 100 : 0);
+
+        // 2. Proxy (Order) Growth
+        $ordersCurrent = Order::where('created_at', '>=', $thirtyDaysAgo)->count();
+        $ordersPrevious = Order::where('created_at', '>=', $sixtyDaysAgo)
+                               ->where('created_at', '<', $thirtyDaysAgo)
+                               ->count();
+        $proxyGrowthPct = $ordersPrevious > 0 ? round((($ordersCurrent - $ordersPrevious) / $ordersPrevious) * 100, 1) : ($ordersCurrent > 0 ? 100 : 0);
+
+        // 3. Revenue Growth
+        $revCurrent = WalletTransaction::where('type', 'credit')
+                                       ->where('created_at', '>=', $thirtyDaysAgo)
+                                       ->sum('amount');
+        $revPrevious = WalletTransaction::where('type', 'credit')
+                                        ->where('created_at', '>=', $sixtyDaysAgo)
+                                        ->where('created_at', '<', $thirtyDaysAgo)
+                                        ->sum('amount');
+        $revGrowthPct = $revPrevious > 0 ? round((($revCurrent - $revPrevious) / $revPrevious) * 100, 1) : ($revCurrent > 0 ? 100 : 0);
+
+        // 4. Bandwidth Growth
+        $bwCurrent = UsageLog::where('date', '>=', $thirtyDaysAgo->toDateString())->sum('gb_used');
+        $bwPrevious = UsageLog::where('date', '>=', $sixtyDaysAgo->toDateString())
+                              ->where('date', '<', $thirtyDaysAgo->toDateString())
+                              ->sum('gb_used');
+        $bwGrowthPct = $bwPrevious > 0 ? round((($bwCurrent - $bwPrevious) / $bwPrevious) * 100, 1) : ($bwCurrent > 0 ? 100 : 0);
+
         return response()->json([
             'total_users'          => (int) User::count(),
             'total_active_proxies' => (int) Order::where('status', 'active')->count(),
@@ -349,10 +385,15 @@ class AdminController extends Controller
                 ->where('created_at', '>=', now()->subDay())
                 ->sum('amount'),
             
-            'bandwidth_30d_gb'     => (float) UsageLog::where('date', '>=', now()->subDays(30)->toDateString())->sum('gb_used'),
+            'bandwidth_30d_gb'     => (float) $bwCurrent,
             'uptime'               => 99.99,
             'error_rate'           => $currentErrorRate,
             
+            'user_growth_pct'      => (float) $userGrowthPct,
+            'proxy_growth_pct'     => (float) $proxyGrowthPct,
+            'revenue_growth_pct'   => (float) $revGrowthPct,
+            'bandwidth_growth_pct' => (float) $bwGrowthPct,
+
             'recent_sales'         => $recentSales,
             'alerts'               => $alerts
         ]);
