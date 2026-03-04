@@ -42,16 +42,6 @@ const GATEWAY_TEMPLATES: GatewayConfig[] = [
     ],
   },
   {
-    id: "paypal",
-    name: "PayPal",
-    icon: Wallet,
-    fields: [
-      { key: "paypal_client_id", label: "Client ID", placeholder: "AV...", value: "" },
-      { key: "paypal_client_secret", label: "Client Secret", placeholder: "EL...", value: "" },
-      { key: "paypal_mode", label: "Mode (sandbox/live)", placeholder: "sandbox", value: "" },
-    ],
-  },
-  {
     id: "cryptomus",
     name: "Cryptomus (Automated Crypto)",
     icon: Bitcoin,
@@ -216,7 +206,7 @@ export default function PaymentGateways() {
                             value={field.value}
                             onChange={(e) => updateField(gw.id, field.key, e.target.value)}
                             className="bg-muted/30 focus-visible:ring-primary/20"
-                            autoComplete="off"
+                            autoComplete="new-password"
                             autoCorrect="off"
                             spellCheck={false}
                           />

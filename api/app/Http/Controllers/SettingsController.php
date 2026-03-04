@@ -24,14 +24,10 @@ class SettingsController extends Controller
         'stripe_publishable_key',
         'stripe_secret_key',
         'stripe_webhook_secret',
-        'paypal_client_id',
-        'paypal_client_secret',
-        'paypal_mode',
         'crypto_wallet_address',
         'crypto_provider',
         'crypto_api_key',
         'gateway_stripe_enabled',
-        'gateway_paypal_enabled',
         'gateway_crypto_enabled',
         'cryptomus_merchant_id',
         'cryptomus_api_key',
@@ -58,11 +54,27 @@ class SettingsController extends Controller
      */
     public function index()
     {
-        return response()->json(
-            Setting::whereIn('key', $this->allowedKeys)
-                ->get()
-                ->pluck('value', 'key')
-        );
+        $settings = Setting::whereIn('key', $this->allowedKeys)
+            ->get()
+            ->pluck('value', 'key');
+
+        $envMap = [
+            'stripe_publishable_key' => 'services.stripe.key',
+            'stripe_secret_key'      => 'services.stripe.secret',
+            'stripe_webhook_secret'  => 'services.stripe.webhook_secret',
+            'cryptomus_merchant_id'  => 'services.cryptomus.merchant_id',
+            'cryptomus_api_key'      => 'services.cryptomus.api_key',
+            'cryptomus_webhook_secret' => 'services.cryptomus.webhook_secret',
+        ];
+
+        foreach ($envMap as $dbKey => $configKey) {
+            $configValue = config($configKey);
+            if ($configValue) {
+                $settings[$dbKey] = $configValue;
+            }
+        }
+
+        return response()->json($settings);
     }
 
     /**
@@ -112,11 +124,13 @@ class SettingsController extends Controller
         if (file_exists($path)) {
             $content = file_get_contents($path);
             
-            // If key exists, replace it. If not, append it.
-            if (strpos($content, "{$envKey}=") !== false) {
-                $content = preg_replace("/^{$envKey}=.*/m", "{$envKey}=\"{$value}\"", $content);
+            // Clean value for .env (wrap in quotes if contains spaces or special chars)
+            $escapedValue = (str_contains($value, ' ') || str_contains($value, '$')) ? "\"{$value}\"" : $value;
+            
+            if (preg_match("/^{$envKey}=/m", $content)) {
+                $content = preg_replace("/^{$envKey}=.*/m", "{$envKey}={$escapedValue}", $content);
             } else {
-                $content .= "\n{$envKey}=\"{$value}\"";
+                $content = rtrim($content) . "\n{$envKey}={$escapedValue}\n";
             }
 
             file_put_contents($path, $content);

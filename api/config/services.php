@@ -50,6 +50,12 @@ return [
         'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
     ],
 
+    'cryptomus' => [
+        'merchant_id'    => env('CRYPTOMUS_MERCHANT_ID'),
+        'api_key'        => env('CRYPTOMUS_API_KEY'),
+        'webhook_secret' => env('CRYPTOMUS_WEBHOOK_SECRET'),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

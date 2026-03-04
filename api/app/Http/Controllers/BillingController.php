@@ -1138,49 +1138,99 @@ class BillingController extends Controller
     /**
      * Admin: List all invoices/transactions for all users.
      */
-    public function adminInvoices()
+    public function adminInvoices(Request $request)
     {
-        // 1. Formal Invoices (Invoices table)
-        $formalInvoices = \App\Models\Invoice::with('user:id,name,email')->latest()->get()->map(function($inv) {
+        $search = $request->get('search');
+        $perPage = (int) $request->get('per_page', 20);
+        if ($perPage > 100) $perPage = 100;
+
+        // 1. Formal Invoices Query
+        $invoicesQuery = DB::table('invoices')
+            ->join('users', 'invoices.user_id', '=', 'users.id')
+            ->select([
+                DB::raw("CONCAT('INV-', invoices.id) as id"),
+                'invoices.id as db_id',
+                DB::raw("'invoice' as source"),
+                'users.name as user_name',
+                'users.email as user_email',
+                'invoices.amount',
+                'invoices.currency',
+                'invoices.status',
+                'invoices.description',
+                'invoices.stripe_invoice_id as reference',
+                'invoices.created_at',
+            ]);
+
+        // 2. Wallet Transactions Query
+        $transactionsQuery = DB::table('wallet_transactions')
+            ->join('users', 'wallet_transactions.user_id', '=', 'users.id')
+            // Exclude transactions that match existing stripe invoice IDs to avoid duplicates
+            // We use a subquery for the exclusion list
+            ->whereNotIn('wallet_transactions.reference', function($query) {
+                $query->select('stripe_invoice_id')
+                      ->from('invoices')
+                      ->whereNotNull('stripe_invoice_id');
+            })
+            ->select([
+                DB::raw("CONCAT('TX-', wallet_transactions.id) as id"),
+                'wallet_transactions.id as db_id',
+                DB::raw("'transaction' as source"),
+                'users.name as user_name',
+                'users.email as user_email',
+                'wallet_transactions.amount',
+                DB::raw("'EUR' as currency"),
+                DB::raw("COALESCE(wallet_transactions.status, 'paid') as status"),
+                'wallet_transactions.description',
+                'wallet_transactions.reference',
+                'wallet_transactions.created_at',
+            ]);
+
+        // Apply Search Filter to both subqueries
+        if (!empty($search)) {
+            $invoicesQuery->where(function($q) use ($search) {
+                $q->where('users.email', 'like', "%{$search}%")
+                  ->orWhere('invoices.description', 'like', "%{$search}%")
+                  ->orWhere('invoices.stripe_invoice_id', 'like', "%{$search}%");
+            });
+
+            $transactionsQuery->where(function($q) use ($search) {
+                $q->where('users.email', 'like', "%{$search}%")
+                  ->orWhere('wallet_transactions.description', 'like', "%{$search}%")
+                  ->orWhere('wallet_transactions.reference', 'like', "%{$search}%");
+            });
+        }
+
+        // Combine and Paginate
+        $allRecords = $invoicesQuery->unionAll($transactionsQuery)
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+
+        // Transform results to match the expected frontend structure
+        $items = collect($allRecords->items())->map(function($record) {
             return [
-                'id'             => 'INV-' . $inv->id,
-                'db_id'          => $inv->id,
-                'source'         => 'invoice',
-                'user'           => $inv->user,
-                'amount'         => (float) $inv->amount,
-                'currency'       => $inv->currency,
-                'status'         => $inv->status,
-                'description'    => $inv->description ?: 'Purchase/Subscription',
-                'reference'      => $inv->stripe_invoice_id,
-                'created_at'     => $inv->created_at->toIso8601String(),
+                'id'          => $record->id,
+                'db_id'       => $record->db_id,
+                'source'      => $record->source,
+                'user'        => [
+                    'name'  => $record->user_name,
+                    'email' => $record->user_email,
+                ],
+                'amount'      => (float) $record->amount,
+                'currency'    => $record->currency,
+                'status'      => $record->status,
+                'description' => $record->description ?: 'Purchase/Subscription',
+                'reference'   => $record->reference,
+                'created_at'  => $record->created_at,
             ];
         });
 
-        // 2. Wallet Transactions (WalletTransactions table)
-        // We filter out those that are already linked to formal invoices to avoid duplicates
-        $stripeInvoiceIds = \App\Models\Invoice::pluck('stripe_invoice_id')->filter()->toArray();
-        
-        $walletTx = WalletTransaction::with('user:id,name,email')
-            ->whereNotIn('reference', $stripeInvoiceIds)
-            ->latest()
-            ->get()
-            ->map(function ($t) {
-                return [
-                    'id'             => 'TX-' . $t->id,
-                    'db_id'          => $t->id,
-                    'source'         => 'transaction',
-                    'user'           => $t->user,
-                    'amount'         => (float) $t->amount,
-                    'currency'       => 'EUR', // Wallet is primarily EUR
-                    'status'         => $t->status ?: 'paid',
-                    'description'    => $t->description,
-                    'reference'      => $t->reference,
-                    'created_at'     => $t->created_at->toIso8601String(),
-                    'type'           => $t->type, // credit/debit
-                ];
-            });
-
-        return response()->json(collect($formalInvoices)->merge(collect($walletTx))->sortByDesc('created_at')->values());
+        return response()->json([
+            'data'         => $items,
+            'current_page' => $allRecords->currentPage(),
+            'last_page'    => $allRecords->lastPage(),
+            'per_page'     => $allRecords->perPage(),
+            'total'        => $allRecords->total(),
+        ]);
     }
 
     /**
@@ -1288,13 +1338,6 @@ class BillingController extends Controller
                     'last_sync' => now()->toIso8601String(),
                 ],
                 [
-                    'id' => 'paypal',
-                    'name' => 'PayPal',
-                    'status' => Setting::getValue('paypal_client_id') ? 'connected' : 'not_configured',
-                    'webhook_health' => 'unknown',
-                    'last_sync' => now()->toIso8601String(),
-                ],
-                [
                     'id' => 'cryptomus',
                     'name' => 'Cryptomus',
                     'status' => Setting::getValue('cryptomus_merchant_id') ? 'connected' : 'not_configured',
@@ -1324,7 +1367,6 @@ class BillingController extends Controller
     {
         return response()->json([
             'stripe' => !empty(Setting::getValue('stripe_publishable_key')) && Setting::getValue('gateway_stripe_enabled') == '1',
-            'paypal' => !empty(Setting::getValue('paypal_client_id')) && Setting::getValue('gateway_paypal_enabled') == '1',
             'cryptomus' => !empty(Setting::getValue('cryptomus_merchant_id')) && Setting::getValue('gateway_cryptomus_enabled') == '1',
             'crypto' => !empty(Setting::getValue('binance_pay_id')) && Setting::getValue('gateway_crypto_enabled') == '1',
         ]);

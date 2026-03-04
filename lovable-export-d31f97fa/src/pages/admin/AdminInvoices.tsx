@@ -37,16 +37,32 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = 
   debit: "secondary"
 };
 
+const PaginatedResponseSchema = z.object({
+  data: z.array(AdminFinancialRecordSchema),
+  current_page: z.number(),
+  last_page: z.number(),
+  total: z.number(),
+});
+
+type PaginatedResponse = z.infer<typeof PaginatedResponseSchema>;
+
+import { useDebounce } from "@/hooks/use-debounce";
+
 export default function AdminInvoices() {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: records = [], isLoading } = useQuery({
-    queryKey: ["admin-invoices"],
-    queryFn: () => api.get("/admin/invoices", z.array(AdminFinancialRecordSchema)),
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-invoices", debouncedSearch, page],
+    queryFn: () => api.get(`/admin/invoices?search=${debouncedSearch}&page=${page}`, PaginatedResponseSchema),
   });
+
+  const records = data?.data || [];
+  const totalPages = data?.last_page || 1;
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status, source }: { id: number; status: string; source: string }) =>
@@ -65,16 +81,6 @@ export default function AdminInvoices() {
     },
   });
 
-  const filtered = records.filter((r: any) => {
-    const q = search.toLowerCase();
-    return (
-      r.id.toLowerCase().includes(q) ||
-      r.user?.email.toLowerCase().includes(q) ||
-      r.description.toLowerCase().includes(q) ||
-      (r.reference && r.reference.toLowerCase().includes(q))
-    );
-  });
-
   return (
     <>
       <SEOHead title="All Transactions" noindex />
@@ -84,14 +90,38 @@ export default function AdminInvoices() {
           <Button variant="outline" size="sm" className="gap-1.5"><Download className="h-4 w-4" /> Export CSV</Button>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by ID, email, or description..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by ID, email, or description..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1); // Reset to first page on new search
+              }}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1 || isLoading}
+            >
+              Previous
+            </Button>
+            <span className="text-sm font-medium">Page {page} of {totalPages}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || isLoading}
+            >
+              Next
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -110,7 +140,7 @@ export default function AdminInvoices() {
               <TableBody>
                 {isLoading ? (
                   <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading financial records...</TableCell></TableRow>
-                ) : filtered.map((r: any) => (
+                ) : records.map((r: any) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-[10px]">
                       <div className="flex flex-col">
@@ -152,7 +182,7 @@ export default function AdminInvoices() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {!isLoading && filtered.length === 0 && (
+                {!isLoading && records.length === 0 && (
                   <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">No transactions found.</TableCell></TableRow>
                 )}
               </TableBody>
