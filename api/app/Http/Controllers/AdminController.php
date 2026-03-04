@@ -358,11 +358,11 @@ class AdminController extends Controller
                                ->count();
         $proxyGrowthPct = $ordersPrevious > 0 ? round((($ordersCurrent - $ordersPrevious) / $ordersPrevious) * 100, 1) : ($ordersCurrent > 0 ? 100 : 0);
 
-        // 3. Revenue Growth
-        $revCurrent = WalletTransaction::where('type', 'credit')
+        // 3. Revenue Growth (Based on 'debit' i.e. actual product sales)
+        $revCurrent = WalletTransaction::where('type', 'debit')
                                        ->where('created_at', '>=', $thirtyDaysAgo)
                                        ->sum('amount');
-        $revPrevious = WalletTransaction::where('type', 'credit')
+        $revPrevious = WalletTransaction::where('type', 'debit')
                                         ->where('created_at', '>=', $sixtyDaysAgo)
                                         ->where('created_at', '<', $thirtyDaysAgo)
                                         ->sum('amount');
@@ -378,13 +378,14 @@ class AdminController extends Controller
         return response()->json([
             'total_users'          => (int) User::count(),
             'total_active_proxies' => (int) Order::where('status', 'active')->count(),
-            'total_revenue'        => (float) WalletTransaction::where('type', 'credit')->sum('amount'),
+            'total_revenue'        => (float) WalletTransaction::where('type', 'credit')->sum('amount'), // Money In
             'system_total_balance' => (float) User::sum('balance'),
             'recent_registrations' => (int) User::where('created_at', '>=', now()->subDays(7))->count(),
-            'revenue_last_24h'     => (float) WalletTransaction::where('type', 'credit')
+            'revenue_last_24h'     => (float) WalletTransaction::where('type', 'debit')
                 ->where('created_at', '>=', now()->subDay())
                 ->sum('amount'),
             
+            'revenue_30d'          => (float) $revCurrent,
             'bandwidth_30d_gb'     => (float) $bwCurrent,
             'uptime'               => 99.99,
             'error_rate'           => $currentErrorRate,

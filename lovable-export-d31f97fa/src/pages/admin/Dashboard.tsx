@@ -79,6 +79,7 @@ const AdminStatsSchema = z.object({
   system_total_balance: z.number(),
   recent_registrations: z.number(),
   revenue_last_24h: z.number(),
+  revenue_30d: z.number(),
   bandwidth_30d_gb: z.number(),
   uptime: z.number(),
   error_rate: z.number(),
@@ -111,7 +112,7 @@ export default function AdminDashboard() {
     users_change: stats?.user_growth_pct ?? 0,
     active_subs: stats?.total_active_proxies ?? 0,
     subs_change: stats?.proxy_growth_pct ?? 0,
-    revenue_30d: (stats?.total_revenue ?? 0) * 100, // back to cents for display
+    revenue_30d: (stats?.revenue_30d ?? 0) * 100, // back to cents for display
     revenue_change: stats?.revenue_growth_pct ?? 0,
     bandwidth_30d_gb: stats?.bandwidth_30d_gb ?? 0,
     bandwidth_change: stats?.bandwidth_growth_pct ?? 0,
