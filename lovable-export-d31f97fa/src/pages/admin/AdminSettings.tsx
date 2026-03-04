@@ -102,7 +102,8 @@ export default function AdminSettings() {
               <Input
                 value={form.admin_notification_email || ""}
                 onChange={(e) => updateField("admin_notification_email", e.target.value)}
-                placeholder="aliyantarar4@gmail.com"
+                placeholder="admin@example.com"
+                autoComplete="new-password"
               />
             </div>
             <div className="flex items-center justify-between pt-2">
@@ -124,19 +125,19 @@ export default function AdminSettings() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>SMTP Host</Label>
-                <Input value={form.smtp_host || ""} onChange={(e) => updateField("smtp_host", e.target.value)} placeholder="smtp.example.com" />
+                <Input value={form.smtp_host || ""} onChange={(e) => updateField("smtp_host", e.target.value)} placeholder="smtp.example.com" autoComplete="new-password" />
               </div>
               <div className="space-y-1.5">
                 <Label>SMTP Port</Label>
-                <Input value={form.smtp_port || ""} onChange={(e) => updateField("smtp_port", e.target.value)} placeholder="587" />
+                <Input value={form.smtp_port || ""} onChange={(e) => updateField("smtp_port", e.target.value)} placeholder="587" autoComplete="new-password" />
               </div>
               <div className="space-y-1.5">
                 <Label>Username</Label>
-                <Input value={form.smtp_user || ""} onChange={(e) => updateField("smtp_user", e.target.value)} placeholder="user@example.com" />
+                <Input value={form.smtp_user || ""} onChange={(e) => updateField("smtp_user", e.target.value)} placeholder="user@example.com" autoComplete="new-password" />
               </div>
               <div className="space-y-1.5">
                 <Label>Password</Label>
-                <Input type="password" value={form.smtp_pass || ""} onChange={(e) => updateField("smtp_pass", e.target.value)} placeholder="••••••••" />
+                <Input type="password" value={form.smtp_pass || ""} onChange={(e) => updateField("smtp_pass", e.target.value)} placeholder="••••••••" autoComplete="new-password" />
               </div>
             </div>
           </CardContent>

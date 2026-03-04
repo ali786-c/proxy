@@ -65,6 +65,11 @@ class SettingsController extends Controller
             'cryptomus_merchant_id'  => 'services.cryptomus.merchant_id',
             'cryptomus_api_key'      => 'services.cryptomus.api_key',
             'cryptomus_webhook_secret' => 'services.cryptomus.webhook_secret',
+            'smtp_host'              => 'mail.mailers.smtp.host',
+            'smtp_port'              => 'mail.mailers.smtp.port',
+            'smtp_user'              => 'mail.mailers.smtp.username',
+            'smtp_pass'              => 'mail.mailers.smtp.password',
+            'admin_notification_email' => 'mail.from.address',
         ];
 
         foreach ($envMap as $dbKey => $configKey) {
@@ -114,6 +119,11 @@ class SettingsController extends Controller
             'cryptomus_merchant_id'  => 'CRYPTOMUS_MERCHANT_ID',
             'cryptomus_api_key'      => 'CRYPTOMUS_API_KEY',
             'cryptomus_webhook_secret' => 'CRYPTOMUS_WEBHOOK_SECRET',
+            'smtp_host'              => 'MAIL_HOST',
+            'smtp_port'              => 'MAIL_PORT',
+            'smtp_user'              => 'MAIL_USERNAME',
+            'smtp_pass'              => 'MAIL_PASSWORD',
+            'admin_notification_email' => 'MAIL_FROM_ADDRESS',
         ];
 
         if (!isset($envMap[$key])) return;

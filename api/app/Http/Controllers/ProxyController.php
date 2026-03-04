@@ -172,7 +172,7 @@ class ProxyController extends Controller
                 \Illuminate\Support\Facades\Log::info("ORDER_NOTIF: User notification call finished.");
 
                 // 2. Alert Admin
-                $adminEmail = \App\Models\Setting::getValue('admin_notification_email', 'aliyantarar4@gmail.com');
+                $adminEmail = \App\Models\Setting::getValue('admin_notification_email');
                 \Illuminate\Support\Facades\Log::info("ORDER_NOTIF: Sending Admin Alert to: " . $adminEmail);
                 \Illuminate\Support\Facades\Notification::route('mail', $adminEmail)
                     ->notify(new \App\Notifications\GenericDynamicNotification('admin_new_order', [

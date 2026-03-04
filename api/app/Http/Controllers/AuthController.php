@@ -72,7 +72,7 @@ class AuthController extends Controller
             ]));
 
             // Admin Alert
-            \Illuminate\Support\Facades\Notification::route('mail', \App\Models\Setting::getValue('admin_notification_email', 'aliyantarar4@gmail.com'))
+            \Illuminate\Support\Facades\Notification::route('mail', \App\Models\Setting::getValue('admin_notification_email'))
                 ->notify(new \App\Notifications\GenericDynamicNotification('admin_new_user', [
                     'user' => [
                         'name' => $user->name,
