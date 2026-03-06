@@ -30,8 +30,7 @@ import {
   CreditCard as CardIcon
 } from "lucide-react";
 
-const VAT_RATE = 0.22; // 22% Italian VAT
-const MIN_PURCHASE_EUR = 5;
+const MIN_PURCHASE_EUR = 0.01;
 
 // Mock data removed. Using useQuery.
 
@@ -42,7 +41,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = 
 };
 
 
-type PaymentMethod = "stripe" | "cryptomus" | "manual";
+type PaymentMethod = "stripe" | "cryptomus" | "nowpayments" | "manual";
 
 export default function Billing() {
   const queryClient = useQueryClient();
@@ -157,9 +156,17 @@ export default function Billing() {
   const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
   const netAmount = Math.max(0, numAmount - discountAmount);
 
-  const isCrypto = selectedMethod === "cryptomus" || selectedMethod === "manual";
-  const vatAmount = isCrypto ? 0 : netAmount * VAT_RATE;
+  let currentVatRate = 0;
+  if (gateways) {
+    if (selectedMethod === "stripe") currentVatRate = gateways.stripe_vat / 100;
+    else if (selectedMethod === "cryptomus") currentVatRate = gateways.cryptomus_vat / 100;
+    else if (selectedMethod === "nowpayments") currentVatRate = (gateways.nowpayments_vat || 0) / 100;
+    else if (selectedMethod === "manual") currentVatRate = gateways.manual_vat / 100;
+  }
+
+  const vatAmount = netAmount * currentVatRate;
   const totalAmount = netAmount + vatAmount;
+  const isVatFree = currentVatRate === 0;
 
   // Convert a EUR amount to the user's display currency
   // exchange_rate is now EUR-based: 1 EUR = exchange_rate units of currency
@@ -252,6 +259,16 @@ export default function Billing() {
       } finally {
         setIsSubmitting(false);
       }
+    } else if (selectedMethod === "nowpayments") {
+      setIsSubmitting(true);
+      try {
+        const { url } = await clientApi.createNowPaymentsCheckout(numAmount, appliedCoupon?.code);
+        window.location.href = url;
+      } catch (err: any) {
+        toast({ title: "Checkout Error", description: err.message, variant: "destructive" });
+      } finally {
+        setIsSubmitting(false);
+      }
     } else if (selectedMethod === "stripe") {
       setIsSubmitting(true);
       try {
@@ -278,9 +295,10 @@ export default function Billing() {
   };
 
   const PAYMENT_METHODS = [
-    { id: "stripe" as PaymentMethod, name: "Card (Stripe)", subtitle: "Credit/Debit Card", icon: CreditCard, vatLabel: "+22% VAT", enabled: gateways.stripe },
-    { id: "cryptomus" as PaymentMethod, name: "Crypto", subtitle: "Automated via Cryptomus", icon: Bitcoin, vatLabel: "No VAT", enabled: gateways.cryptomus },
-    { id: "manual" as PaymentMethod, name: "Binance Pay", subtitle: "Manual Transfer", icon: Bitcoin, vatLabel: "No VAT", enabled: gateways.crypto },
+    { id: "stripe" as PaymentMethod, name: "Card (Stripe)", subtitle: "Credit/Debit Card", icon: CreditCard, vatLabel: gateways.stripe_vat > 0 ? `+${gateways.stripe_vat}% Fee` : "No Fee", enabled: gateways.stripe },
+    { id: "nowpayments" as PaymentMethod, name: "Crypto (NP)", subtitle: "Bitcoin/Altcoins", icon: Bitcoin, vatLabel: gateways.nowpayments_vat > 0 ? `+${gateways.nowpayments_vat}% Fee` : "No Fee", enabled: gateways.nowpayments },
+    { id: "cryptomus" as PaymentMethod, name: "Crypto (CM)", subtitle: "Automated via Cryptomus", icon: Bitcoin, vatLabel: gateways.cryptomus_vat > 0 ? `+${gateways.cryptomus_vat}% Fee` : "No Fee", enabled: gateways.cryptomus },
+    { id: "manual" as PaymentMethod, name: "Binance Pay", subtitle: "Manual Transfer", icon: Bitcoin, vatLabel: gateways.manual_vat > 0 ? `+${gateways.manual_vat}% Fee` : "No Fee", enabled: gateways.crypto },
   ];
 
   const anyGatewayEnabled = PAYMENT_METHODS.length > 0;
@@ -297,7 +315,7 @@ export default function Billing() {
             <CardTitle className="flex items-center gap-2 text-lg">
               <Euro className="h-5 w-5" /> {t("billing.topUp")}
             </CardTitle>
-            <CardDescription>{t("billing.minPurchaseTitle")}: {displaySymbol}{minPurchaseDisplay.toFixed(2)}. 22% VAT applies to card &amp; PayPal payments. Crypto is VAT-free.</CardDescription>
+            <CardDescription>{t("billing.minPurchaseTitle")}: {displaySymbol}{minPurchaseDisplay.toFixed(2)}. Fees may apply depending on the selected payment method.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             {/* Amount input */}
@@ -316,7 +334,7 @@ export default function Billing() {
                 {belowMinimum && numAmount > 0 && (
                   <p className="text-sm text-destructive font-medium flex items-center gap-1.5 mt-1.5 p-2 bg-destructive/10 rounded-md">
                     <AlertCircle className="h-4 w-4" />
-                    Minimum purchase amount is {displaySymbol}{minPurchaseDisplay.toFixed(2)}
+                    Amount must be greater than 0
                   </p>
                 )}
               </div>
@@ -395,11 +413,11 @@ export default function Billing() {
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="flex items-center gap-1">
-                    VAT (22%)
-                    {isCrypto && <Info className="h-3 w-3 text-muted-foreground" />}
+                    Fee{currentVatRate > 0 ? ` (${(currentVatRate * 100).toFixed(0)}%)` : ""}
+                    {isVatFree && <Info className="h-3 w-3 text-muted-foreground" />}
                   </span>
-                  <span className={isCrypto ? "line-through text-muted-foreground" : ""}>
-                    {isCrypto ? `${displaySymbol}0.00 — exempt` : `${displaySymbol}${vatAmount.toFixed(2)}`}
+                  <span className={isVatFree ? "line-through text-muted-foreground" : ""}>
+                    {isVatFree ? `${displaySymbol}0.00 — exempt` : `${displaySymbol}${vatAmount.toFixed(2)}`}
                   </span>
                 </div>
                 <Separator />
@@ -471,8 +489,8 @@ export default function Billing() {
                   </div>
                   <div className="flex justify-between items-center pt-2">
                     <p className="text-[11px] text-muted-foreground max-w-[250px]">
-                      A 22% Stripe VAT will be added to each auto top-up.
-                      Total charge: {format(parseFloat(topUpAmount) * 1.22)}
+                      A {gateways.stripe_vat}% Stripe Fee will be added to each auto top-up.
+                      Total charge: {format(parseFloat(topUpAmount) * (1 + (gateways.stripe_vat / 100)))}
                     </p>
                     <Button
                       size="sm"
@@ -509,7 +527,7 @@ export default function Billing() {
                     </span>
                   </p>
                   <ul className="space-y-1.5">
-                    {plan.features.map((f) => (
+                    {(plan.features || []).map((f) => (
                       <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
                         <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                         {f}

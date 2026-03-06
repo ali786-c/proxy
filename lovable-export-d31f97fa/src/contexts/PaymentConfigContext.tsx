@@ -5,10 +5,18 @@ export interface PaymentGatewayState {
   stripe: boolean;
   crypto: boolean;
   cryptomus: boolean;
+  stripe_vat: number;
+  cryptomus_vat: number;
+  nowpayments_vat: number;
+  manual_vat: number;
+  nowpayments: boolean;
+  binance_pay_id?: string | null;
+  binance_pay_instructions?: string | null;
 }
 
 interface PaymentConfigContextValue {
   gateways: PaymentGatewayState;
+  settings: PaymentGatewayState; // Add settings alias for compatibility with ManualCryptoDialog
   toggleGateway: (id: keyof PaymentGatewayState) => void;
   autoTopUpEnabled: boolean;
   setAutoTopUpEnabled: (v: boolean) => void;
@@ -22,6 +30,11 @@ export function PaymentConfigProvider({ children }: { children: ReactNode }) {
     stripe: false,
     crypto: false,
     cryptomus: false,
+    nowpayments: false,
+    stripe_vat: 22,
+    cryptomus_vat: 0,
+    nowpayments_vat: 0,
+    manual_vat: 0,
   });
   const [autoTopUpEnabled, setAutoTopUpEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -33,7 +46,14 @@ export function PaymentConfigProvider({ children }: { children: ReactNode }) {
         setGateways({
           stripe: config.stripe,
           crypto: config.crypto,
-          cryptomus: config.cryptomus
+          cryptomus: config.cryptomus,
+          nowpayments: (config as any).nowpayments || false,
+          stripe_vat: config.stripe_vat ?? 22,
+          cryptomus_vat: config.cryptomus_vat ?? 0,
+          nowpayments_vat: (config as any).nowpayments_vat ?? 0,
+          manual_vat: config.manual_vat ?? 0,
+          binance_pay_id: config.binance_pay_id,
+          binance_pay_instructions: config.binance_pay_instructions,
         });
       } catch (err) {
         console.error("Failed to load payment config", err);
@@ -49,7 +69,7 @@ export function PaymentConfigProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <PaymentConfigContext.Provider value={{ gateways, toggleGateway, autoTopUpEnabled, setAutoTopUpEnabled, loading }}>
+    <PaymentConfigContext.Provider value={{ gateways, settings: gateways, toggleGateway, autoTopUpEnabled, setAutoTopUpEnabled, loading }}>
       {children}
     </PaymentConfigContext.Provider>
   );

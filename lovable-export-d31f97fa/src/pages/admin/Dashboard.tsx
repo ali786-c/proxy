@@ -22,12 +22,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 
-const MOCK_ALERTS = [
-  { id: "1", type: "error" as const, message: "Error rate spike: 8.2% in EU-West cluster (last 15 min)", icon: Zap },
-  { id: "2", type: "warning" as const, message: "Suspicious usage: user #3841 — 12 GB in 30 minutes from 4 geos", icon: ShieldAlert },
-  { id: "3", type: "warning" as const, message: "3 charge failures in the last hour — Stripe webhook delays", icon: CreditCard },
-  { id: "4", type: "info" as const, message: "Ban spike: 6.1% block rate on residential-US pool", icon: AlertTriangle },
-];
 
 function StatCard({
   title,
@@ -112,7 +106,8 @@ export default function AdminDashboard() {
     users_change: stats?.user_growth_pct ?? 0,
     active_subs: stats?.total_active_proxies ?? 0,
     subs_change: stats?.proxy_growth_pct ?? 0,
-    revenue_30d: (stats?.revenue_30d ?? 0) * 100, // back to cents for display
+    // FIX #13: revenue_30d is already in dollars — no *100 needed.
+    revenue_30d: stats?.revenue_30d ?? 0,
     revenue_change: stats?.revenue_growth_pct ?? 0,
     bandwidth_30d_gb: stats?.bandwidth_30d_gb ?? 0,
     bandwidth_change: stats?.bandwidth_growth_pct ?? 0,
@@ -142,7 +137,7 @@ export default function AdminDashboard() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total Users" value={kpi.total_users.toLocaleString()} change={kpi.users_change} icon={Users} />
           <StatCard title="Active Subscriptions" value={kpi.active_subs.toLocaleString()} change={kpi.subs_change} icon={CreditCard} />
-          <StatCard title="Revenue (30d)" value={(kpi.revenue_30d / 100).toLocaleString()} change={kpi.revenue_change} icon={DollarSign} prefix="$" />
+          <StatCard title="Revenue (30d)" value={(kpi.revenue_30d).toLocaleString()} change={kpi.revenue_change} icon={DollarSign} prefix="$" />
           <StatCard
             title="Bandwidth (30d)"
             value={kpi.bandwidth_30d_gb >= 1000 ? (kpi.bandwidth_30d_gb / 1000).toFixed(1) : kpi.bandwidth_30d_gb.toFixed(1)}

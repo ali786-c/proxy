@@ -70,6 +70,9 @@ export default function UserDetail() {
     const [balanceReason, setBalanceReason] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    // FIX U2 + U6: State for ban confirmation dialog and custom reason.
+    const [banDialogOpen, setBanDialogOpen] = useState(false);
+    const [banReason, setBanReason] = useState("Violated terms of service");
 
     // Manual Order State
     const [selectedProductId, setSelectedProductId] = useState("");
@@ -159,13 +162,21 @@ export default function UserDetail() {
         }
     };
 
+    // FIX U2: Ban requires explicit confirmation dialog — no accidental mis-clicks.
+    // FIX U6: Admin provides a custom reason before banning.
     const handleBan = async () => {
+        if (!banReason.trim()) {
+            toast({ title: "Please provide a ban reason.", variant: "destructive" });
+            return;
+        }
         try {
             await adminAction.mutateAsync({
                 action: user.is_banned ? "unban_user" : "ban_user",
                 user_id: user.user_id,
-                ban_reason: user.is_banned ? undefined : "Violated terms of service",
+                ban_reason: user.is_banned ? undefined : banReason.trim(),
             });
+            setBanDialogOpen(false);
+            setBanReason("Violated terms of service");
             toast({ title: user.is_banned ? "User unbanned" : "User banned" });
         } catch (err: any) {
             toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -497,16 +508,51 @@ export default function UserDetail() {
                                                     {user.is_banned ? "User cannot login or use APIs" : "User has full access"}
                                                 </p>
                                             </div>
+                                            {/* FIX U2: Opens confirmation dialog instead of firing instantly. */}
                                             <Button
                                                 variant={user.is_banned ? "default" : "destructive"}
                                                 size="sm"
-                                                onClick={handleBan}
+                                                onClick={() => setBanDialogOpen(true)}
                                             >
                                                 {user.is_banned ? <Shield className="mr-2 h-4 w-4" /> : <ShieldOff className="mr-2 h-4 w-4" />}
                                                 {user.is_banned ? "Unban Account" : "Ban Account"}
                                             </Button>
                                         </div>
                                     </div>
+
+                                    {/* FIX U2 + U6: Ban Confirmation Dialog */}
+                                    <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>{user.is_banned ? "Confirm Unban" : "Confirm Ban"}</DialogTitle>
+                                                <DialogDescription>
+                                                    {user.is_banned
+                                                        ? `This will restore access for ${user.full_name || user.email}.`
+                                                        : `This will immediately block access for ${user.full_name || user.email}.`}
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            {!user.is_banned && (
+                                                <div className="space-y-1.5 py-2">
+                                                    <Label>Ban Reason <span className="text-destructive">*</span></Label>
+                                                    <Input
+                                                        placeholder="e.g. Fraudulent activity, ToS violation..."
+                                                        value={banReason}
+                                                        onChange={(e) => setBanReason(e.target.value)}
+                                                    />
+                                                </div>
+                                            )}
+                                            <DialogFooter>
+                                                <Button variant="outline" onClick={() => setBanDialogOpen(false)}>Cancel</Button>
+                                                <Button
+                                                    variant={user.is_banned ? "default" : "destructive"}
+                                                    onClick={handleBan}
+                                                    disabled={adminAction.isPending}
+                                                >
+                                                    {adminAction.isPending ? "Processing..." : (user.is_banned ? "Confirm Unban" : "Confirm Ban")}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
 
                                     <div className="space-y-2">
                                         <Label>Change Account Role</Label>

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, MapPin } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
-import { api } from "@/lib/api/client";
+import { api, LaravelPaginatedSchema } from "@/lib/api/client";
 import { z } from "zod";
 
 const AuditLogSchema = z.object({
@@ -51,8 +51,8 @@ export default function AdminAudit() {
   const { data: entries, isLoading } = useQuery({
     queryKey: ["audit-log", actionFilter],
     queryFn: async () => {
-      const data = await api.get(`/admin/logs?action=${actionFilter}`, z.array(AuditLogSchema));
-      return data.map((e: any) => ({
+      const res = await api.get(`/admin/logs?action=${actionFilter}`, LaravelPaginatedSchema(AuditLogSchema));
+      return res.data.map((e: any) => ({
         id: String(e.id),
         created_at: e.created_at,
         action: e.action,

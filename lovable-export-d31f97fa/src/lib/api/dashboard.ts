@@ -217,6 +217,8 @@ export const clientApi = {
     }),
   createCryptomusCheckout: (amount: number, couponCode?: string) =>
     api.post("/billing/cryptomus-checkout", z.object({ url: z.string() }), { amount, coupon_code: couponCode }),
+  createNowPaymentsCheckout: (amount: number, couponCode?: string) =>
+    api.post("/billing/nowpayments-checkout", z.object({ url: z.string() }), { amount, coupon_code: couponCode }),
   createProductCheckout: (productId: string, quantity: number, country?: string, session_type?: string, couponCode?: string) =>
     api.post("/billing/product-checkout", z.object({ url: z.string() }), {
       product_id: productId,
@@ -247,7 +249,14 @@ export const clientApi = {
     api.get("/billing/gateways", z.object({
       stripe: z.boolean(),
       crypto: z.boolean(),
-      cryptomus: z.boolean()
+      cryptomus: z.boolean(),
+      nowpayments: z.boolean().optional(),
+      stripe_vat: z.number().optional(),
+      cryptomus_vat: z.number().optional(),
+      nowpayments_vat: z.number().optional(),
+      manual_vat: z.number().optional(),
+      binance_pay_id: z.string().nullable().optional(),
+      binance_pay_instructions: z.string().nullable().optional(),
     })),
 
   // Proxy settings (geo-metadata)

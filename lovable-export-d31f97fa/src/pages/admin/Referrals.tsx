@@ -16,6 +16,25 @@ import { format } from "date-fns";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { z } from "zod";
 
+import { 
+    AlertDialog, 
+    AlertDialogAction, 
+    AlertDialogCancel, 
+    AlertDialogContent, 
+    AlertDialogDescription, 
+    AlertDialogFooter, 
+    AlertDialogHeader, 
+    AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+
 export default function AdminReferrals() {
     const queryClient = useQueryClient();
     const { format: formatPrice } = useCurrency();
@@ -30,6 +49,11 @@ export default function AdminReferrals() {
     const [userSearch, setUserSearch] = useState("");
     const [isSearchingUsers, setIsSearchingUsers] = useState(false);
     const [searchedUsers, setSearchedUsers] = useState<any[]>([]);
+    
+    // UI States for Dialogs (Phase 6: R5)
+    const [statusConfirm, setStatusConfirm] = useState<{id: number, status: string, message: string} | null>(null);
+    const [rateEdit, setRateEdit] = useState<{user_id: number, name: string, current_rate: number} | null>(null);
+    const [newRateValue, setNewRateValue] = useState("");
 
     // Use raw useQuery for general settings
     const { data: rawSettings } = useQuery({
@@ -76,6 +100,39 @@ export default function AdminReferrals() {
             toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleUpdateStatus = async (id: number, status: string) => {
+        try {
+            await api.post(`/admin/referrals/earnings/${id}/status`, MessageSchema, { status });
+            toast({ title: "Success", description: `Earning marked as ${status}.` });
+            queryClient.invalidateQueries({ queryKey: ["admin", "referrals", "earnings"] });
+            setStatusConfirm(null);
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.body?.message || error.message || "Failed to update status.", 
+                variant: "destructive" 
+            });
+        }
+    };
+
+    const handleUpdateRate = async () => {
+        if (!rateEdit) return;
+        const rate = parseFloat(newRateValue);
+        if (isNaN(rate) || rate < 0 || rate > 100) {
+            return toast({ title: "Invalid Rate", description: "Please enter a value between 0 and 100.", variant: "destructive" });
+        }
+
+        try {
+            await updateInfluencer.mutateAsync({ user_id: rateEdit.user_id, custom_rate: rate });
+            setSearchedUsers(prev => prev.map(u => u.id === rateEdit.user_id ? { ...u, custom_referral_rate: rate } : u));
+            setRateEdit(null);
+            setNewRateValue("");
+            toast({ title: "Rate Updated", description: "Custom commission rate applied successfully." });
+        } catch (error) {
+            // Already handled by mutation usually, but safety first
         }
     };
 
@@ -182,24 +239,20 @@ export default function AdminReferrals() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 {earning.status !== "completed" && (
-                                                    <Button variant="ghost" size="sm" className="h-8 text-xs text-success hover:text-success hover:bg-success/10" onClick={async () => {
-                                                        if (confirm("Mark this earning as completed and release to user?")) {
-                                                            await api.post(`/admin/referrals/earnings/${earning.id}/status`, MessageSchema, { status: "completed" });
-                                                            toast({ title: "Success", description: "Earning marked as completed." });
-                                                            queryClient.invalidateQueries({ queryKey: ["admin", "referrals", "earnings"] });
-                                                        }
-                                                    }}>
+                                                    <Button variant="ghost" size="sm" className="h-8 text-xs text-success hover:text-success hover:bg-success/10" onClick={() => setStatusConfirm({
+                                                        id: earning.id,
+                                                        status: "completed",
+                                                        message: `Release ${formatPrice(earning.amount)} to ${earning.referrer?.name}'s balance?`
+                                                    })}>
                                                         Mark Paid
                                                     </Button>
                                                 )}
                                                 {earning.status === "pending" && (
-                                                    <Button variant="ghost" size="sm" className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" onClick={async () => {
-                                                        if (confirm("Void this earning? It will not be paid out.")) {
-                                                            await api.post(`/admin/referrals/earnings/${earning.id}/status`, MessageSchema, { status: "void" });
-                                                            toast({ title: "Success", description: "Earning marked as void." });
-                                                            queryClient.invalidateQueries({ queryKey: ["admin", "referrals", "earnings"] });
-                                                        }
-                                                    }}>
+                                                    <Button variant="ghost" size="sm" className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setStatusConfirm({
+                                                        id: earning.id,
+                                                        status: "void",
+                                                        message: `Void this earning of ${formatPrice(earning.amount)}? It will not be released.`
+                                                    })}>
                                                         Void
                                                     </Button>
                                                 )}
@@ -289,12 +342,8 @@ export default function AdminReferrals() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <Button variant="outline" size="sm" onClick={() => {
-                                                        const rate = prompt(`Enter custom rate (%) for ${u.name}:`, u.custom_referral_rate || "15");
-                                                        if (rate !== null) {
-                                                            updateInfluencer.mutate({ user_id: u.id, custom_rate: parseFloat(rate) });
-                                                            // Update local state to reflect change immediately
-                                                            setSearchedUsers(prev => prev.map(item => item.id === u.id ? { ...item, custom_referral_rate: parseFloat(rate) } : item));
-                                                        }
+                                                        setRateEdit({ user_id: u.id, name: u.name, current_rate: u.custom_referral_rate || 15 });
+                                                        setNewRateValue((u.custom_referral_rate || 15).toString());
                                                     }}>
                                                         Set Rate
                                                     </Button>
@@ -327,10 +376,8 @@ export default function AdminReferrals() {
                                                 <TableCell className="text-center">{u.referrals_count}</TableCell>
                                                 <TableCell className="text-right">
                                                     <Button variant="outline" size="sm" onClick={() => {
-                                                        const rate = prompt("Enter custom commission rate (%) for this user:", "15");
-                                                        if (rate !== null) {
-                                                            updateInfluencer.mutate({ user_id: u.id, custom_rate: parseFloat(rate) });
-                                                        }
+                                                        setRateEdit({ user_id: u.id, name: u.name, current_rate: u.custom_referral_rate || 15 });
+                                                        setNewRateValue((u.custom_referral_rate || 15).toString());
                                                     }}>
                                                         Set Rate
                                                     </Button>
@@ -391,6 +438,50 @@ export default function AdminReferrals() {
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            <AlertDialog open={!!statusConfirm} onOpenChange={(open) => !open && setStatusConfirm(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>{statusConfirm?.message}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={() => statusConfirm && handleUpdateStatus(statusConfirm.id, statusConfirm.status)}
+                            className={statusConfirm?.status === 'void' ? 'bg-destructive text-destructive-foreground' : ''}
+                        >
+                            Continue
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <Dialog open={!!rateEdit} onOpenChange={(open) => !open && setRateEdit(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Set Custom Referral Rate</DialogTitle>
+                        <DialogDescription>Apply a custom commission percentage for {rateEdit?.name}.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label>Commission Percentage (%)</Label>
+                            <Input 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                value={newRateValue} 
+                                onChange={(e) => setNewRateValue(e.target.value)}
+                                placeholder="e.g. 15"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRateEdit(null)}>Cancel</Button>
+                        <Button onClick={handleUpdateRate}>Save Rate</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

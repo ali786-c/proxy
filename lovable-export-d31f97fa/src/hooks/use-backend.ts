@@ -663,8 +663,7 @@ export function useAdminUserDetail(id: string | number | null) {
     queryKey: ["admin", "users", id],
     queryFn: async () => {
       if (!id) return null;
-      const users = await api.get("/admin/users", z.array(z.any()));
-      const user = users.find((u: any) => String(u.id) === String(id));
+      const user = await api.get(`/admin/users/${id}`, z.any());
       if (!user) throw new Error("User not found");
       return {
         ...user,

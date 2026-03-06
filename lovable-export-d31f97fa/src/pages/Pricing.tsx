@@ -4,7 +4,7 @@ import { FAQSection } from "@/components/seo/FAQSection";
 import { InternalLinks } from "@/components/seo/InternalLinks";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Check, Globe, Server, Wifi, Monitor, Shield, Zap } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 
@@ -18,49 +18,7 @@ const PRODUCT_UI_METADATA: Record<string, any> = {
   dc_unmetered: { id: "datacenter-unmetered", desc: "Unlimited bandwidth scraping IPs", unit: "/Month", icon: Zap, color: "bg-orange-50 text-orange-500 dark:bg-orange-500/10", link: "/signup", tab: "datacenter-unmetered" },
 };
 
-const RESIDENTIAL_PLANS = [
-  { plan: "Pay as you go", gb: "1 GB", perGb: "€0.99", monthly: "—", manager: false, min: 6 },
-  { plan: "Monthly Plan", gb: "100 GB", perGb: "€0.89", monthly: "€89.00/mo", manager: false, min: 100 },
-];
 
-const PREMIUM_TIERS = [
-  { plan: "Pay as you go", gb: "1 GB", perGb: "€2.99", monthly: "—", manager: false, min: 2 },
-  { plan: "Flex Plan", gb: "8 GB", perGb: "€2.79", monthly: "€22.32/mo", manager: false, min: 8 },
-  { plan: "Pro Plan", gb: "25 GB", perGb: "€2.59", monthly: "€64.75/mo", manager: false, min: 25 },
-  { plan: "Advanced Plan", gb: "50 GB", perGb: "€2.39", monthly: "€119.50/mo", manager: false, min: 50 },
-  { plan: "Business Plan", gb: "100 GB", perGb: "€2.19", monthly: "€219.00/mo", manager: true, min: 100 },
-  { plan: "Scale Plan", gb: "250 GB", perGb: "€1.99", monthly: "€497.50/mo", manager: true, min: 250 },
-  { plan: "Growth Plan", gb: "500 GB", perGb: "€1.79", monthly: "€895.00/mo", manager: true, min: 500 },
-  { plan: "Enterprise 1K", gb: "1,000 GB", perGb: "€1.59", monthly: "€1,590.00/mo", manager: true, min: 1000 },
-  { plan: "Enterprise 2K", gb: "2,000 GB", perGb: "€1.39", monthly: "€2,780.00/mo", manager: true, min: 2000 },
-  { plan: "Enterprise 5K", gb: "5,000 GB", perGb: "€1.19", monthly: "€5,950.00/mo", manager: true, min: 5000 },
-];
-
-const MOBILE_TIERS = [
-  { plan: "Pay as you go", gb: "1 GB", perGb: "€2.95", monthly: "—", manager: false, min: 2 },
-  { plan: "Flex Plan", gb: "8 GB", perGb: "€2.79", monthly: "€22.32/mo", manager: false, min: 8 },
-  { plan: "Pro Plan", gb: "25 GB", perGb: "€2.59", monthly: "€64.75/mo", manager: false, min: 25 },
-  { plan: "Advanced Plan", gb: "50 GB", perGb: "€2.39", monthly: "€119.50/mo", manager: false, min: 50 },
-  { plan: "Business Plan", gb: "100 GB", perGb: "€2.19", monthly: "€219.00/mo", manager: true, min: 100 },
-  { plan: "Scale Plan", gb: "250 GB", perGb: "€1.99", monthly: "€497.50/mo", manager: true, min: 250 },
-  { plan: "Growth Plan", gb: "500 GB", perGb: "€1.79", monthly: "€895.00/mo", manager: true, min: 500 },
-  { plan: "Enterprise 1K", gb: "1,000 GB", perGb: "€1.59", monthly: "€1,590.00/mo", manager: true, min: 1000 },
-  { plan: "Enterprise 2K", gb: "2,000 GB", perGb: "€1.39", monthly: "€2,780.00/mo", manager: true, min: 2000 },
-  { plan: "Enterprise 5K", gb: "5,000 GB", perGb: "€1.19", monthly: "€5,950.00/mo", manager: true, min: 5000 },
-];
-
-const DATACENTER_TIERS = [
-  { plan: "Pay as you go", gb: "1 GB", perGb: "€0.79", monthly: "—", manager: false, min: 7 },
-  { plan: "Basic Plan", gb: "200 GB", perGb: "€0.69", monthly: "€138.00/mo", manager: false, min: 200 },
-  { plan: "Standard Plan", gb: "500 GB", perGb: "€0.59", monthly: "€295.00/mo", manager: true, min: 500 },
-  { plan: "Advanced Plan", gb: "1,000 GB", perGb: "€0.49", monthly: "€490.00/mo", manager: true, min: 1000 },
-];
-
-const STATIC_TIERS = [
-  { type: "Shared IPs", price: "€2.99", unit: "/IP", desc: "Shared with other users", features: ["Unlimited Bandwidth", "Entry-level pricing", "Billed monthly per IP"], min: 2 },
-  { type: "Private IPs", price: "€4.99", unit: "/IP", desc: "Dedicated to 1 user", features: ["Unlimited Bandwidth", "Low Fraud Score", "Billed monthly per IP"], min: 1 },
-  { type: "Virgin IPs", price: "€7.99", unit: "/IP", desc: "0 Fraud score guaranteed", features: ["Unlimited Bandwidth", "Dedicated to 1 user", "Billed monthly per IP"], min: 1 },
-];
 
 const FAQ_ITEMS = [
   { question: "Why is there only one price per product?", answer: "We believe in fair, transparent pricing. Our pay-as-you-go rates are flat — no hidden tiers. Volume plans simply offer lower rates for higher commitment." },
@@ -81,49 +39,7 @@ const RELATED = [
   { to: "/locations", label: "Proxy Locations" },
 ];
 
-function PricingTable({ tiers, unitLabel = "/GB", t }: { tiers: typeof PREMIUM_TIERS; unitLabel?: string; t: (k: string) => string }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <th className="py-3 pr-4">Plan</th>
-            <th className="py-3 pr-4">Bandwidth</th>
-            <th className="py-3 pr-4">Account Manager</th>
-            <th className="py-3 pr-4">Price {unitLabel}</th>
-            <th className="py-3 pr-4">Monthly Price</th>
-            <th className="py-3" />
-          </tr>
-        </thead>
-        <tbody>
-          {tiers.map((tier, i) => (
-            <tr key={i} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
-              <td className="py-3 pr-4 font-medium">{tier.plan}</td>
-              <td className="py-3 pr-4 text-muted-foreground">{tier.gb}</td>
-              <td className="py-3 pr-4">
-                {tier.manager ? (
-                  <Check className="h-4 w-4 text-primary" />
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </td>
-              <td className="py-3 pr-4 font-bold">{tier.perGb}</td>
-              <td className="py-3 pr-4 text-muted-foreground">{tier.monthly}</td>
-              <td className="py-3">
-                <Button asChild size="sm" variant={i === 0 ? "default" : "outline"} className="text-xs">
-                  <Link to="/signup">{i === 0 ? t("page.buyNow") : t("page.subscribe")}</Link>
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        {t("page.customContact")} <Link to="/docs" className="text-primary hover:underline">{t("section.contactSupport")}</Link>
-      </p>
-    </div>
-  );
-}
+
 
 export default function Pricing() {
   const { t } = useI18n();
@@ -198,53 +114,7 @@ export default function Pricing() {
         </div>
       </section>
 
-      <section className="container pb-12">
-        <h2 className="mb-6 text-center text-lg font-bold">{t("page.detailedPricing")}</h2>
-        <Tabs defaultValue="residential" className="w-full">
-          <TabsList className="mx-auto mb-6 flex w-full max-w-2xl flex-wrap h-auto gap-1">
-            <TabsTrigger value="residential" className="flex-1 min-w-[120px]">Residential</TabsTrigger>
-            <TabsTrigger value="datacenter" className="flex-1 min-w-[120px]">Datacenter</TabsTrigger>
-            <TabsTrigger value="mobile" className="flex-1 min-w-[120px]">Mobile</TabsTrigger>
-            <TabsTrigger value="datacenter-ipv6" className="flex-1 min-w-[120px]">Datacenter IPv6</TabsTrigger>
-            <TabsTrigger value="datacenter-unmetered" className="flex-1 min-w-[120px]">DC Unmetered</TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="residential">
-            <div className="rounded-lg border bg-card p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-lg bg-red-50 p-2.5 text-red-500 dark:bg-red-500/10"><Globe className="h-5 w-5" /></div>
-                <div><h3 className="font-semibold">Core Residential Proxies</h3><p className="text-xs text-muted-foreground">High quality and fast — the cheapest on the market</p></div>
-              </div>
-              <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-md border p-4 text-center"><p className="text-xs text-muted-foreground">54M+</p><p className="text-sm font-semibold">Residential IPs</p></div>
-                <div className="rounded-md border p-4 text-center"><p className="text-xs text-muted-foreground">190+</p><p className="text-sm font-semibold">{t("stats.countries")}</p></div>
-                <div className="rounded-md border p-4 text-center"><p className="text-xs text-muted-foreground">Rotating & Sticky</p><p className="text-sm font-semibold">IP Sessions</p></div>
-              </div>
-              <PricingTable tiers={RESIDENTIAL_PLANS} t={t} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="datacenter-ipv6">
-            <div className="rounded-lg border bg-card p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-lg bg-green-50 p-2.5 text-green-600 dark:bg-green-500/10"><Server className="h-5 w-5" /></div>
-                <div><h3 className="font-semibold">Datacenter IPv6</h3><p className="text-xs text-muted-foreground">Future-proof high performance IPs</p></div>
-              </div>
-              <PricingTable tiers={DATACENTER_TIERS} t={t} />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="datacenter-unmetered">
-            <div className="rounded-lg border bg-card p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-lg bg-orange-50 p-2.5 text-orange-500 dark:bg-orange-500/10"><Zap className="h-5 w-5" /></div>
-                <div><h3 className="font-semibold">Datacenter Unmetered</h3><p className="text-xs text-muted-foreground">Unlimited bandwidth scraping IPs</p></div>
-              </div>
-              <PricingTable tiers={DATACENTER_TIERS} t={t} />
-            </div>
-          </TabsContent>
-        </Tabs>
-      </section>
 
       <FAQSection items={FAQ_ITEMS} />
       <InternalLinks links={RELATED} />

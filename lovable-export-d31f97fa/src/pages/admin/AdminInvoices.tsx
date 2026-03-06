@@ -48,11 +48,23 @@ type PaginatedResponse = z.infer<typeof PaginatedResponseSchema>;
 
 import { useDebounce } from "@/hooks/use-debounce";
 
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
+
 export default function AdminInvoices() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<any>(null);
+  const [confirmStatus, setConfirmStatus] = useState<{status: string, message: string} | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -71,15 +83,63 @@ export default function AdminInvoices() {
       queryClient.invalidateQueries({ queryKey: ["admin-invoices"] });
       toast({ title: "Status Updated", description: "The invoice status has been successfully updated." });
       setSelected(null);
+      setConfirmStatus(null);
     },
     onError: (error: any) => {
       toast({
         title: "Update Failed",
-        description: error.message || "Could not update invoice status.",
+        description: error.response?.data?.error || error.message || "Could not update invoice status.",
         variant: "destructive",
       });
+      setConfirmStatus(null);
     },
   });
+
+  const handleExportCSV = () => {
+    if (records.length === 0) return toast({ title: "No data to export" });
+    
+    const headers = ["ID", "Source", "Name", "Email", "Amount", "Currency", "Status", "Description", "Reference", "Date"];
+    const csvContent = records.map((r: any) => [
+      r.id,
+      r.source,
+      r.user?.name || "Unknown",
+      r.user?.email || "N/A",
+      r.amount,
+      r.currency,
+      r.status,
+      `"${r.description?.replace(/"/g, '""')}"`,
+      r.reference || "",
+      r.created_at
+    ].join(",")).join("\n");
+
+    const blob = new Blob([headers.join(",") + "\n" + csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `financial_history_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast({ title: "CSV Exported", description: "The current page has been exported." });
+  };
+
+  const onStatusSelect = (val: string) => {
+    if (!selected) return;
+    
+    // Safety check for terminal states (Phase 5: I5)
+    if (selected.source === 'transaction' && ['cancelled', 'failed', 'voided'].includes(val)) {
+      setConfirmStatus({
+        status: val,
+        message: `Warning: Marking this transaction as '${val}' will automatically refund/clawback the amount from the user's balance.`
+      });
+    } else if (selected.source === 'transaction' && selected.status !== 'paid' && val === 'paid') {
+      setConfirmStatus({
+        status: val,
+        message: `Confirm: Marking this transaction as 'paid' will re-apply the balance impact to the user.`
+      });
+    } else {
+      updateStatusMutation.mutate({ id: selected.db_id, status: val, source: selected.source });
+    }
+  };
 
   return (
     <>
@@ -87,7 +147,9 @@ export default function AdminInvoices() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Financial History</h1>
-          <Button variant="outline" size="sm" className="gap-1.5"><Download className="h-4 w-4" /> Export CSV</Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportCSV}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
         </div>
 
         <div className="flex items-center justify-between gap-4">
@@ -197,7 +259,7 @@ export default function AdminInvoices() {
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-primary" /> Transaction Details
             </DialogTitle>
-            <DialogDescription>Full record for transaction #TX-{selected?.id}</DialogDescription>
+            <DialogDescription>Full record for transaction #{selected?.id}</DialogDescription>
           </DialogHeader>
           {selected && (
             <div className="space-y-4 py-4">
@@ -243,7 +305,7 @@ export default function AdminInvoices() {
                 <div className="flex items-center gap-2">
                   <Select
                     defaultValue={selected.status}
-                    onValueChange={(val) => updateStatusMutation.mutate({ id: selected.db_id, status: val, source: selected.source })}
+                    onValueChange={onStatusSelect}
                     disabled={updateStatusMutation.isPending}
                   >
                     <SelectTrigger className="w-full">
@@ -275,12 +337,17 @@ export default function AdminInvoices() {
                           <XCircle className="h-4 w-4" /> Failed
                         </div>
                       </SelectItem>
+                      <SelectItem value="voided">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <XCircle className="h-4 w-4" /> Voided
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
                   Changing the status here will update the record and customer's portal view.
-                  {selected.source === 'transaction' && " For transactions, marking as 'cancelled' or 'failed' will reverse the balance impact."}
+                  {selected.source === 'transaction' && " For transactions, marking as 'cancelled', 'failed' or 'voided' will reverse the balance impact."}
                 </p>
               </div>
 
@@ -306,6 +373,28 @@ export default function AdminInvoices() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!confirmStatus} onOpenChange={(open) => !open && setConfirmStatus(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>{confirmStatus?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => confirmStatus && updateStatusMutation.mutate({ 
+                id: selected.db_id, 
+                status: confirmStatus.status, 
+                source: selected.source 
+              })}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

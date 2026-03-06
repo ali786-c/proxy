@@ -43,6 +43,9 @@ const ProductSchema = z.object({
   evomi_product_id: z.string().nullable().optional(),
   tagline: z.string().nullable().optional(),
   features: z.array(z.string()).nullable().optional(),
+  unit: z.string().nullable().optional(),
+  base_cost: z.coerce.number().nullable().optional(),
+  markup: z.coerce.number().nullable().optional(),
   volume_discounts: z.array(
     z.object({
       min_qty: z.coerce.number(),
@@ -113,10 +116,10 @@ export default function AdminProducts() {
           id: String(p.id),
           name: p.name,
           proxy_type: p.type,
-          unit: p.type === "isp" ? "IP" : p.type === "dc_unmetered" ? "Month" : "GB",
-          base_cost_eur: Number(p.price),
+          unit: p.unit || (p.type === "isp" ? "IP" : p.type === "dc_unmetered" ? "Month" : "GB"),
+          base_cost_eur: Number(p.base_cost || p.price),
+          markup_pct: Number(p.markup || 0),
           sell_price_eur: Number(p.price),
-          markup_pct: 0,
           is_active: Boolean(p.is_active),
           evomi_product_id: p.evomi_product_id,
           tagline: p.tagline || "",
@@ -147,6 +150,13 @@ export default function AdminProducts() {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
       toast({ title: "Product deleted" });
     },
+    onError: (err: any) => {
+      toast({
+        title: "Deletion failed",
+        description: err.response?.data?.error || err.message,
+        variant: "destructive"
+      });
+    }
   });
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading products...</div>;
@@ -170,7 +180,7 @@ export default function AdminProducts() {
       proxy_type: p.proxy_type,
       unit: p.unit,
       base_cost_eur: String(p.base_cost_eur),
-      markup_pct: "0",
+      markup_pct: String(p.markup_pct),
       is_active: p.is_active,
       evomi_product_id: p.evomi_product_id || "",
       tagline: p.tagline || "",
@@ -187,14 +197,29 @@ export default function AdminProducts() {
   };
 
   const handleSave = () => {
+    // FIX P2 + P7: Frontend Validation
+    if (!form.name.trim()) {
+      return toast({ title: "Name is required", variant: "destructive" });
+    }
+    if (!form.evomi_product_id.trim()) {
+      return toast({ title: "Evomi Product ID is required", variant: "destructive" });
+    }
+    const price = parseFloat(computeSellPrice());
+    if (isNaN(price) || price < 0) {
+      return toast({ title: "Invalid price", variant: "destructive" });
+    }
+
     mutation.mutate({
-      name: form.name,
+      name: form.name.trim(),
       type: form.proxy_type,
-      price: parseFloat(computeSellPrice()),
+      price: price,
       is_active: form.is_active,
-      evomi_product_id: form.evomi_product_id,
-      tagline: form.tagline,
-      features: form.features,
+      evomi_product_id: form.evomi_product_id.trim(),
+      tagline: form.tagline.trim(),
+      unit: form.unit,
+      base_cost: parseFloat(form.base_cost_eur),
+      markup: parseFloat(form.markup_pct),
+      features: form.features.filter(f => f.trim() !== ""),
       volume_discounts: form.volume_discounts.length > 0 ? form.volume_discounts : null
     });
   };
@@ -290,8 +315,8 @@ export default function AdminProducts() {
           <CardContent className="py-4">
             <p className="text-sm font-medium">Pricing Model</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              All products use flat-rate pricing in EUR. The sell price = base cost × (1 + markup%).
-              Same price for all customers regardless of volume — no tiers, no volume discounts.
+              All products use flat-rate pricing in EUR but support optional volume-based discounting. 
+              The sell price is calculated as base cost × (1 + markup%).
             </p>
           </CardContent>
         </Card>
@@ -305,7 +330,7 @@ export default function AdminProducts() {
           </DialogHeader>
           <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto px-1">
             <div className="space-y-1">
-              <Label>Name</Label>
+              <Label>Name <span className="text-destructive">*</span></Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="space-y-1">
@@ -357,7 +382,7 @@ export default function AdminProducts() {
               <p className="text-sm">Sell Price: <span className="font-bold text-primary">€{computeSellPrice()}/{form.unit}</span></p>
             </div>
             <div className="space-y-1">
-              <Label>Evomi Product ID (External)</Label>
+              <Label>Evomi Product ID (External) <span className="text-destructive">*</span></Label>
               <Input
                 placeholder="e.g. residential_premium"
                 value={form.evomi_product_id}

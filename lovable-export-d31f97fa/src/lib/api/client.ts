@@ -101,3 +101,14 @@ export const PaginatedSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
       total: z.number(),
     }),
   });
+
+export const LaravelPaginatedSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    data: z.array(itemSchema),
+    current_page: z.number(),
+    last_page: z.number(),
+    per_page: z.number(),
+    total: z.number(),
+    from: z.number().nullable().optional(),
+    to: z.number().nullable().optional(),
+  });

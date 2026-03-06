@@ -115,7 +115,6 @@ const CLIENT_SECTIONS: NavSection[] = [
   {
     label: "Tools",
     items: [
-      { title: "Rate Limits", url: "/app/rate-limits", icon: Gauge },
       { title: "Documentation", url: "/docs", icon: BookOpen },
       { title: "Network Status", url: "/status", icon: Activity },
       { title: "FAQ", url: "/app/faq", icon: HelpCircle },
@@ -295,7 +294,6 @@ export function SidebarNav() {
     {
       label: "Tools",
       items: [
-        { title: "Rate Limits", url: "/app/rate-limits", icon: Gauge },
         { title: "Documentation", url: "/docs", icon: BookOpen },
         { title: "Network Status", url: "/status", icon: Activity },
         { title: t("nav.faq"), url: "/app/faq", icon: HelpCircle },

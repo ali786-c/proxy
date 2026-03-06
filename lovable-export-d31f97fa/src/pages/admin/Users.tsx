@@ -2,9 +2,10 @@ import { useState } from "react";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton";
-import { Search } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { z } from "zod";
@@ -21,37 +22,56 @@ const UserSchema = z.object({
   created_at: z.string(),
 });
 
-function useAdminUsers() {
+// Paginated response schema matching Laravel's paginate() output
+const PaginatedUsersSchema = z.object({
+  data: z.array(UserSchema),
+  current_page: z.number(),
+  last_page: z.number(),
+  total: z.number(),
+  per_page: z.number(),
+});
+
+function useAdminUsers(page: number, search: string) {
   return useQuery({
-    queryKey: ["admin-users"],
+    queryKey: ["admin-users", page, search],
     queryFn: async () => {
-      const data = await api.get("/admin/users", z.array(UserSchema));
-      return data.map((u: any) => ({
-        ...u,
-        full_name: u.name,
-        user_id: u.id,
-        is_banned: u.role === "banned",
-        user_roles: [{ role: u.role }],
-      }));
+      const params = new URLSearchParams({ page: String(page), per_page: "50" });
+      if (search) params.set("search", search);
+      const data = await api.get(`/admin/users?${params.toString()}`, PaginatedUsersSchema);
+      return {
+        ...data,
+        data: data.data.map((u: any) => ({
+          ...u,
+          full_name: u.name,
+          user_id: u.id,
+          is_banned: u.role === "banned",
+          user_roles: [{ role: u.role }],
+        })),
+      };
     },
   });
 }
 
 export default function AdminUsers() {
   const navigate = useNavigate();
-  const { data: users, isLoading } = useAdminUsers();
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
+  // Reset to page 1 when search changes
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const { data: result, isLoading } = useAdminUsers(page, search);
+  const users = result?.data ?? [];
+  const totalPages = result?.last_page ?? 1;
+  const totalUsers = result?.total ?? 0;
 
   if (isLoading) return <LoadingSkeleton />;
 
-  const filtered = (users ?? []).filter((u: any) => {
-    if (search && !u.email?.toLowerCase().includes(search.toLowerCase()) && !u.full_name?.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
-
-  const totalUsers = (users ?? []).length;
-  const bannedUsers = (users ?? []).filter((u: any) => u.is_banned).length;
-  const totalBalance = (users ?? []).reduce((s: number, u: any) => s + Number(u.balance ?? 0), 0);
+  const bannedUsers = users.filter((u: any) => u.is_banned).length;
+  const totalBalance = users.reduce((s: number, u: any) => s + Number(u.balance ?? 0), 0);
 
   return (
     <>
@@ -87,7 +107,7 @@ export default function AdminUsers() {
         <div className="flex items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search by name or email…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Search by name or email…" value={search} onChange={(e) => handleSearch(e.target.value)} className="pl-9" />
           </div>
         </div>
 
@@ -105,7 +125,7 @@ export default function AdminUsers() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((user: any) => (
+                {users.map((user: any) => (
                   <TableRow
                     key={user.id}
                     className="cursor-pointer hover:bg-muted/50"
@@ -134,7 +154,7 @@ export default function AdminUsers() {
                     <TableCell className="text-muted-foreground text-sm">{new Date(user.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))}
-                {filtered.length === 0 && (
+                {users.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">No users found.</TableCell>
                   </TableRow>
@@ -143,6 +163,35 @@ export default function AdminUsers() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Page {page} of {totalPages} — {totalUsers} total users
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

@@ -45,7 +45,7 @@ export default function Invoices() {
               <Table>
                 <TableHeader><TableRow><TableHead>Invoice #</TableHead><TableHead>Amount</TableHead><TableHead>Gateway</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Date</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {invoices.map((inv) => (
+                  {(invoices || []).map((inv) => (
                     <TableRow
                       key={inv.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"

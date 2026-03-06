@@ -44,6 +44,7 @@ export default function Security() {
   const { data: recoveryCodesData } = use2FARecoveryCodes(is2FAEnabled);
 
   const updateProfile = useUpdateProfile();
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [updating, setUpdating] = useState(false);
@@ -55,8 +56,13 @@ export default function Security() {
     }
     setUpdating(true);
     try {
-      await updateProfile.mutateAsync({ password: newPassword, password_confirmation: confirmPassword });
+      await updateProfile.mutateAsync({ 
+        current_password: currentPassword,
+        password: newPassword, 
+        password_confirmation: confirmPassword 
+      });
       toast({ title: "Password updated successfully" });
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: any) {
@@ -344,8 +350,13 @@ export default function Security() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Change Password</CardTitle>
+                <CardDescription>Enter your current password to set a new one.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2 max-w-sm">
+                  <Label>Current Password</Label>
+                  <Input type="password" placeholder="••••••••" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                </div>
                 <div className="space-y-2 max-w-sm">
                   <Label>New Password</Label>
                   <Input type="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
